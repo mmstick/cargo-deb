@@ -9,6 +9,7 @@ repository = "https://github.com/mmstick/cargo-deb"
 
 [package.metadata.deb]
 maintainer = "Michael Aaron Murphy <mmstickman@gmail.com>"
+copyright = "2016, Michael Aaron Murphy <mmstickman@gmail.com>"
 depends = "libc6"
 section = "utility"
 priority = "optional"

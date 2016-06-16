@@ -9,8 +9,16 @@ use toml;
 pub struct Config {
     /// The name of the project to build
     pub name: String,
+    /// The software license of the project.
+    pub license: String,
+    /// The location of the license file followed by the amount of lines to skip.
+    pub license_file: Vec<String>,
+    /// The copyright of the project.
+    pub copyright: String,
     /// The version number of the project.
     pub version: String,
+    /// The URL of the software repository.
+    pub repository: String,
     /// A short description of the project.
     pub description: String,
     /// The maintainer of the Debian package.
@@ -45,7 +53,11 @@ impl Cargo {
     fn to_config(&self) -> Config {
         Config {
             name: self.package.name.clone(),
+            license: self.package.license.clone(),
+            license_file: self.package.metadata.deb.license_file.clone(),
+            copyright: self.package.metadata.deb.copyright.clone(),
             version: self.package.version.clone(),
+            repository: self.package.repository.clone(),
             description: self.package.description.clone(),
             maintainer: self.package.metadata.deb.maintainer.clone(),
             depends: self.package.metadata.deb.depends.clone(),
@@ -60,6 +72,8 @@ impl Cargo {
 #[derive(Clone, Debug, RustcDecodable)]
 pub struct CargoPackage {
     pub name: String,
+    pub license: String,
+    pub repository: String,
     pub version: String,
     pub description: String,
     pub metadata: CargoMetadata
@@ -73,6 +87,8 @@ pub struct CargoMetadata {
 #[derive(Clone, Debug, RustcDecodable)]
 pub struct CargoDeb {
     pub maintainer: String,
+    pub copyright: String,
+    pub license_file: Vec<String>,
     pub depends: String,
     pub section: String,
     pub priority: String,

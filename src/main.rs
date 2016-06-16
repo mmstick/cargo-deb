@@ -6,7 +6,7 @@ mod config;
 
 use std::ffi::CString;
 use std::fs;
-use std::io::Write;
+use std::io::{Read, Write};
 use std::path::Path;
 use std::process::Command;
 
@@ -24,6 +24,7 @@ fn main() {
     cargo_build();
     copy_files(&options.assets);
     generate_control(&options);
+    generate_copyright(&options);
     generate_deb(&options);
 }
 
@@ -37,7 +38,8 @@ fn generate_deb(options: &Config) {
 
 /// Generates the debian/control file needed by the package.
 fn generate_control(options: &Config) {
-    let mut control = fs::OpenOptions::new().create(true).write(true).open("debian/DEBIAN/control").unwrap();
+    let mut control = fs::OpenOptions::new().create(true).write(true).open("debian/DEBIAN/control")
+        .expect("cargo-deb: could not create debian/DEBIAN/control");
     control.write(b"Package: ").unwrap();
     control.write(options.name.as_bytes()).unwrap();
     control.write(&[b'\n']).unwrap();
@@ -65,6 +67,40 @@ fn generate_control(options: &Config) {
     control.write(&[b'\n']).unwrap();
 }
 
+fn generate_copyright(options: &Config) {
+    let mut control = fs::OpenOptions::new().create(true).write(true).open("debian/DEBIAN/copyright")
+        .expect("cargo-deb: could not create debian/DEBIAN/copyright");
+    control.write(b"Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/\n").unwrap();
+    control.write(b"Upstream-Name: ").unwrap();
+    control.write(options.name.as_bytes()).unwrap();
+    control.write(&[b'\n']).unwrap();
+    control.write(b"Source: ").unwrap();
+    control.write(options.repository.as_bytes()).unwrap();
+    control.write(&[b'\n']).unwrap();
+    control.write(b"Copyright: ").unwrap();
+    control.write(options.copyright.as_bytes()).unwrap();
+    control.write(&[b'\n']).unwrap();
+    control.write(b"License: ").unwrap();
+    control.write(options.license.as_bytes()).unwrap();
+    control.write(&[b'\n']).unwrap();
+    options.license_file.get(0)
+        .map_or_else(|| panic!("cargo-deb: missing license file argument"), |path| {
+            let lines_to_skip = options.license_file.get(1).map_or(0, |x| x.parse::<usize>().unwrap_or(0));
+            let mut file = fs::File::open(path).expect("cargo-deb: license file not found");
+            let mut license_string = String::with_capacity(file.metadata().map(|x| x.len()).unwrap_or(0) as usize);
+            file.read_to_string(&mut license_string).expect("cargo-deb: error reading license file");
+            for line in license_string.lines().skip(lines_to_skip) {
+                let line = line.trim();
+                if line.is_empty() {
+                    control.write(b".\n").unwrap();
+                } else {
+                    control.write(line.as_bytes()).unwrap();
+                    control.write(&[b'\n']).unwrap();
+                }
+            }
+        })
+}
+
 /// Creates a debian directory and copies the files that are needed by the package.
 fn copy_files(assets: &[Vec<String>]) {
     fs::create_dir_all("debian/DEBIAN").expect("cargo-deb: unable to create the 'debian/DEBIAN' directory");
@@ -73,7 +109,7 @@ fn copy_files(assets: &[Vec<String>]) {
         // Obtain the target directory of the current asset.
         let mut target = String::from("debian/") + asset.get(1).expect("cargo-deb: missing target directory").as_str();
         // Determine if the target is a directory or if the last argument is what to rename the file as.
-        let target_is_dir = target.ends_with("/");
+        let target_is_dir = target.ends_with('/');
         // Create the target directory needed by the current asset.
         create_directory(&target, target_is_dir);
         // Obtain a reference to the source argument.
@@ -81,7 +117,7 @@ fn copy_files(assets: &[Vec<String>]) {
         // Append the file name to the target directory path if the file is not to be renamed.
         if target_is_dir { target = target.clone() + Path::new(source).file_name().unwrap().to_str().unwrap(); }
         // Attempt to copy the file from the source path to the target path.
-        match copy_file(source.as_str(), target.as_str(), &asset) {
+        match copy_file(source.as_str(), target.as_str(), asset) {
             Some(CopyError::CopyFailed) => panic!("cargo-deb: unable to copy {} to {}", &source, &target),
             Some(CopyError::MissingChmod) => panic!("cargo-deb: chmod argument is missing from asset: {:?}", asset),
             Some(CopyError::ChmodInvalid(chmod)) => panic!("cargo-deb: chmod argument is invalid: {}", chmod),
@@ -93,7 +129,7 @@ fn copy_files(assets: &[Vec<String>]) {
 
 /// Attempt to create the directory neede by the target.
 fn create_directory(target: &str, is_dir: bool) {
-    if target.ends_with("/") {
+    if is_dir {
         fs::create_dir_all(target).ok()
             .unwrap_or_else(|| panic!("cargo-deb: unable to create the {:?} directory", target));
     } else {
@@ -118,7 +154,8 @@ fn copy_file(source: &str, target: &str, asset: &[String]) -> Option<CopyError> 
                         // Return that the value is invalid and return the invalid argument if it is invalid.
                         .map_or(Some(CopyError::ChmodInvalid(chmod.clone())), |chmod| {
                             // Execute the system's chmod command and collect the exit status.
-                            let status = unsafe { libc::chmod(CString::new(target).unwrap().as_ptr(), chmod) };
+                            let c_string = CString::new(target).unwrap();
+                            let status = unsafe { libc::chmod(c_string.as_ptr(), chmod) };
                             // If the exit status is less than zero, return an error, else return `None`.
                             if status < 0 { Some(CopyError::ChmodError(chmod)) } else { None }
                         })
