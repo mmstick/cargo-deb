@@ -7,7 +7,9 @@ The `license_file` parameter contains the location of the license file followed 
 
 The `assets` are a list of files that will be installed into the system.
 - The first argument of each asset is the location of that asset in the Rust project.
-- The second argument is where the file will be copied
+- The second argument is where the file will be copied.
+    - If is argument ends with **/** it will be inferred that the target the directory where the file will be copied.
+    - Otherwise, it will be inferred that the source argument will be renamed when copied.
 - The third argument is the permissions to assign that file via chmod.
 
 ```toml
