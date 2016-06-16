@@ -72,12 +72,14 @@ fn copy_files(assets: &[Vec<String>]) {
     for asset in assets {
         // Obtain the target directory of the current asset.
         let mut target = String::from("debian/") + asset.get(1).expect("cargo-deb: missing target directory").as_str();
+        // Determine if the target is a directory or if the last argument is what to rename the file as.
+        let target_is_dir = target.ends_with("/");
         // Create the target directory needed by the current asset.
-        create_directory(&target);
+        create_directory(&target, target_is_dir);
         // Obtain a reference to the source argument.
         let source = &asset[0];
-        // Append the file name to the target directory path.
-        target = target.clone() + "/" + Path::new(source).file_name().unwrap().to_str().unwrap();
+        // Append the file name to the target directory path if the file is not to be renamed.
+        if target_is_dir { target = target.clone() + Path::new(source).file_name().unwrap().to_str().unwrap(); }
         // Attempt to copy the file from the source path to the target path.
         match copy_file(source.as_str(), target.as_str(), &asset) {
             Some(CopyError::CopyFailed) => panic!("cargo-deb: unable to copy {} to {}", &source, &target),
@@ -90,9 +92,16 @@ fn copy_files(assets: &[Vec<String>]) {
 }
 
 /// Attempt to create the directory neede by the target.
-fn create_directory(target: &str) {
-    fs::create_dir_all(target).ok()
-        .unwrap_or_else(|| panic!("cargo-deb: unable to create the {:?} directory", target));
+fn create_directory(target: &str, is_dir: bool) {
+    if target.ends_with("/") {
+        fs::create_dir_all(target).ok()
+            .unwrap_or_else(|| panic!("cargo-deb: unable to create the {:?} directory", target));
+    } else {
+        let parent = Path::new(target).parent().unwrap();
+        fs::create_dir_all(parent).ok()
+            .unwrap_or_else(|| panic!("cargo-deb: unable to create the {:?} directory", target));
+    }
+
 }
 
 /// Attempt to copy the source file to the target path.

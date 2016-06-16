@@ -12,7 +12,11 @@ maintainer = "Michael Aaron Murphy <mmstickman@gmail.com>"
 depends = "libc6"
 section = "utility"
 priority = "optional"
-assets = [["target/release/cargo-deb", "usr/bin", "755"]]
+assets = [
+    ["target/release/cargo-deb", "usr/bin/", "755"],
+    ["LICENSE", "usr/share/licenses/systemd-manager/COPYING", "644"],
+    ["README.md", "/usr/share/doc/systemd-manager/README", "644"],
+]
 
 [dependencies]
 rustc-serialize = "0.3.19"
