@@ -24,3 +24,4 @@ assets = [
 rustc-serialize = "0.3.19"
 toml = "0.1.28"
 libc = "0.2.12"
+walkdir = "0.1.5"

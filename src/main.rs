@@ -1,16 +1,18 @@
 extern crate libc;
 extern crate rustc_serialize;
 extern crate toml;
+extern crate walkdir;
 
 mod config;
 
 use std::ffi::CString;
 use std::fs;
 use std::io::{Read, Write};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use config::Config;
+use walkdir::WalkDir;
 
 enum CopyError {
     CopyFailed,
@@ -25,7 +27,19 @@ fn main() {
     copy_files(&options.assets);
     generate_control(&options);
     generate_copyright(&options);
+    set_directory_permissions();
     generate_deb(&options);
+}
+
+// Rust creates directories with 775 by default. This changes them to the correct permissions, 755.
+fn set_directory_permissions() {
+    for entry in WalkDir::new("debian").into_iter().map(|entry| entry.unwrap()) {
+        if entry.metadata().unwrap().is_dir() {
+            let c_string = CString::new(entry.path().to_str().unwrap()).unwrap();
+            let status = unsafe { libc::chmod(c_string.as_ptr(), u32::from_str_radix("755", 8).unwrap()) };
+            if status < 0 { panic!("cargo-deb: chmod error occurred changing directory permissions"); }
+        }
+    }
 }
 
 /// Attempts to generate a Debian package
@@ -68,7 +82,10 @@ fn generate_control(options: &Config) {
 }
 
 fn generate_copyright(options: &Config) {
-    let mut control = fs::OpenOptions::new().create(true).write(true).open("debian/DEBIAN/copyright")
+    let directory = PathBuf::from("debian/usr/share/doc/").join(options.name.clone());
+    fs::create_dir_all(&directory)
+        .expect("cargo-deb: unable to create `debian/usr/share/doc/<package>/`");
+    let mut control = fs::OpenOptions::new().create(true).write(true).open(&directory.join("copyright"))
         .expect("cargo-deb: could not create debian/DEBIAN/copyright");
     control.write(b"Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/\n").unwrap();
     control.write(b"Upstream-Name: ").unwrap();
@@ -98,7 +115,10 @@ fn generate_copyright(options: &Config) {
                     control.write(&[b'\n']).unwrap();
                 }
             }
-        })
+        });
+    let c_string = CString::new(directory.join("copyright").to_str().unwrap()).unwrap();
+    let status = unsafe { libc::chmod(c_string.as_ptr(), u32::from_str_radix("644", 8).unwrap()) };
+    if status < 0 { panic!("cargo-deb: chmod error occurred in creating copyright file"); }
 }
 
 /// Creates a debian directory and copies the files that are needed by the package.
@@ -142,7 +162,6 @@ fn create_directory(target: &str, is_dir: bool) {
         fs::create_dir_all(parent).ok()
             .unwrap_or_else(|| panic!("cargo-deb: unable to create the {:?} directory", target));
     }
-
 }
 
 /// Attempt to copy the source file to the target path.
