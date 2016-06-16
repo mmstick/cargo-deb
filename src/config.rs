@@ -83,13 +83,7 @@ pub struct CargoDeb {
 fn current_manifest_path() -> PathBuf {
     let output = Command::new("cargo").arg("locate-project").output().unwrap();
 
-    if !output.status.success() {
-        if let Some(code) = output.status.code() {
-            exit(code);
-        } else {
-            exit(-1);
-        }
-    }
+    if !output.status.success() { exit(output.status.code().unwrap_or(-1)); }
 
     #[derive(RustcDecodable)]
     struct Data { root: String }
@@ -101,8 +95,12 @@ fn current_manifest_path() -> PathBuf {
 /// Opens the Cargo.toml file and places the contents into the `content` `String`.
 fn manifest_contents(manifest_path: &Path, content: &mut String) {
     File::open(manifest_path).ok()
+        // If Cargo.toml cannot be opened, panic.
         .map_or_else(|| panic!("cargo-deb: could not open manifest file"), |mut file| {
-            file.read_to_string(content).expect("cargo-deb: invalid or missing Cargo.toml options");
+            // Read the contents of the Cargo.toml fie into the `content` String
+            file.read_to_string(content)
+                // Panic if Cargo.toml could not be opened.
+                .expect("cargo-deb: invalid or missing Cargo.toml options");
         });
 }
 
@@ -110,5 +108,6 @@ fn manifest_contents(manifest_path: &Path, content: &mut String) {
 fn get_arch() -> String {
     let output = Command::new("dpkg").arg("--print-architecture").output()
         .expect("cargo-deb: failed to run 'dpkg --print-architecture'");
-    String::from_utf8(output.stdout).expect("cargo-deb: 'dpkg --print-architecture' did not return a valid UTF8 string.")
+    String::from_utf8(output.stdout)
+        .expect("cargo-deb: 'dpkg --print-architecture' did not return a valid UTF8 string.")
 }

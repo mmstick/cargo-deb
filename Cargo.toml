@@ -17,3 +17,4 @@ assets = [["target/release/cargo-deb", "usr/bin", "755"]]
 [dependencies]
 rustc-serialize = "0.3.19"
 toml = "0.1.28"
+libc = "0.2.12"
