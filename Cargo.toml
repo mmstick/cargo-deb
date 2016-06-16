@@ -1,0 +1,19 @@
+[package]
+name = "cargo-deb"
+version = "0.0.1"
+license = "MIT"
+authors = ["Michael Aaron Murphy <mmstickman@gmail.com>"]
+description = "Cargo subcommand that generates Debian packages"
+keywords = [ "cargo", "subcommand", "deb" ]
+repository = "https://github.com/mmstick/cargo-deb"
+
+[package.metadata.deb]
+maintainer = "Michael Aaron Murphy <mmstickman@gmail.com>"
+depends = "libc6"
+section = "utility"
+priority = "optional"
+assets = [["target/release/cargo-deb", "usr/bin", "755"]]
+
+[dependencies]
+rustc-serialize = "0.3.19"
+toml = "0.1.28"
