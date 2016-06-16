@@ -108,6 +108,8 @@ fn manifest_contents(manifest_path: &Path, content: &mut String) {
 fn get_arch() -> String {
     let output = Command::new("dpkg").arg("--print-architecture").output()
         .expect("cargo-deb: failed to run 'dpkg --print-architecture'");
-    String::from_utf8(output.stdout)
-        .expect("cargo-deb: 'dpkg --print-architecture' did not return a valid UTF8 string.")
+    let mut arch = String::from_utf8(output.stdout)
+        .expect("cargo-deb: 'dpkg --print-architecture' did not return a valid UTF8 string.");
+    arch.pop().unwrap();
+    arch
 }
