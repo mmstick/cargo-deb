@@ -12,6 +12,13 @@ use std::process::Command;
 
 use config::Config;
 
+enum CopyError {
+    CopyFailed,
+    MissingChmod,
+    ChmodInvalid(String),
+    ChmodError(u32)
+}
+
 fn main() {
     let options = Config::new();
     cargo_build();
@@ -61,30 +68,55 @@ fn generate_control(options: &Config) {
 /// Creates a debian directory and copies the files that are needed by the package.
 fn copy_files(assets: &[Vec<String>]) {
     fs::create_dir_all("debian/DEBIAN").expect("cargo-deb: unable to create the 'debian/DEBIAN' directory");
-
+    // Copy each of the assets into the debian directory listed in the assets parameter
     for asset in assets {
-        let target = asset.get(1).expect("cargo-deb: missing target directory");
-        let target = String::from("debian/") + target.as_str();
-        fs::create_dir_all(target.clone()).ok()
-            .unwrap_or_else(|| panic!("cargo-deb: unable to create the {:?} directory", target));
-
-        // Copy the asset's source to the target path.
+        // Obtain the target directory of the current asset.
+        let mut target = String::from("debian/") + asset.get(1).expect("cargo-deb: missing target directory").as_str();
+        // Create the target directory needed by the current asset.
+        create_directory(&target);
+        // Obtain a reference to the source argument.
         let source = &asset[0];
-        let file_name = Path::new(source).file_name().unwrap().to_str().unwrap();
-        let target = target.clone() + "/" + file_name;
-        fs::copy(source, target.clone()).ok()
-            .unwrap_or_else(|| panic!("cargo-deb: unable to copy {} to {}", source, target));
-
-        // Set the permissions of the new source file.
-        let source = CString::new(target.as_str()).unwrap();
-        let chmod = asset.get(2).unwrap_or_else(|| panic!("cargo-deb: missing chmod in {:?}", asset));
-        let chmod = u32::from_str_radix(chmod.as_str(), 8).expect("cargo-deb: chmod value is invalid");
-        unsafe {
-            if libc::chmod(source.as_ptr(), chmod) < 0 {
-                panic!("cargo-deb: error in chmod: {}", chmod);
-            }
+        // Append the file name to the target directory path.
+        target = target.clone() + "/" + Path::new(source).file_name().unwrap().to_str().unwrap();
+        // Attempt to copy the file from the source path to the target path.
+        match copy_file(source.as_str(), target.as_str(), &asset) {
+            Some(CopyError::CopyFailed) => panic!("cargo-deb: unable to copy {} to {}", &source, &target),
+            Some(CopyError::MissingChmod) => panic!("cargo-deb: chmod argument is missing from asset: {:?}", asset),
+            Some(CopyError::ChmodInvalid(chmod)) => panic!("cargo-deb: chmod argument is invalid: {}", chmod),
+            Some(CopyError::ChmodError(chmod)) => panic!("cargo-deb: chmod failed: {}", chmod),
+            _ => ()
         }
     }
+}
+
+/// Attempt to create the directory neede by the target.
+fn create_directory(target: &str) {
+    fs::create_dir_all(target).ok()
+        .unwrap_or_else(|| panic!("cargo-deb: unable to create the {:?} directory", target));
+}
+
+/// Attempt to copy the source file to the target path.
+fn copy_file(source: &str, target: &str, asset: &[String]) -> Option<CopyError> {
+    fs::copy(source, target).ok()
+        // If the file could not be copied, return the `CopyFailed` error
+        .map_or(Some(CopyError::CopyFailed), |_| {
+            // Attempt to collect the chmod argument, which is the third argument.
+            asset.get(2)
+                // If the chmod argument is missing, return `Some(CopyError::MissingChmod)`
+                .map_or(Some(CopyError::MissingChmod), |chmod| {
+                    // Obtain the octal representation of the chmod argument.
+                    u32::from_str_radix(chmod.as_str(), 8).ok()
+                        // Return that the value is invalid and return the invalid argument if it is invalid.
+                        .map_or(Some(CopyError::ChmodInvalid(chmod.clone())), |chmod| {
+                            // Execute the system's chmod command and collect the exit status.
+                            let status = unsafe { libc::chmod(CString::new(target).unwrap().as_ptr(), chmod) };
+                            // If the exit status is less than zero, return an error, else return `None`.
+                            if status < 0 { Some(CopyError::ChmodError(chmod)) } else { None }
+                        })
+                })
+        })
+
+
 }
 
 /// Builds a release binary with `cargo build --release`
