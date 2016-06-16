@@ -7,14 +7,23 @@ use toml;
 
 #[derive(Debug)]
 pub struct Config {
+    /// The name of the project to build
     pub name: String,
+    /// The version number of the project.
     pub version: String,
+    /// A short description of the project.
     pub description: String,
+    /// The maintainer of the Debian package.
     pub maintainer: String,
+    /// The Debian dependencies required to run the project.
     pub depends: String,
+    /// The category by which the package belongs.
     pub section: String,
+    /// The priority of the project. Typically 'optional'.
     pub priority: String,
+    /// The architecture of the running system.
     pub architecture: String,
+    /// All of the files that are to be packaged. `{ source_file, target_path, chmod }`
     pub assets: Vec<Vec<String>>
 }
 
@@ -89,6 +98,7 @@ fn current_manifest_path() -> PathBuf {
     Path::new(&decoded.root).to_owned()
 }
 
+/// Opens the Cargo.toml file and places the contents into the `content` `String`.
 fn manifest_contents(manifest_path: &Path, content: &mut String) {
     File::open(manifest_path).ok()
         .map_or_else(|| panic!("cargo-deb: could not open manifest file"), |mut file| {
@@ -96,6 +106,9 @@ fn manifest_contents(manifest_path: &Path, content: &mut String) {
         });
 }
 
+/// Utilizes `dpkg --print-architecutre` to determine that architecture to generate a package for.
 fn get_arch() -> String {
-    String::from("amd64")
+    let output = Command::new("dpkg").arg("--print-architecture").output()
+        .expect("cargo-deb: failed to run 'dpkg --print-architecture'");
+    String::from_utf8(output.stdout).expect("cargo-deb: 'dpkg --print-architecture' did not return a valid UTF8 string.")
 }

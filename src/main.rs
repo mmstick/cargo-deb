@@ -21,6 +21,7 @@ fn main() {
     generate_deb(&options);
 }
 
+/// Attempts to generate a Debian package
 fn generate_deb(options: &Config) {
     // fakeroot dpkg-deb --build debian "package-name_version_architecture.deb"
     let package_name = options.name.clone() + "_" + options.version.as_str() + "_" + options.architecture.as_str() + ".deb";
@@ -28,6 +29,7 @@ fn generate_deb(options: &Config) {
         expect("cargo-deb: failed to generate Debian package");
 }
 
+/// Generates the debian/control file needed by the package.
 fn generate_control(options: &Config) {
     let mut control = fs::OpenOptions::new().create(true).write(true).open("debian/DEBIAN/control").unwrap();
     control.write(b"Package: ").unwrap();
@@ -57,6 +59,7 @@ fn generate_control(options: &Config) {
     control.write(&[b'\n']).unwrap();
 }
 
+/// Creates a debian directory and copies the files that are needed by the package.
 fn copy_files(assets: &[Vec<String>]) {
     fs::create_dir_all("debian/DEBIAN").expect("cargo-deb: unable to create the 'debian/DEBIAN' directory");
 
@@ -85,6 +88,7 @@ fn copy_files(assets: &[Vec<String>]) {
     }
 }
 
+/// Builds a release binary with `cargo build --release`
 fn cargo_build() {
     Command::new("cargo").arg("build").arg("--release").status().expect("cargo-deb: failed to build project");
 }
