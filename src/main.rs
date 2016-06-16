@@ -107,7 +107,12 @@ fn copy_files(assets: &[Vec<String>]) {
     // Copy each of the assets into the debian directory listed in the assets parameter
     for asset in assets {
         // Obtain the target directory of the current asset.
-        let mut target = String::from("debian/") + asset.get(1).expect("cargo-deb: missing target directory").as_str();
+        let mut target = asset.get(1).cloned().expect("cargo-deb: missing target directory");
+        target = if target.starts_with('/') {
+            String::from("debian") + target.as_str()
+        } else {
+            String::from("debian/") + target.as_str()
+        };
         // Determine if the target is a directory or if the last argument is what to rename the file as.
         let target_is_dir = target.ends_with('/');
         // Create the target directory needed by the current asset.
