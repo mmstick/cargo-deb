@@ -55,37 +55,19 @@ fn generate_deb(options: &Config) {
 
 /// Generates the debian/control file needed by the package.
 fn generate_control(options: &Config) {
-    let mut control = fs::OpenOptions::new().create(true).write(true).open("debian/DEBIAN/control")
+    let mut control = fs::OpenOptions::new().create(true).write(true).truncate(true).open("debian/DEBIAN/control")
         .try("cargo-deb: could not create debian/DEBIAN/control");
-    control.write(b"Package: ").unwrap();
-    control.write(options.name.as_bytes()).unwrap();
-    control.write(&[b'\n']).unwrap();
-    control.write(b"Version: ").unwrap();
-    control.write(options.version.as_bytes()).unwrap();
-    control.write(&[b'\n']).unwrap();
-    control.write(b"Section: ").unwrap();
-    control.write(options.section.as_bytes()).unwrap();
-    control.write(&[b'\n']).unwrap();
-    control.write(b"Priority: ").unwrap();
-    control.write(options.priority.as_bytes()).unwrap();
-    control.write(&[b'\n']).unwrap();
+    write!(&mut control, "Package: {}\n", options.name).unwrap();
+    write!(&mut control, "Version: {}\n", options.version).unwrap();
+    write!(&mut control, "Section: {}\n", options.section).unwrap();
+    write!(&mut control, "Priority: {}\n", options.priority).unwrap();
     control.write(b"Standards-Version: 3.9.4\n").unwrap();
-    control.write(b"Maintainer: ").unwrap();
-    control.write(options.maintainer.as_bytes()).unwrap();
-    control.write(&[b'\n']).unwrap();
-    control.write(b"Architecture: ").unwrap();
-    control.write(options.architecture.as_bytes()).unwrap();
-    control.write(&[b'\n']).unwrap();
-    control.write(b"Depends: ").unwrap();
-    control.write(options.depends.as_bytes()).unwrap();
-    control.write(&[b'\n']).unwrap();
-    control.write(b"Description: ").unwrap();
-    control.write(options.description.as_bytes()).unwrap();
-    control.write(&[b'\n']).unwrap();
+    write!(&mut control, "Maintainer: {}\n", options.maintainer).unwrap();
+    write!(&mut control, "Architecture: {}\n", options.architecture).unwrap();
+    write!(&mut control, "Depends: {}\n", options.depends).unwrap();
+    write!(&mut control, "Description: {}\n", options.description).unwrap();
     for line in &options.extended_description {
-        control.write(&[b' ']).unwrap();
-        control.write(line.as_bytes()).unwrap();
-        control.write(&[b'\n']).unwrap();
+        write!(&mut control, " {}\n", line).unwrap();
     }
 }
 
@@ -93,7 +75,7 @@ fn generate_copyright(options: &Config) {
     let directory = PathBuf::from("debian/usr/share/doc/").join(options.name.clone());
     fs::create_dir_all(&directory)
         .try("cargo-deb: unable to create `debian/usr/share/doc/<package>/`");
-    let mut copyright = fs::OpenOptions::new().create(true).write(true).open(&directory.join("copyright"))
+    let mut copyright = fs::OpenOptions::new().create(true).write(true).truncate(true).open(&directory.join("copyright"))
         .try("cargo-deb: could not create debian/DEBIAN/copyright");
     copyright.write(b"Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/\n").unwrap();
     copyright.write(b"Upstream-Name: ").unwrap();
