@@ -24,7 +24,7 @@ directory. If you would like to handle the build process yourself, you can use `
 maintainer = "Michael Aaron Murphy <mmstickman@gmail.com>"
 copyright = "2016, Michael Aaron Murphy <mmstickman@gmail.com>"
 license_file = ["LICENSE", "4"]
-extended_description = """
+extended_description = """\
 A simple subcommand for the Cargo package manager for \
 building Debian packages from Rust projects."""
 depends = "libc6"
@@ -44,7 +44,7 @@ maintainer = "Michael Aaron Murphy <mmstickman@gmail.com>"
 copyright = "2015-2016, Michael Aaron Murphy <mmstickman@gmail.com>"
 license_file = ["LICENSE", "3"]
 depends = "libc6, libgtk-3-0 (>= 3.16)"
-extended_description = """
+extended_description = """\
 Written safely in Rust, this systemd manager provides a simple GTK3 GUI interface \
 that allows you to enable/disable/start/stop services, monitor service logs, and \
 edit unit files without ever using the terminal."""
