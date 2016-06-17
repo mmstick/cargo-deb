@@ -2,6 +2,8 @@ use std::fs::File;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::{exit, Command};
+use std::mem;
+use libc;
 use rustc_serialize;
 use toml;
 
@@ -127,12 +129,21 @@ fn manifest_contents(manifest_path: &Path, content: &mut String) {
         });
 }
 
-/// Utilizes `dpkg --print-architecutre` to determine that architecture to generate a package for.
+/// Calls the `uname` function from libc to obtain the machine architecture, and then Debianizes the architecture name.
 fn get_arch() -> String {
-    let output = Command::new("dpkg").arg("--print-architecture").output()
-        .try("cargo-deb: failed to run 'dpkg --print-architecture'");
-    let mut arch = String::from_utf8(output.stdout)
-        .try("cargo-deb: 'dpkg --print-architecture' did not return a valid UTF8 string.");
-    arch.pop().unwrap();
-    arch
+    let arch = unsafe {
+        let mut utsname: libc::utsname = mem::uninitialized();
+        let status = libc::uname(&mut utsname);
+        if status < 0 {
+            failed("cargo-deb: could not obtain machine architecture from the libc uname function");
+        } else {
+            String::from_utf8_unchecked(utsname.machine.iter().map(|x| *x as u8).collect::<Vec<u8>>())
+        }
+    };
+
+    match arch.as_str() {
+        "x86_64" => String::from("amd64"),
+        "noarch" => String::from("all"),
+        _        => arch
+    }
 }

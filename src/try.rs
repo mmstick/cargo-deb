@@ -34,7 +34,7 @@ impl<T> Try for Option<T> {
     }
 }
 
-pub fn failed<T: AsRef<str>>(input: T) {
+pub fn failed<T: AsRef<str>>(input: T) -> ! {
     let input = input.as_ref();
     let mut stderr = io::stderr();
     stderr.write(input.as_bytes()).unwrap();
