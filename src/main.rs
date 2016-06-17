@@ -4,6 +4,7 @@ extern crate toml;
 extern crate walkdir;
 
 mod config;
+mod charsplit;
 
 use std::ffi::CString;
 use std::fs;
@@ -78,6 +79,11 @@ fn generate_control(options: &Config) {
     control.write(&[b'\n']).unwrap();
     control.write(b"Description: ").unwrap();
     control.write(options.description.as_bytes()).unwrap();
+    control.write(&[b'\n', b' ']).unwrap();
+    for line in &options.extended_description {
+        control.write(&[b' ']).unwrap();
+        control.write(line.as_bytes()).unwrap();
+    }
     control.write(&[b'\n']).unwrap();
 }
 

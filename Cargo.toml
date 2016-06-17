@@ -11,12 +11,14 @@ repository = "https://github.com/mmstick/cargo-deb"
 maintainer = "Michael Aaron Murphy <mmstickman@gmail.com>"
 copyright = "2016, Michael Aaron Murphy <mmstickman@gmail.com>"
 license_file = ["LICENSE", "4"]
+extended_description = """
+A simple subcommand for the Cargo package manager for \
+building Debian packages from Rust projects."""
 depends = "libc6"
 section = "utility"
 priority = "optional"
 assets = [
     ["target/release/cargo-deb", "usr/bin/", "755"],
-    ["LICENSE", "usr/share/licenses/cargo-deb/COPYING", "644"],
     ["README.md", "usr/share/doc/cargo-deb/README", "644"],
 ]
 

@@ -5,6 +5,8 @@ use std::process::{exit, Command};
 use rustc_serialize;
 use toml;
 
+use charsplit::CharSplit;
+
 #[derive(Debug)]
 pub struct Config {
     /// The name of the project to build
@@ -21,6 +23,8 @@ pub struct Config {
     pub repository: String,
     /// A short description of the project.
     pub description: String,
+    /// An extended description of the project.
+    pub extended_description: Vec<String>,
     /// The maintainer of the Debian package.
     pub maintainer: String,
     /// The Debian dependencies required to run the project.
@@ -59,6 +63,7 @@ impl Cargo {
             version: self.package.version.clone(),
             repository: self.package.repository.clone(),
             description: self.package.description.clone(),
+            extended_description: self.package.metadata.deb.extended_description.split_by_chars(80),
             maintainer: self.package.metadata.deb.maintainer.clone(),
             depends: self.package.metadata.deb.depends.clone(),
             section: self.package.metadata.deb.section.clone(),
@@ -90,6 +95,7 @@ pub struct CargoDeb {
     pub copyright: String,
     pub license_file: Vec<String>,
     pub depends: String,
+    pub extended_description: String,
     pub section: String,
     pub priority: String,
     pub assets: Vec<Vec<String>>,
