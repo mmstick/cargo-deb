@@ -23,7 +23,7 @@ enum CopyError {
 
 fn main() {
     let options = Config::new();
-    cargo_build();
+    if !std::env::args().any(|x| x.as_str() == "--no-build") { cargo_build(options.name.as_str()); }
     copy_files(&options.assets);
     generate_control(&options);
     generate_copyright(&options);
@@ -186,10 +186,12 @@ fn copy_file(source: &str, target: &str, asset: &[String]) -> Option<CopyError> 
                 })
         })
 
-
 }
 
 /// Builds a release binary with `cargo build --release`
-fn cargo_build() {
+fn cargo_build(name: &str) {
     Command::new("cargo").arg("build").arg("--release").status().expect("cargo-deb: failed to build project");
+    Command::new("strip").arg("--strip-unneeded")
+        .arg(String::from("target/release/") + name)
+        .status().expect("cargo-deb: could not strip binary");
 }
