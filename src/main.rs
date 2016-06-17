@@ -83,8 +83,8 @@ fn generate_control(options: &Config) {
     for line in &options.extended_description {
         control.write(&[b' ']).unwrap();
         control.write(line.as_bytes()).unwrap();
+        control.write(&[b'\n']).unwrap();
     }
-    control.write(&[b'\n']).unwrap();
 }
 
 fn generate_copyright(options: &Config) {
