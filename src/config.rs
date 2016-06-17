@@ -6,6 +6,7 @@ use rustc_serialize;
 use toml;
 
 use wordsplit::WordSplit;
+use try::{failed, Try};
 
 #[derive(Debug)]
 pub struct Config {
@@ -43,7 +44,7 @@ impl Config {
     pub fn new() -> Config {
         let mut content = String::new();
         manifest_contents(&current_manifest_path(), &mut content);
-        toml::decode_str::<Cargo>(&content).expect("cargo-deb: could not decode manifest").to_config()
+        toml::decode_str::<Cargo>(&content).try("cargo-deb: could not decode manifest").to_config()
     }
 }
 
@@ -118,20 +119,20 @@ fn current_manifest_path() -> PathBuf {
 fn manifest_contents(manifest_path: &Path, content: &mut String) {
     File::open(manifest_path).ok()
         // If Cargo.toml cannot be opened, panic.
-        .map_or_else(|| panic!("cargo-deb: could not open manifest file"), |mut file| {
+        .map_or_else(|| failed("cargo-deb: could not open manifest file"), |mut file| {
             // Read the contents of the Cargo.toml fie into the `content` String
             file.read_to_string(content)
-                // Panic if Cargo.toml could not be opened.
-                .expect("cargo-deb: invalid or missing Cargo.toml options");
+                // Error if Cargo.toml could not be opened.
+                .try("cargo-deb: invalid or missing Cargo.toml options");
         });
 }
 
 /// Utilizes `dpkg --print-architecutre` to determine that architecture to generate a package for.
 fn get_arch() -> String {
     let output = Command::new("dpkg").arg("--print-architecture").output()
-        .expect("cargo-deb: failed to run 'dpkg --print-architecture'");
+        .try("cargo-deb: failed to run 'dpkg --print-architecture'");
     let mut arch = String::from_utf8(output.stdout)
-        .expect("cargo-deb: 'dpkg --print-architecture' did not return a valid UTF8 string.");
+        .try("cargo-deb: 'dpkg --print-architecture' did not return a valid UTF8 string.");
     arch.pop().unwrap();
     arch
 }

@@ -4,6 +4,7 @@ extern crate toml;
 extern crate walkdir;
 
 mod config;
+mod try;
 mod wordsplit;
 
 use std::ffi::CString;
@@ -13,6 +14,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use config::Config;
+use try::{failed, Try};
 use walkdir::WalkDir;
 
 enum CopyError {
@@ -38,7 +40,7 @@ fn set_directory_permissions() {
         if entry.metadata().unwrap().is_dir() {
             let c_string = CString::new(entry.path().to_str().unwrap()).unwrap();
             let status = unsafe { libc::chmod(c_string.as_ptr(), u32::from_str_radix("755", 8).unwrap()) };
-            if status < 0 { panic!("cargo-deb: chmod error occurred changing directory permissions"); }
+            if status < 0 { failed("cargo-deb: chmod error occurred changing directory permissions"); }
         }
     }
 }
@@ -48,13 +50,13 @@ fn generate_deb(options: &Config) {
     // fakeroot dpkg-deb --build debian "package-name_version_architecture.deb"
     let package_name = options.name.clone() + "_" + options.version.as_str() + "_" + options.architecture.as_str() + ".deb";
     Command::new("fakeroot").arg("dpkg-deb").arg("--build").arg("debian").arg(&package_name).status().
-        expect("cargo-deb: failed to generate Debian package");
+        try("cargo-deb: failed to generate Debian package");
 }
 
 /// Generates the debian/control file needed by the package.
 fn generate_control(options: &Config) {
     let mut control = fs::OpenOptions::new().create(true).write(true).open("debian/DEBIAN/control")
-        .expect("cargo-deb: could not create debian/DEBIAN/control");
+        .try("cargo-deb: could not create debian/DEBIAN/control");
     control.write(b"Package: ").unwrap();
     control.write(options.name.as_bytes()).unwrap();
     control.write(&[b'\n']).unwrap();
@@ -90,9 +92,9 @@ fn generate_control(options: &Config) {
 fn generate_copyright(options: &Config) {
     let directory = PathBuf::from("debian/usr/share/doc/").join(options.name.clone());
     fs::create_dir_all(&directory)
-        .expect("cargo-deb: unable to create `debian/usr/share/doc/<package>/`");
+        .try("cargo-deb: unable to create `debian/usr/share/doc/<package>/`");
     let mut copyright = fs::OpenOptions::new().create(true).write(true).open(&directory.join("copyright"))
-        .expect("cargo-deb: could not create debian/DEBIAN/copyright");
+        .try("cargo-deb: could not create debian/DEBIAN/copyright");
     copyright.write(b"Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/\n").unwrap();
     copyright.write(b"Upstream-Name: ").unwrap();
     copyright.write(options.name.as_bytes()).unwrap();
@@ -107,11 +109,11 @@ fn generate_copyright(options: &Config) {
     copyright.write(options.license.as_bytes()).unwrap();
     copyright.write(&[b'\n']).unwrap();
     options.license_file.get(0)
-        .map_or_else(|| panic!("cargo-deb: missing license file argument"), |path| {
+        .map_or_else(|| failed("cargo-deb: missing license file argument"), |path| {
             let lines_to_skip = options.license_file.get(1).map_or(0, |x| x.parse::<usize>().unwrap_or(0));
-            let mut file = fs::File::open(path).expect("cargo-deb: license file not found");
+            let mut file = fs::File::open(path).try("cargo-deb: license file not found");
             let mut license_string = String::with_capacity(file.metadata().map(|x| x.len()).unwrap_or(0) as usize);
-            file.read_to_string(&mut license_string).expect("cargo-deb: error reading license file");
+            file.read_to_string(&mut license_string).try("cargo-deb: error reading license file");
             for line in license_string.lines().skip(lines_to_skip) {
                 let line = line.trim();
                 if line.is_empty() {
@@ -124,16 +126,16 @@ fn generate_copyright(options: &Config) {
         });
     let c_string = CString::new(directory.join("copyright").to_str().unwrap()).unwrap();
     let status = unsafe { libc::chmod(c_string.as_ptr(), u32::from_str_radix("644", 8).unwrap()) };
-    if status < 0 { panic!("cargo-deb: chmod error occurred in creating copyright file"); }
+    if status < 0 { failed("cargo-deb: chmod error occurred in creating copyright file"); }
 }
 
 /// Creates a debian directory and copies the files that are needed by the package.
 fn copy_files(assets: &[Vec<String>]) {
-    fs::create_dir_all("debian/DEBIAN").expect("cargo-deb: unable to create the 'debian/DEBIAN' directory");
+    fs::create_dir_all("debian/DEBIAN").try("cargo-deb: unable to create the 'debian/DEBIAN' directory");
     // Copy each of the assets into the debian directory listed in the assets parameter
     for asset in assets {
         // Obtain the target directory of the current asset.
-        let mut target = asset.get(1).cloned().expect("cargo-deb: missing target directory");
+        let mut target = asset.get(1).cloned().try("cargo-deb: missing target directory");
         target = if target.starts_with('/') {
             String::from("debian") + target.as_str()
         } else {
@@ -149,10 +151,18 @@ fn copy_files(assets: &[Vec<String>]) {
         if target_is_dir { target = target.clone() + Path::new(source).file_name().unwrap().to_str().unwrap(); }
         // Attempt to copy the file from the source path to the target path.
         match copy_file(source.as_str(), target.as_str(), asset) {
-            Some(CopyError::CopyFailed) => panic!("cargo-deb: unable to copy {} to {}", &source, &target),
-            Some(CopyError::ChmodMissing) => panic!("cargo-deb: chmod argument is missing from asset: {:?}", asset),
-            Some(CopyError::ChmodInvalid(chmod)) => panic!("cargo-deb: chmod argument is invalid: {}", chmod),
-            Some(CopyError::ChmodError(chmod)) => panic!("cargo-deb: chmod failed: {}", chmod),
+            Some(CopyError::CopyFailed) => {
+                failed(format!("cargo-deb: unable to copy {} to {}", &source, &target))
+            },
+            Some(CopyError::ChmodMissing) => {
+                failed(format!("cargo-deb: chmod argument is missing from asset: {:?}", asset))
+            },
+            Some(CopyError::ChmodInvalid(chmod)) => {
+                failed(format!("cargo-deb: chmod argument is invalid: {}", chmod))
+            },
+            Some(CopyError::ChmodError(chmod)) => {
+                failed(format!("cargo-deb: chmod failed: {}", chmod))
+            },
             _ => ()
         }
     }
@@ -162,11 +172,11 @@ fn copy_files(assets: &[Vec<String>]) {
 fn create_directory(target: &str, is_dir: bool) {
     if is_dir {
         fs::create_dir_all(target).ok()
-            .unwrap_or_else(|| panic!("cargo-deb: unable to create the {:?} directory", target));
+            .unwrap_or_else(|| failed(format!("cargo-deb: unable to create the {:?} directory", target)));
     } else {
         let parent = Path::new(target).parent().unwrap();
         fs::create_dir_all(parent).ok()
-            .unwrap_or_else(|| panic!("cargo-deb: unable to create the {:?} directory", target));
+            .unwrap_or_else(|| failed(format!("cargo-deb: unable to create the {:?} directory", target)));
     }
 }
 
@@ -196,8 +206,8 @@ fn copy_file(source: &str, target: &str, asset: &[String]) -> Option<CopyError> 
 
 /// Builds a release binary with `cargo build --release`
 fn cargo_build(name: &str) {
-    Command::new("cargo").arg("build").arg("--release").status().expect("cargo-deb: failed to build project");
+    Command::new("cargo").arg("build").arg("--release").status().try("cargo-deb: failed to build project");
     Command::new("strip").arg("--strip-unneeded")
         .arg(String::from("target/release/") + name)
-        .status().expect("cargo-deb: could not strip binary");
+        .status().try("cargo-deb: could not strip binary");
 }
