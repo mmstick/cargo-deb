@@ -5,7 +5,7 @@ use std::process::{exit, Command};
 use rustc_serialize;
 use toml;
 
-use charsplit::CharSplit;
+use wordsplit::WordSplit;
 
 #[derive(Debug)]
 pub struct Config {
@@ -63,7 +63,7 @@ impl Cargo {
             version: self.package.version.clone(),
             repository: self.package.repository.clone(),
             description: self.package.description.clone(),
-            extended_description: self.package.metadata.deb.extended_description.split_by_chars(80),
+            extended_description: self.package.metadata.deb.extended_description.split_by_chars(79),
             maintainer: self.package.metadata.deb.maintainer.clone(),
             depends: self.package.metadata.deb.depends.clone(),
             section: self.package.metadata.deb.section.clone(),

@@ -1,8 +1,8 @@
-pub trait CharSplit {
+pub trait WordSplit {
     fn split_by_chars(&self, length: usize) -> Vec<String>;
 }
 
-impl CharSplit for String {
+impl WordSplit for String {
     fn split_by_chars(&self, length: usize) -> Vec<String> {
         let words: Vec<&str> = self.split_whitespace().collect();
         let output_capacity = self.len() + self.len() % length + 1;
@@ -21,11 +21,22 @@ impl CharSplit for String {
                 chars = word.len();
                 initialized = true;
             } else {
-                current_line = current_line + " " + &word;
+                current_line = current_line + " " + word;
                 chars += word.len() + 1;
             }
         }
         if !current_line.is_empty() { lines.push(current_line); }
         lines
     }
+}
+
+#[test]
+fn test_split_by_chars() {
+    let input = String::from("This is a test string for split_by_chars.");
+    let sections = input.split_by_chars(10);
+    let mut iter = sections.iter();
+    assert_eq!(9, iter.next().unwrap().len());
+    assert_eq!(4, iter.next().unwrap().len());
+    assert_eq!(10, iter.next().unwrap().len());
+    assert_eq!(15, iter.next().unwrap().len());
 }

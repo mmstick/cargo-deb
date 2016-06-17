@@ -4,7 +4,7 @@ extern crate toml;
 extern crate walkdir;
 
 mod config;
-mod charsplit;
+mod wordsplit;
 
 use std::ffi::CString;
 use std::fs;
@@ -17,7 +17,7 @@ use walkdir::WalkDir;
 
 enum CopyError {
     CopyFailed,
-    MissingChmod,
+    ChmodMissing,
     ChmodInvalid(String),
     ChmodError(u32)
 }
@@ -79,7 +79,7 @@ fn generate_control(options: &Config) {
     control.write(&[b'\n']).unwrap();
     control.write(b"Description: ").unwrap();
     control.write(options.description.as_bytes()).unwrap();
-    control.write(&[b'\n', b' ']).unwrap();
+    control.write(&[b'\n']).unwrap();
     for line in &options.extended_description {
         control.write(&[b' ']).unwrap();
         control.write(line.as_bytes()).unwrap();
@@ -91,21 +91,21 @@ fn generate_copyright(options: &Config) {
     let directory = PathBuf::from("debian/usr/share/doc/").join(options.name.clone());
     fs::create_dir_all(&directory)
         .expect("cargo-deb: unable to create `debian/usr/share/doc/<package>/`");
-    let mut control = fs::OpenOptions::new().create(true).write(true).open(&directory.join("copyright"))
+    let mut copyright = fs::OpenOptions::new().create(true).write(true).open(&directory.join("copyright"))
         .expect("cargo-deb: could not create debian/DEBIAN/copyright");
-    control.write(b"Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/\n").unwrap();
-    control.write(b"Upstream-Name: ").unwrap();
-    control.write(options.name.as_bytes()).unwrap();
-    control.write(&[b'\n']).unwrap();
-    control.write(b"Source: ").unwrap();
-    control.write(options.repository.as_bytes()).unwrap();
-    control.write(&[b'\n']).unwrap();
-    control.write(b"Copyright: ").unwrap();
-    control.write(options.copyright.as_bytes()).unwrap();
-    control.write(&[b'\n']).unwrap();
-    control.write(b"License: ").unwrap();
-    control.write(options.license.as_bytes()).unwrap();
-    control.write(&[b'\n']).unwrap();
+    copyright.write(b"Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/\n").unwrap();
+    copyright.write(b"Upstream-Name: ").unwrap();
+    copyright.write(options.name.as_bytes()).unwrap();
+    copyright.write(&[b'\n']).unwrap();
+    copyright.write(b"Source: ").unwrap();
+    copyright.write(options.repository.as_bytes()).unwrap();
+    copyright.write(&[b'\n']).unwrap();
+    copyright.write(b"Copyright: ").unwrap();
+    copyright.write(options.copyright.as_bytes()).unwrap();
+    copyright.write(&[b'\n']).unwrap();
+    copyright.write(b"License: ").unwrap();
+    copyright.write(options.license.as_bytes()).unwrap();
+    copyright.write(&[b'\n']).unwrap();
     options.license_file.get(0)
         .map_or_else(|| panic!("cargo-deb: missing license file argument"), |path| {
             let lines_to_skip = options.license_file.get(1).map_or(0, |x| x.parse::<usize>().unwrap_or(0));
@@ -115,10 +115,10 @@ fn generate_copyright(options: &Config) {
             for line in license_string.lines().skip(lines_to_skip) {
                 let line = line.trim();
                 if line.is_empty() {
-                    control.write(b".\n").unwrap();
+                    copyright.write(b".\n").unwrap();
                 } else {
-                    control.write(line.as_bytes()).unwrap();
-                    control.write(&[b'\n']).unwrap();
+                    copyright.write(line.as_bytes()).unwrap();
+                    copyright.write(&[b'\n']).unwrap();
                 }
             }
         });
@@ -150,7 +150,7 @@ fn copy_files(assets: &[Vec<String>]) {
         // Attempt to copy the file from the source path to the target path.
         match copy_file(source.as_str(), target.as_str(), asset) {
             Some(CopyError::CopyFailed) => panic!("cargo-deb: unable to copy {} to {}", &source, &target),
-            Some(CopyError::MissingChmod) => panic!("cargo-deb: chmod argument is missing from asset: {:?}", asset),
+            Some(CopyError::ChmodMissing) => panic!("cargo-deb: chmod argument is missing from asset: {:?}", asset),
             Some(CopyError::ChmodInvalid(chmod)) => panic!("cargo-deb: chmod argument is invalid: {}", chmod),
             Some(CopyError::ChmodError(chmod)) => panic!("cargo-deb: chmod failed: {}", chmod),
             _ => ()
@@ -177,8 +177,8 @@ fn copy_file(source: &str, target: &str, asset: &[String]) -> Option<CopyError> 
         .map_or(Some(CopyError::CopyFailed), |_| {
             // Attempt to collect the chmod argument, which is the third argument.
             asset.get(2)
-                // If the chmod argument is missing, return `Some(CopyError::MissingChmod)`
-                .map_or(Some(CopyError::MissingChmod), |chmod| {
+                // If the chmod argument is missing, return `Some(CopyError::ChmodMissing)`
+                .map_or(Some(CopyError::ChmodMissing), |chmod| {
                     // Obtain the octal representation of the chmod argument.
                     u32::from_str_radix(chmod.as_str(), 8).ok()
                         // Return that the value is invalid and return the invalid argument if it is invalid.
