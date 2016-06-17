@@ -1,7 +1,7 @@
 This cargo subcommand will largely automate the process of building a Debian package. In order to get a Rust project build with `cargo deb`, you must add a [packages.metadata.deb] table to your Cargo.toml file. You must also ensure that you have filled out the minimal package information, particularly the `description` and `repository` values.
 
 ### Example [package.metadata.deb]
-The required keys are `maintainer`, `copyright`, `license_file`, `depends`, `section`, `priority`, and `assets`.
+The required keys are `maintainer`, `copyright`, `license_file`, `depends`, `extended_description`, `section`, `priority`, and `assets`.
 
 The `license_file` parameter contains the location of the license file followed by the number of lines to skip (because Debian uses it's own copyright format).
 
