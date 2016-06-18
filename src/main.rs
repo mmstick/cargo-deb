@@ -55,8 +55,10 @@ fn generate_deb(options: &Config) {
 
 /// Generates the debian/control file needed by the package.
 fn generate_control(options: &Config) {
+    // Create and return the handle to the control file with write access.
     let mut control = fs::OpenOptions::new().create(true).write(true).truncate(true).open("debian/DEBIAN/control")
         .try("cargo-deb: could not create debian/DEBIAN/control");
+    // Write all of the lines required by the control file.
     write!(&mut control, "Package: {}\n", options.name).unwrap();
     write!(&mut control, "Version: {}\n", options.version).unwrap();
     write!(&mut control, "Section: {}\n", options.section).unwrap();
@@ -66,46 +68,58 @@ fn generate_control(options: &Config) {
     write!(&mut control, "Architecture: {}\n", options.architecture).unwrap();
     write!(&mut control, "Depends: {}\n", options.depends).unwrap();
     write!(&mut control, "Description: {}\n", options.description).unwrap();
+    // Write each of the lines that were collected from the extended_description o the file.
     for line in &options.extended_description {
         write!(&mut control, " {}\n", line).unwrap();
     }
 }
 
+/// Generates the copyright file needed by the package.
 fn generate_copyright(options: &Config) {
+    // The directory where the copyright file is stored is named after the name of the package.
     let directory = PathBuf::from("debian/usr/share/doc/").join(options.name.clone());
+    // Create the directories needed by the copyright file
     fs::create_dir_all(&directory)
         .try("cargo-deb: unable to create `debian/usr/share/doc/<package>/`");
+    // Open the copyright file for writing
     let mut copyright = fs::OpenOptions::new().create(true).write(true).truncate(true).open(&directory.join("copyright"))
         .try("cargo-deb: could not create debian/DEBIAN/copyright");
+    // Write the information required by the copyright file to the newly created copyright file.
     copyright.write(b"Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/\n").unwrap();
-    copyright.write(b"Upstream-Name: ").unwrap();
-    copyright.write(options.name.as_bytes()).unwrap();
-    copyright.write(&[b'\n']).unwrap();
-    copyright.write(b"Source: ").unwrap();
-    copyright.write(options.repository.as_bytes()).unwrap();
-    copyright.write(&[b'\n']).unwrap();
-    copyright.write(b"Copyright: ").unwrap();
-    copyright.write(options.copyright.as_bytes()).unwrap();
-    copyright.write(&[b'\n']).unwrap();
-    copyright.write(b"License: ").unwrap();
-    copyright.write(options.license.as_bytes()).unwrap();
-    copyright.write(&[b'\n']).unwrap();
+    write!(&mut copyright, "Upstream Name: {}\n", options.name).unwrap();
+    write!(&mut copyright, "Source: {}\n", options.repository).unwrap();
+    write!(&mut copyright, "Copyright: {}\n", options.copyright).unwrap();
+    write!(&mut copyright, "License: {}\n", options.license).unwrap();
+    // Attempt to obtain the path of the license file
     options.license_file.get(0)
+        // Fail if the path cannot be found and report that the license file argument is missing.
         .map_or_else(|| failed("cargo-deb: missing license file argument"), |path| {
-            let lines_to_skip = options.license_file.get(1).map_or(0, |x| x.parse::<usize>().unwrap_or(0));
-            let mut file = fs::File::open(path).try("cargo-deb: license file not found");
-            let mut license_string = String::with_capacity(file.metadata().map(|x| x.len()).unwrap_or(0) as usize);
+            // Now we need to obtain the amount of lines to skip at the top of the file.
+            let lines_to_skip = options.license_file.get(1)
+                // If no argument is given, or if the argument is not a number, return 0.
+                .map_or(0, |x| x.parse::<usize>().unwrap_or(0));
+            // Now we need to attempt to open the file.
+            let mut file = fs::File::open(path)
+                // If the file fails to open, it is probably because the file is not found.
+                .try("cargo-deb: license file could not be opened");
+            // The capacity of the file can be obtained from the metadata.
+            let capacity = file.metadata().map(|x| x.len()).unwrap_or(0) as usize;
+            // We are going to store the contents of the license file in a single string with the size of file.
+            let mut license_string = String::with_capacity(capacity);
+            // Attempt to read the contents of the license file into the license string.
             file.read_to_string(&mut license_string).try("cargo-deb: error reading license file");
+            // Skip the first `A` number of lines and then iterate each line after that.
             for line in license_string.lines().skip(lines_to_skip) {
-                let line = line.trim();
+                // If the line is empty, write a dot, else write the line.
                 if line.is_empty() {
                     copyright.write(b".\n").unwrap();
                 } else {
-                    copyright.write(line.as_bytes()).unwrap();
-                    copyright.write(&[b'\n']).unwrap();
+                    write!(&mut copyright, "{}\n", line.trim()).unwrap();
                 }
             }
         });
+
+    // Sets the permissions of the copyright file to `644`.
     let c_string = CString::new(directory.join("copyright").to_str().unwrap()).unwrap();
     let status = unsafe { libc::chmod(c_string.as_ptr(), u32::from_str_radix("644", 8).unwrap()) };
     if status < 0 { failed("cargo-deb: chmod error occurred in creating copyright file"); }
@@ -153,12 +167,10 @@ fn copy_files(assets: &[Vec<String>]) {
 /// Attempt to create the directory neede by the target.
 fn create_directory(target: &str, is_dir: bool) {
     if is_dir {
-        fs::create_dir_all(target).ok()
-            .unwrap_or_else(|| failed(format!("cargo-deb: unable to create the {:?} directory", target)));
+        fs::create_dir_all(target).try(&format!("cargo-deb: unable to create the {:?} directory", target));
     } else {
         let parent = Path::new(target).parent().unwrap();
-        fs::create_dir_all(parent).ok()
-            .unwrap_or_else(|| failed(format!("cargo-deb: unable to create the {:?} directory", target)));
+        fs::create_dir_all(parent).try(&format!("cargo-deb: unable to create the {:?} directory", target));
     }
 }
 
