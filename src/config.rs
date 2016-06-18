@@ -107,7 +107,6 @@ pub struct CargoDeb {
 /// Returns the path of the `Cargo.toml` that we want to build.
 fn current_manifest_path() -> PathBuf {
     let output = Command::new("cargo").arg("locate-project").output().unwrap();
-
     if !output.status.success() { exit(output.status.code().unwrap_or(-1)); }
 
     #[derive(RustcDecodable)]
@@ -119,14 +118,8 @@ fn current_manifest_path() -> PathBuf {
 
 /// Opens the Cargo.toml file and places the contents into the `content` `String`.
 fn manifest_contents(manifest_path: &Path, content: &mut String) {
-    File::open(manifest_path).ok()
-        // If Cargo.toml cannot be opened, panic.
-        .map_or_else(|| failed("cargo-deb: could not open manifest file"), |mut file| {
-            // Read the contents of the Cargo.toml fie into the `content` String
-            file.read_to_string(content)
-                // Error if Cargo.toml could not be opened.
-                .try("cargo-deb: invalid or missing Cargo.toml options");
-        });
+    File::open(manifest_path).try("cargo-deb: could not open manifest file")
+        .read_to_string(content).try("cargo-deb: invalid or missing Cargo.toml options");
 }
 
 /// Calls the `uname` function from libc to obtain the machine architecture, and then Debianizes the architecture name.
@@ -141,16 +134,11 @@ fn get_arch() -> String {
         } else {
             // The machine variable contains the architecture in a `[i8; 65] `array.
             // Strings have to be of the `u8` type, however, so we need to convert this.
-            let machine = utsname.machine.iter()
-                // Convert the `i8` characters into `u8` characters.
-                .map(|x| *x as u8)
+            let machine = utsname.machine.iter().map(|x| *x as u8)
                 // Collect the characters until a null-terminated character is found.
-                .take_while(|x| *x != b'\0')
-                // Collect the results as a `Vec<u8>`.
-                .collect::<Vec<u8>>();
+                .take_while(|x| *x != b'\0').collect::<Vec<u8>>();
             // Return the collected architecture as a String, which should be UTF-8.
-            String::from_utf8(machine)
-                .unwrap_or_else(|_| failed("cargo-deb: libc::uname did not return a valid UTF-8 string"))
+            String::from_utf8(machine).try("cargo-deb: libc::uname did not return a valid UTF-8 string")
         }
     };
     // Debianize the collected information. x86_64 == amd64; noarch == all.

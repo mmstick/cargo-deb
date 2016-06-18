@@ -36,7 +36,7 @@ fn main() {
 
 // Rust creates directories with 775 by default. This changes them to the correct permissions, 755.
 fn set_directory_permissions() {
-    for entry in WalkDir::new("debian").into_iter().map(|entry| entry.unwrap()) {
+    for entry in WalkDir::new("target/debian").into_iter().map(|entry| entry.unwrap()) {
         if entry.metadata().unwrap().is_dir() {
             let c_string = CString::new(entry.path().to_str().unwrap()).unwrap();
             let status = unsafe { libc::chmod(c_string.as_ptr(), u32::from_str_radix("755", 8).unwrap()) };
@@ -49,15 +49,15 @@ fn set_directory_permissions() {
 fn generate_deb(options: &Config) {
     // fakeroot dpkg-deb --build debian "package-name_version_architecture.deb"
     let package_name = options.name.clone() + "_" + options.version.as_str() + "_" + options.architecture.as_str() + ".deb";
-    Command::new("fakeroot").arg("dpkg-deb").arg("--build").arg("debian").arg(&package_name).status().
+    Command::new("fakeroot").arg("dpkg-deb").arg("--build").arg("target/debian").arg(&package_name).status().
         try("cargo-deb: failed to generate Debian package");
 }
 
 /// Generates the debian/control file needed by the package.
 fn generate_control(options: &Config) {
     // Create and return the handle to the control file with write access.
-    let mut control = fs::OpenOptions::new().create(true).write(true).truncate(true).open("debian/DEBIAN/control")
-        .try("cargo-deb: could not create debian/DEBIAN/control");
+    let mut control = fs::OpenOptions::new().create(true).write(true).truncate(true).open("target/debian/DEBIAN/control")
+        .try("cargo-deb: could not create target/debian/DEBIAN/control");
     // Write all of the lines required by the control file.
     write!(&mut control, "Package: {}\n", options.name).unwrap();
     write!(&mut control, "Version: {}\n", options.version).unwrap();
@@ -68,7 +68,7 @@ fn generate_control(options: &Config) {
     write!(&mut control, "Architecture: {}\n", options.architecture).unwrap();
     write!(&mut control, "Depends: {}\n", options.depends).unwrap();
     write!(&mut control, "Description: {}\n", options.description).unwrap();
-    // Write each of the lines that were collected from the extended_description o the file.
+    // Write each of the lines that were collected from the extended_description to the file.
     for line in &options.extended_description {
         write!(&mut control, " {}\n", line).unwrap();
     }
@@ -77,13 +77,13 @@ fn generate_control(options: &Config) {
 /// Generates the copyright file needed by the package.
 fn generate_copyright(options: &Config) {
     // The directory where the copyright file is stored is named after the name of the package.
-    let directory = PathBuf::from("debian/usr/share/doc/").join(options.name.clone());
+    let directory = PathBuf::from("target/debian/usr/share/doc/").join(options.name.clone());
     // Create the directories needed by the copyright file
     fs::create_dir_all(&directory)
-        .try("cargo-deb: unable to create `debian/usr/share/doc/<package>/`");
+        .try("cargo-deb: unable to create `target/debian/usr/share/doc/<package>/`");
     // Open the copyright file for writing
     let mut copyright = fs::OpenOptions::new().create(true).write(true).truncate(true).open(&directory.join("copyright"))
-        .try("cargo-deb: could not create debian/DEBIAN/copyright");
+        .try("cargo-deb: could not create target/debian/DEBIAN/copyright");
     // Write the information required by the copyright file to the newly created copyright file.
     copyright.write(b"Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/\n").unwrap();
     write!(&mut copyright, "Upstream Name: {}\n", options.name).unwrap();
@@ -99,9 +99,7 @@ fn generate_copyright(options: &Config) {
                 // If no argument is given, or if the argument is not a number, return 0.
                 .map_or(0, |x| x.parse::<usize>().unwrap_or(0));
             // Now we need to attempt to open the file.
-            let mut file = fs::File::open(path)
-                // If the file fails to open, it is probably because the file is not found.
-                .try("cargo-deb: license file could not be opened");
+            let mut file = fs::File::open(path).try("cargo-deb: license file could not be opened");
             // The capacity of the file can be obtained from the metadata.
             let capacity = file.metadata().map(|x| x.len()).unwrap_or(0) as usize;
             // We are going to store the contents of the license file in a single string with the size of file.
@@ -127,16 +125,18 @@ fn generate_copyright(options: &Config) {
 
 /// Creates a debian directory and copies the files that are needed by the package.
 fn copy_files(assets: &[Vec<String>]) {
-    fs::create_dir_all("debian/DEBIAN").try("cargo-deb: unable to create the 'debian/DEBIAN' directory");
-    // Copy each of the assets into the debian directory listed in the assets parameter
+    fs::create_dir_all("target/debian/DEBIAN").try("cargo-deb: unable to create the 'target/debian/DEBIAN' directory");
+    // Copy each of the assets into the target/debian directory listed in the assets parameter
     for asset in assets {
         // Obtain the target directory of the current asset.
-        let mut target = asset.get(1).cloned().try("cargo-deb: missing target directory");
-        target = if target.starts_with('/') {
-            String::from("debian") + target.as_str()
-        } else {
-            String::from("debian/") + target.as_str()
-        };
+        let mut target = asset.get(1).map_or_else(|| failed("cargo-deb: missing target directory"), |target| {
+            if target.starts_with('/') {
+                String::from("target/debian") + target.as_str()
+            } else {
+                String::from("target/debian/") + target.as_str()
+            }
+        });
+
         // Determine if the target is a directory or if the last argument is what to rename the file as.
         let target_is_dir = target.ends_with('/');
         // Create the target directory needed by the current asset.
