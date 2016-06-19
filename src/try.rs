@@ -12,10 +12,8 @@ impl<T, U: Error> Try for Result<T, U> {
     type Succ = T;
 
     fn try(self, error: &str) -> T {
-        self.unwrap_or_else(|_| {
-            let mut stderr = io::stderr();
-            stderr.write(error.as_bytes()).unwrap();
-            stderr.flush().unwrap();
+        self.unwrap_or_else(|reason| {
+            let _ = writeln!(&mut io::stderr(), "{}: {}", error, reason.to_string());
             exit(1);
         })
     }
@@ -26,9 +24,7 @@ impl<T> Try for Option<T> {
 
     fn try(self, error: &str) -> T {
         self.unwrap_or_else(|| {
-            let mut stderr = io::stderr();
-            stderr.write(error.as_bytes()).unwrap();
-            stderr.flush().unwrap();
+            let _ = writeln!(&mut io::stderr(), "{}", error);
             exit(1);
         })
     }
@@ -36,8 +32,6 @@ impl<T> Try for Option<T> {
 
 pub fn failed<T: AsRef<str>>(input: T) -> ! {
     let input = input.as_ref();
-    let mut stderr = io::stderr();
-    stderr.write(input.as_bytes()).unwrap();
-    stderr.flush().unwrap();
+    let _ = writeln!(&mut io::stderr(), "{}", input);
     exit(1);
 }
