@@ -6,6 +6,7 @@ use std::mem;
 use libc;
 use rustc_serialize;
 use toml;
+use dependencies::resolve;
 
 use wordsplit::WordSplit;
 use try::{failed, Try};
@@ -38,6 +39,8 @@ pub struct Config {
     pub priority: String,
     /// The architecture of the running system.
     pub architecture: String,
+    /// A list of configuration files installed by the package.
+    pub conf_files: Option<String>,
     /// All of the files that are to be packaged. `{ source_file, target_path, chmod }`
     pub assets: Vec<Vec<String>>
 }
@@ -68,12 +71,26 @@ impl Cargo {
             description: self.package.description.clone(),
             extended_description: self.package.metadata.deb.extended_description.split_by_chars(79),
             maintainer: self.package.metadata.deb.maintainer.clone(),
-            depends: self.package.metadata.deb.depends.clone(),
+            depends: self.get_dependencies(&self.package.metadata.deb.depends),
             section: self.package.metadata.deb.section.clone(),
             priority: self.package.metadata.deb.priority.clone(),
             architecture: get_arch(),
+            conf_files: self.package.metadata.deb.conf_files.clone().map(|x| x.iter().fold(String::new(), |a, b| a + b + "\n")),
             assets: self.package.metadata.deb.assets.clone(),
         }
+    }
+
+    fn get_dependencies(&self, input: &str) -> String {
+        let mut dependencies = String::new();
+        for word in input.split_whitespace() {
+            dependencies.push(' ');
+            if word == "$auto" {
+                dependencies.push_str(&resolve(String::from("target/release/") + &self.package.name));
+            } else {
+                dependencies.push_str(word);
+            }
+        }
+        dependencies
     }
 }
 
@@ -101,6 +118,7 @@ pub struct CargoDeb {
     pub extended_description: String,
     pub section: String,
     pub priority: String,
+    pub conf_files: Option<Vec<String>>,
     pub assets: Vec<Vec<String>>,
 }
 

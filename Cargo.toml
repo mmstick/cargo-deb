@@ -14,7 +14,7 @@ license_file = ["LICENSE", "4"]
 extended_description = """\
 A simple subcommand for the Cargo package manager for \
 building Debian packages from Rust projects."""
-depends = "libc6"
+depends = "$auto"
 section = "utility"
 priority = "optional"
 assets = [
@@ -26,4 +26,6 @@ assets = [
 rustc-serialize = "0.3.19"
 toml = "0.1.28"
 libc = "0.2.12"
-walkdir = "0.1.5"
+tar = { git = "https://github.com/mmstick/tar-rs" }
+rust-lzma = "0.2.1"
+zopfli = { git = "https://github.com/carols10cents/zopfli" }
