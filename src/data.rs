@@ -1,6 +1,6 @@
 use std::fs;
 use std::io::{self, Read, Write};
-use std::path::{PathBuf, Path};
+use std::path::Path;
 use std::os::unix::fs::OpenOptionsExt;
 use tar::Header as TarHeader;
 use tar::Builder as TarBuilder;
@@ -58,11 +58,23 @@ fn generate_copyright(archive: &mut TarBuilder<Vec<u8>>, options: &Config, time:
             failed(format!("cargo-deb: unable to open copyright file for writing: {}", err.to_string()));
         });
     file.write_all(copyright.as_slice()).try("cargo-deb: unable to write copyright file to disk");
+    let target = String::from("./usr/share/doc/") + &options.name + "/";
+
+    for dir in vec![".", "./usr/", "./usr/share/", "./usr/share/doc/", target.as_str()] {
+        let mut header = TarHeader::new_gnu();
+        header.set_mtime(*time);
+        header.set_size(0);
+        header.set_mode(CHMOD_BIN_OR_DIR);
+        header.set_path(&dir).unwrap();
+        header.set_entry_type(EntryType::Directory);
+        header.set_cksum();
+        archive.append(&header, &mut io::empty()).unwrap();
+    }
 
     // Now add a copy to the archive
     let mut header = TarHeader::new_gnu();
     header.set_mtime(*time);
-    header.set_path(&PathBuf::from("./usr/share/doc/").join(&options.name).join("copyright")).unwrap();
+    header.set_path(&(target + "copyright")).unwrap();
     header.set_size(copyright.len() as u64);
     header.set_mode(CHMOD_FILE);
     header.set_cksum();
