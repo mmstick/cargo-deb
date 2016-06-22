@@ -1,3 +1,5 @@
+**Build Status:** [![Build Status](https://travis-ci.org/mmstick/cargo-deb.png?branch=master)](https://travis-ci.org/mmstick/cargo-deb)
+
 # How It Works
 This cargo subcommand will largely automate the process of building a Debian package. In order to get a Rust project build with `cargo deb`, you must add a [packages.metadata.deb] table to your Cargo.toml file. You must also ensure that you have filled out the minimal package information, particularly the `description` and `repository` values.
 
