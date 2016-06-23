@@ -14,7 +14,7 @@ license_file = ["LICENSE", "4"]
 extended_description = """\
 A simple subcommand for the Cargo package manager for \
 building Debian packages from Rust projects."""
-depends = "$auto"
+depends = "libc6"
 section = "utility"
 priority = "optional"
 assets = [

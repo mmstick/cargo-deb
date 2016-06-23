@@ -60,7 +60,7 @@ fn generate_copyright(archive: &mut TarBuilder<Vec<u8>>, options: &Config, time:
     file.write_all(copyright.as_slice()).try("cargo-deb: unable to write copyright file to disk");
     let target = String::from("./usr/share/doc/") + &options.name + "/";
 
-    for dir in vec![".", "./usr/", "./usr/share/", "./usr/share/doc/", target.as_str()] {
+    for dir in &[".", "./usr/", "./usr/share/", "./usr/share/doc/", target.as_str()] {
         let mut header = TarHeader::new_gnu();
         header.set_mtime(*time);
         header.set_size(0);
@@ -98,7 +98,8 @@ fn copy_files(archive: &mut TarBuilder<Vec<u8>>, options: &Config, time: &u64) {
         // Collect a list of directories
         let directories = target.char_indices()
             .filter(|&(_, character)| character == '/')
-            .map(|(id, _)| String::from(&target[0..id])).collect::<Vec<String>>();
+            .map(|(id, _)| String::from(&target[0..id]))
+            .collect::<Vec<String>>();
 
         // Create all of the intermediary directories in the archive before adding the file
         for directory in directories {
