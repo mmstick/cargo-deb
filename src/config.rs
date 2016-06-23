@@ -86,6 +86,9 @@ impl Cargo {
             dependencies.push(' ');
             if word == "$auto" {
                 dependencies.push_str(&resolve(String::from("target/release/") + &self.package.name));
+            } else if word == "$auto," {
+                dependencies.push_str(&resolve(String::from("target/release/") + &self.package.name));
+                dependencies.push(',');
             } else {
                 dependencies.push_str(word);
             }
@@ -148,7 +151,7 @@ fn get_arch() -> String {
         let mut utsname: libc::utsname = mem::uninitialized();
         // Collect the data from libc::uname into utsname and check the return status.
         if libc::uname(&mut utsname) < 0 {
-            failed("cargo-deb: could not obtain machine architecture from the libc uname function");
+            failed("cargo-deb: could not obtain machine architecture from the libc::uname function");
         } else {
             // The machine variable contains the architecture in a `[i8; 65] `array.
             // Strings have to be of the `u8` type, however, so we need to convert this.

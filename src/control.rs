@@ -25,7 +25,7 @@ fn initialize_control(archive: &mut TarBuilder<Vec<u8>>, time: &u64) {
     header.set_mtime(*time);
     header.set_size(0);
     header.set_mode(CHMOD_BIN_OR_DIR);
-    header.set_path(".").unwrap();
+    header.set_path("./").unwrap();
     header.set_entry_type(EntryType::Directory);
     header.set_cksum();
     archive.append(&header, &mut io::empty()).unwrap();
@@ -39,27 +39,29 @@ fn generate_md5sums(archive: &mut TarBuilder<Vec<u8>>, options: &Config, time: &
         let mut target: String = asset.get(1).try("cargo-deb: unable to get asset's target").clone();
         if target.chars().next().unwrap() == '/' { target.remove(0); }
         let target_is_dir = target.chars().last().unwrap() == '/';
-        Command::new("md5sum").arg(&origin).output().ok().map_or_else(|| failed("cargo-deb: could not get output of md5sum"), |x| {
-            let mut hash = x.stdout.iter().take_while(|&&x| x != b' ').cloned().collect::<Vec<u8>>();
-            hash.write(b"  ").unwrap();
-            if target_is_dir {
-                write!(&mut hash, "{}{}", target, Path::new(origin).file_name().unwrap().to_str().unwrap()).unwrap();
-            } else {
-                hash.write(asset.get(1).unwrap().as_bytes()).unwrap();
-            }
-            hash.write(&[b'\n']).unwrap();
-            md5sums.append(&mut hash);
-        });
+        Command::new("md5sum").arg(&origin).output().ok()
+            .map_or_else(|| failed("cargo-deb: could not get output of md5sum"), |x| {
+                let mut hash = x.stdout.iter().take_while(|&&x| x != b' ').cloned().collect::<Vec<u8>>();
+                hash.write(b"  ").unwrap();
+                if target_is_dir {
+                    write!(&mut hash, "{}{}", target, Path::new(origin).file_name().unwrap().to_str().unwrap()).unwrap();
+                } else {
+                    hash.write(asset.get(1).unwrap().as_bytes()).unwrap();
+                }
+                hash.write(&[b'\n']).unwrap();
+                md5sums.append(&mut hash);
+            });
     }
     // Obtain the md5sum of the copyright file
-    Command::new("md5sum").arg("target/debian/copyright").output().ok().map_or_else(|| failed("cargo-deb: could not get output of md5sum"), |x| {
-        let mut hash = x.stdout.iter().take_while(|&&x| x != b' ').cloned().collect::<Vec<u8>>();
-        hash.write(b"  ").unwrap();
-        let path = String::from("usr/share/doc/") + &options.name + "/copyright";
-        hash.write(path.as_bytes()).unwrap();
-        md5sums.append(&mut hash);
-        md5sums.push(10);
-    });
+    Command::new("md5sum").arg("target/debian/copyright").output().ok()
+        .map_or_else(|| failed("cargo-deb: could not get output of md5sum"), |x| {
+            let mut hash = x.stdout.iter().take_while(|&&x| x != b' ').cloned().collect::<Vec<u8>>();
+            let path = String::from("usr/share/doc/") + &options.name + "/copyright";
+            hash.write(b"  ").unwrap();
+            hash.write(path.as_bytes()).unwrap();
+            md5sums.append(&mut hash);
+            md5sums.push(10);
+        });
     // We can now exterminate the copyright file as it has outlived it's usefulness.
     fs::remove_file("target/debian/copyright").try("cargo-deb: copyright file doesn't exist.");
     // Write the data to the archive
