@@ -81,11 +81,15 @@ fn generate_control(archive: &mut TarBuilder<Vec<u8>>, options: &Config, time: &
     // Write all of the lines required by the control file.
     write!(&mut control, "Package: {}\n", options.name).unwrap();
     write!(&mut control, "Version: {}\n", options.version).unwrap();
-    write!(&mut control, "Section:{}\n", options.section).unwrap();
+    write!(&mut control, "Architecture: {}\n", options.architecture).unwrap();
+    write!(&mut control, "Repository: {}\n", options.repository).unwrap();
+    if let Some(ref homepage) = options.homepage {
+        write!(&mut control, "Homepage: {}\n", homepage).unwrap();
+    }
+    write!(&mut control, "Section: {}\n", options.section).unwrap();
     write!(&mut control, "Priority: {}\n", options.priority).unwrap();
     control.write(b"Standards-Version: 3.9.4\n").unwrap();
     write!(&mut control, "Maintainer: {}\n", options.maintainer).unwrap();
-    write!(&mut control, "Architecture: {}\n", options.architecture).unwrap();
     write!(&mut control, "Depends: {}\n", options.depends).unwrap();
     write!(&mut control, "Description: {}\n", options.description).unwrap();
     // Write each of the lines that were collected from the extended_description to the file.

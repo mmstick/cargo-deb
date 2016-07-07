@@ -23,9 +23,14 @@ assets = [
 ]
 
 [dependencies]
-rustc-serialize = "0.3.19"
-toml = "0.1.28"
-libc = "0.2.12"
-tar = { git = "https://github.com/mmstick/tar-rs" }
+itertools = "0.4.16"
+libc = "0.2.13"
 rust-lzma = "0.2.1"
+rustc-serialize = "0.3.19"
+tar = { git = "https://github.com/mmstick/tar-rs" }
+toml = "0.1.28"
 zopfli = { git = "https://github.com/carols10cents/zopfli" }
+
+[profile.release]
+lto = true
+opt-level = 3

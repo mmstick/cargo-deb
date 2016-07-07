@@ -1,6 +1,7 @@
 use std::process::Command;
-use try::{Try, failed};
 use std::fmt::Write;
+use itertools::Itertools;
+use try::{Try, failed};
 
 struct Dependency {
     name:    String,
@@ -32,24 +33,22 @@ pub fn resolve<S: AsRef<str>>(path: S) -> String {
 
 /// Collects a list of dependencies from the output of ldd
 fn collect_dependencies(ldd: &str) -> Vec<Dependency> {
-    let mut dependencies: Vec<Dependency> = Vec::new();
-    let packages = ldd.lines()
+    ldd.lines()
         // We only want the third field on each line, which contains the filepath of the library
         .map(|line| line.split_whitespace().nth(2))
         // If the field exists and starts with '/', we have found a filepath
         .filter(|x| x.is_some() && x.unwrap().chars().next().unwrap() == '/')
-        // Obtain the name of the package
-        .map(|path| get_package_name(path.unwrap()));
-
-    // Only append a package if it hasn't been appended already.
-    for package in packages {
-        if !dependencies.iter().any(|x| &x.name == &package) {
+        // Obtain the names of the packages
+        .map(|path| get_package_name(path.unwrap()))
+        // only collect unique packages
+        .unique()
+        // Transform the data into a Dependency structure
+        .map(|package| {
             let version = get_version(&package);
-            dependencies.push(Dependency{ name: package, version: version });
-        }
-    }
-
-    dependencies
+            Dependency { name: package, version: version }
+        })
+        // Collect and return the list of dependencies
+        .collect::<Vec<Dependency>>()
 }
 
 /// Obtains the name of the package that belongs to the file that ldd returned

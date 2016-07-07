@@ -3,6 +3,7 @@ use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::{exit, Command};
 use std::mem;
+use itertools::Itertools;
 use libc;
 use rustc_serialize;
 use toml;
@@ -23,6 +24,8 @@ pub struct Config {
     pub copyright: String,
     /// The version number of the project.
     pub version: String,
+    /// The homepage of the project.
+    pub homepage: Option<String>,
     /// The URL of the software repository.
     pub repository: String,
     /// A short description of the project.
@@ -67,6 +70,7 @@ impl Cargo {
             license_file: self.package.metadata.deb.license_file.clone(),
             copyright: self.package.metadata.deb.copyright.clone(),
             version: self.package.version.clone(),
+            homepage: self.package.homepage.clone(),
             repository: self.package.repository.clone(),
             description: self.package.description.clone(),
             extended_description: self.package.metadata.deb.extended_description.split_by_chars(79),
@@ -75,25 +79,22 @@ impl Cargo {
             section: self.package.metadata.deb.section.clone(),
             priority: self.package.metadata.deb.priority.clone(),
             architecture: get_arch(),
-            conf_files: self.package.metadata.deb.conf_files.clone().map(|x| x.iter().fold(String::new(), |a, b| a + b + "\n")),
+            conf_files: self.package.metadata.deb.conf_files.clone()
+                .map(|x| x.iter().fold(String::new(), |a, b| a + b + "\n")),
             assets: self.package.metadata.deb.assets.clone(),
         }
     }
 
     fn get_dependencies(&self, input: &str) -> String {
-        let mut dependencies = String::new();
-        for word in input.split_whitespace() {
-            dependencies.push(' ');
-            if word == "$auto" {
-                dependencies.push_str(&resolve(String::from("target/release/") + &self.package.name));
-            } else if word == "$auto," {
-                dependencies.push_str(&resolve(String::from("target/release/") + &self.package.name));
-                dependencies.push(',');
-            } else {
-                dependencies.push_str(word);
-            }
-        }
-        dependencies
+        input.split_whitespace()
+            .map(|word| {
+                match word {
+                    "$auto"  => resolve(String::from("target/release/") + &self.package.name),
+                    "$auto," => resolve(String::from("target/release/") + &self.package.name + ","),
+                    _        => word.to_owned()
+                }
+            })
+            .join(" ")
     }
 }
 
@@ -101,6 +102,7 @@ impl Cargo {
 pub struct CargoPackage {
     pub name: String,
     pub license: String,
+    pub homepage: Option<String>,
     pub repository: String,
     pub version: String,
     pub description: String,

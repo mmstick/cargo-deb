@@ -2,6 +2,7 @@ use std::fs;
 use std::io::{self, Read, Write};
 use std::path::Path;
 use std::os::unix::fs::OpenOptionsExt;
+use itertools::Itertools;
 use tar::Header as TarHeader;
 use tar::Builder as TarBuilder;
 use tar::EntryType;
@@ -36,9 +37,9 @@ fn generate_copyright(archive: &mut TarBuilder<Vec<u8>>, options: &Config, time:
             // Now we need to attempt to open the file.
             let mut file = fs::File::open(path).try("cargo-deb: license file could not be opened");
             // The capacity of the file can be obtained from the metadata.
-            let capacity = file.metadata().map(|x| x.len()).unwrap_or(0) as usize;
+            let capacity = file.metadata().ok().map_or(0, |x| x.len());
             // We are going to store the contents of the license file in a single string with the size of file.
-            let mut license_string = String::with_capacity(capacity);
+            let mut license_string = String::with_capacity(capacity as usize);
             // Attempt to read the contents of the license file into the license string.
             file.read_to_string(&mut license_string).try("cargo-deb: error reading license file");
             // Skip the first `A` number of lines and then iterate each line after that.
@@ -95,26 +96,26 @@ fn copy_files(archive: &mut TarBuilder<Vec<u8>>, options: &Config, time: &u64) {
             target.push_str(Path::new(origin).file_name().unwrap().to_str().unwrap());
         }
 
-        // Collect a list of directories
-        let directories = target.char_indices()
+        // Append each of the directories found in the file's pathname to the archive before adding the file
+        target.char_indices()
+            // Exclusively search for `/` characters only
             .filter(|&(_, character)| character == '/')
-            .map(|(id, _)| String::from(&target[0..id+1]))
-            .collect::<Vec<String>>();
-
-        // Create all of the intermediary directories in the archive before adding the file
-        for directory in directories {
-            if !added_directories.iter().any(|x| x == &directory) {
-                added_directories.push(directory.clone());
-                let mut header = TarHeader::new_gnu();
-                header.set_mtime(*time);
-                header.set_size(0);
-                header.set_mode(CHMOD_BIN_OR_DIR);
-                header.set_path(&directory).unwrap();
-                header.set_entry_type(EntryType::Directory);
-                header.set_cksum();
-                archive.append(&header, &mut io::empty()).unwrap();
-            }
-        }
+            // Use the indexes of the `/` characters to collect a list of directory pathnames
+            .map(|(id, _)| &target[0..id+1])
+            // For each directory pathname found, attempt to add it to the list of directories
+            .foreach(|directory| {
+                if !added_directories.iter().any(|x| x.as_str() == directory) {
+                    added_directories.push(directory.to_owned());
+                    let mut header = TarHeader::new_gnu();
+                    header.set_mtime(*time);
+                    header.set_size(0);
+                    header.set_mode(CHMOD_BIN_OR_DIR);
+                    header.set_path(&directory).unwrap();
+                    header.set_entry_type(EntryType::Directory);
+                    header.set_cksum();
+                    archive.append(&header, &mut io::empty()).unwrap();
+                }
+            });
 
         // Add the file to the archive
         let mut file = fs::File::open(&origin).try("cargo-deb: unable to open file");
