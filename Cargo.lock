@@ -2,13 +2,13 @@
 name = "cargo-deb"
 version = "0.0.1"
 dependencies = [
- "itertools 0.4.16 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.2.13 (registry+https://github.com/rust-lang/crates.io-index)",
+ "itertools 0.4.17 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.15 (registry+https://github.com/rust-lang/crates.io-index)",
  "rust-lzma 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-serialize 0.3.19 (registry+https://github.com/rust-lang/crates.io-index)",
  "tar 0.4.6 (git+https://github.com/mmstick/tar-rs)",
  "toml 0.1.30 (registry+https://github.com/rust-lang/crates.io-index)",
- "zopfli 0.3.0 (git+https://github.com/carols10cents/zopfli)",
+ "zopfli 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -34,12 +34,12 @@ name = "filetime"
 version = "0.1.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "libc 0.2.13 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.15 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
 name = "itertools"
-version = "0.4.16"
+version = "0.4.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
@@ -49,7 +49,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "libc"
-version = "0.2.13"
+version = "0.2.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
@@ -62,7 +62,7 @@ name = "rust-lzma"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "libc 0.2.13 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.15 (registry+https://github.com/rust-lang/crates.io-index)",
  "pkg-config 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -77,8 +77,8 @@ version = "0.4.6"
 source = "git+https://github.com/mmstick/tar-rs#96ff38490a98b0ebe72d64b208d52d66f24bd611"
 dependencies = [
  "filetime 0.1.10 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.2.13 (registry+https://github.com/rust-lang/crates.io-index)",
- "xattr 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.15 (registry+https://github.com/rust-lang/crates.io-index)",
+ "xattr 0.1.8 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -91,16 +91,16 @@ dependencies = [
 
 [[package]]
 name = "xattr"
-version = "0.1.7"
+version = "0.1.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "libc 0.2.13 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.15 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
 name = "zopfli"
 version = "0.3.0"
-source = "git+https://github.com/carols10cents/zopfli#6642b3e470e343425ccc66d29507c6c55e45aa8c"
+source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "adler32 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "byteorder 0.5.3 (registry+https://github.com/rust-lang/crates.io-index)",

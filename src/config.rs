@@ -1,16 +1,15 @@
 use std::fs::File;
 use std::io::Read;
+use std::env::consts::ARCH;
 use std::path::{Path, PathBuf};
 use std::process::{exit, Command};
-use std::mem;
 use itertools::Itertools;
-use libc;
 use rustc_serialize;
 use toml;
 use dependencies::resolve;
 
 use wordsplit::WordSplit;
-use try::{failed, Try};
+use try::Try;
 
 #[derive(Debug)]
 pub struct Config {
@@ -78,7 +77,7 @@ impl Cargo {
             depends: self.get_dependencies(&self.package.metadata.deb.depends),
             section: self.package.metadata.deb.section.clone(),
             priority: self.package.metadata.deb.priority.clone(),
-            architecture: get_arch(),
+            architecture: get_arch().to_owned(),
             conf_files: self.package.metadata.deb.conf_files.clone()
                 .map(|x| x.iter().fold(String::new(), |a, b| a + b + "\n")),
             assets: self.package.metadata.deb.assets.clone(),
@@ -86,15 +85,11 @@ impl Cargo {
     }
 
     fn get_dependencies(&self, input: &str) -> String {
-        input.split_whitespace()
-            .map(|word| {
-                match word {
-                    "$auto"  => resolve(String::from("target/release/") + &self.package.name),
-                    "$auto," => resolve(String::from("target/release/") + &self.package.name + ","),
-                    _        => word.to_owned()
-                }
-            })
-            .join(" ")
+        input.split_whitespace().map(|word| match word {
+            "$auto"  => resolve(String::from("target/release/") + &self.package.name),
+            "$auto," => resolve(String::from("target/release/") + &self.package.name + ","),
+            _        => word.to_owned()
+        }).join(" ")
     }
 }
 
@@ -146,28 +141,12 @@ fn manifest_contents(manifest_path: &Path, content: &mut String) {
 }
 
 /// Calls the `uname` function from libc to obtain the machine architecture, and then Debianizes the architecture name.
-fn get_arch() -> String {
-    // We need to drop down to libc in order to collect the machine architecture information from the system.
-    let arch = unsafe {
-        // Initialize a `utsname` variable, whose values will be collected when calling uname.
-        let mut utsname: libc::utsname = mem::uninitialized();
-        // Collect the data from libc::uname into utsname and check the return status.
-        if libc::uname(&mut utsname) < 0 {
-            failed("cargo-deb: could not obtain machine architecture from the libc::uname function");
-        } else {
-            // The machine variable contains the architecture in a `[i8; 65] `array.
-            // Strings have to be of the `u8` type, however, so we need to convert this.
-            let machine = utsname.machine.iter().map(|x| *x as u8)
-                // Collect the characters until a null-terminated character is found.
-                .take_while(|x| *x != b'\0').collect::<Vec<u8>>();
-            // Return the collected architecture as a String, which should be UTF-8.
-            String::from_utf8(machine).try("cargo-deb: libc::uname did not return a valid UTF-8 string")
-        }
-    };
-    // Debianize the collected information. x86_64 == amd64; noarch == all.
-    match arch.as_str() {
-        "x86_64" => String::from("amd64"),
-        "noarch" => String::from("all"),
-        _        => arch
+fn get_arch() -> &'static str {
+    match ARCH {
+        "arm"     => "armhf",
+        "aarch64" => "arm64",
+        "x86_64"  => "amd64",
+        "noarch"  => "all",
+        _         => ARCH
     }
 }

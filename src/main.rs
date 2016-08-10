@@ -66,7 +66,6 @@ fn generate_deb(config: &Config) {
     let _ = fs::remove_file(&outpath); // Remove it if it exists
     Command::new("ar").arg("r").arg(outpath).arg("debian-binary").arg("control.tar.gz").arg("data.tar.xz").status()
         .try("cargo-deb: unable to create debian archive");
-
 }
 
 // Creates the debian-binary file that will be added to the final ar archive.
