@@ -15,13 +15,13 @@ const CHMOD_FILE:       u32 = 420;
 const CHMOD_BIN_OR_DIR: u32 = 493;
 
 /// Generates the uncompressed control.tar archive
-pub fn generate_archive(archive: &mut TarBuilder<Vec<u8>>, options: &Config, time: &u64) {
+pub fn generate_archive(archive: &mut TarBuilder<Vec<u8>>, options: &Config, time: u64) {
     copy_files(archive, options, time);
     generate_copyright(archive, options, time);
 }
 
 /// Generates the copyright file from the license file and adds that to the tar archive.
-fn generate_copyright(archive: &mut TarBuilder<Vec<u8>>, options: &Config, time: &u64) {
+fn generate_copyright(archive: &mut TarBuilder<Vec<u8>>, options: &Config, time: u64) {
     let mut copyright: Vec<u8> = Vec::new();
     write!(&mut copyright, "Upstream Name: {}\n", options.name).unwrap();
     write!(&mut copyright, "Source: {}\n", options.repository).unwrap();
@@ -48,7 +48,8 @@ fn generate_copyright(archive: &mut TarBuilder<Vec<u8>>, options: &Config, time:
                 if line.is_empty() {
                     copyright.write(b".\n").unwrap();
                 } else {
-                    write!(&mut copyright, "{}\n", line.trim()).unwrap();
+                    copyright.write(line.trim().as_bytes()).unwrap();
+                    copyright.write(b"\n").unwrap();
                 }
             }
         });
@@ -63,7 +64,7 @@ fn generate_copyright(archive: &mut TarBuilder<Vec<u8>>, options: &Config, time:
 
     for dir in &[".", "./usr/", "./usr/share/", "./usr/share/doc/", target.as_str()] {
         let mut header = TarHeader::new_gnu();
-        header.set_mtime(*time);
+        header.set_mtime(time);
         header.set_size(0);
         header.set_mode(CHMOD_BIN_OR_DIR);
         header.set_path(&dir).unwrap();
@@ -74,7 +75,7 @@ fn generate_copyright(archive: &mut TarBuilder<Vec<u8>>, options: &Config, time:
 
     // Now add a copy to the archive
     let mut header = TarHeader::new_gnu();
-    header.set_mtime(*time);
+    header.set_mtime(time);
     header.set_path(&(target + "copyright")).unwrap();
     header.set_size(copyright.len() as u64);
     header.set_mode(CHMOD_FILE);
@@ -83,7 +84,7 @@ fn generate_copyright(archive: &mut TarBuilder<Vec<u8>>, options: &Config, time:
 }
 
 /// Copies all the files to be packaged into the tar archive.
-fn copy_files(archive: &mut TarBuilder<Vec<u8>>, options: &Config, time: &u64) {
+fn copy_files(archive: &mut TarBuilder<Vec<u8>>, options: &Config, time: u64) {
     let mut added_directories: Vec<String> = Vec::new();
     for asset in &options.assets {
         // Collect the source and target paths
@@ -107,7 +108,7 @@ fn copy_files(archive: &mut TarBuilder<Vec<u8>>, options: &Config, time: &u64) {
                 if !added_directories.iter().any(|x| x.as_str() == directory) {
                     added_directories.push(directory.to_owned());
                     let mut header = TarHeader::new_gnu();
-                    header.set_mtime(*time);
+                    header.set_mtime(time);
                     header.set_size(0);
                     header.set_mode(CHMOD_BIN_OR_DIR);
                     header.set_path(&directory).unwrap();
@@ -123,7 +124,7 @@ fn copy_files(archive: &mut TarBuilder<Vec<u8>>, options: &Config, time: &u64) {
         let mut out_data: Vec<u8> = Vec::with_capacity(capacity);
         file.read_to_end(&mut out_data).try("cargo-deb: unable to read asset's data");
         let mut header = TarHeader::new_gnu();
-        header.set_mtime(*time);
+        header.set_mtime(time);
         header.set_path(&target).unwrap();
         header.set_mode(chmod);
         header.set_size(capacity as u64);

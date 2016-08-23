@@ -124,7 +124,8 @@ pub struct CargoDeb {
 
 /// Returns the path of the `Cargo.toml` that we want to build.
 fn current_manifest_path() -> PathBuf {
-    let output = Command::new("cargo").arg("locate-project").output().unwrap();
+    let output = Command::new("cargo").arg("locate-project").output()
+        .try("cargo-deb: unable to obtain output of `cargo locate-proect`");
     if !output.status.success() { exit(output.status.code().unwrap_or(-1)); }
 
     #[derive(RustcDecodable)]
@@ -140,7 +141,8 @@ fn manifest_contents(manifest_path: &Path, content: &mut String) {
         .read_to_string(content).try("cargo-deb: invalid or missing Cargo.toml options");
 }
 
-/// Calls the `uname` function from libc to obtain the machine architecture, and then Debianizes the architecture name.
+/// Calls the `uname` function from libc to obtain the machine architecture,
+/// and then Debianizes the architecture name.
 fn get_arch() -> &'static str {
     match ARCH {
         "arm"     => "armhf",
