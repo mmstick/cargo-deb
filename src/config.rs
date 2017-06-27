@@ -68,7 +68,7 @@ impl Cargo {
             license: self.package.license.clone(),
             license_file: self.package.metadata.deb.license_file.clone(),
             copyright: self.package.metadata.deb.copyright.clone(),
-            version: self.package.version.clone(),
+            version: self.version_string(),
             homepage: self.package.homepage.clone(),
             repository: self.package.repository.clone(),
             description: self.package.description.clone(),
@@ -90,6 +90,14 @@ impl Cargo {
             "$auto," => resolve(String::from("target/release/") + &self.package.name + ","),
             _        => word.to_owned()
         }).join(" ")
+    }
+
+    fn version_string(&self) -> String {
+        if let Some(ref revision) = self.package.metadata.deb.revision {
+            format!("{}-{}", self.package.version, revision)
+        } else {
+            self.package.version.clone()
+        }
     }
 }
 
@@ -118,6 +126,7 @@ pub struct CargoDeb {
     pub extended_description: String,
     pub section: String,
     pub priority: String,
+    pub revision: Option<String>,
     pub conf_files: Option<Vec<String>>,
     pub assets: Vec<Vec<String>>,
 }
