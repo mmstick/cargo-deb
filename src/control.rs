@@ -10,6 +10,7 @@ use tar::EntryType;
 
 const CHMOD_FILE:       u32 = 420;
 const CHMOD_BIN_OR_DIR: u32 = 493;
+const SCRIPTS: 		[&str; 4] = ["preinst", "postinst", "prerm", "postrm"];
 
 /// Generates the uncompressed control.tar archive
 pub fn generate_archive(archive: &mut TarBuilder<Vec<u8>>, options: &Config, time: u64) {
@@ -17,6 +18,7 @@ pub fn generate_archive(archive: &mut TarBuilder<Vec<u8>>, options: &Config, tim
     generate_md5sums(archive, options, time);
     generate_control(archive, options, time);
     generate_conf_files(archive, options.conf_files.as_ref(), time);
+    generate_scripts(archive, options);
 }
 
 /// Creates the initial hidden directory where all the files are stored.
@@ -29,6 +31,18 @@ fn initialize_control(archive: &mut TarBuilder<Vec<u8>>, time: u64) {
     header.set_entry_type(EntryType::Directory);
     header.set_cksum();
     archive.append(&header, &mut io::empty()).unwrap();
+}
+
+/// Append all files that reside in the `maintainer_scripts` path to the archive
+fn generate_scripts(archive: &mut TarBuilder<Vec<u8>>, option: &Config) {
+    if let Some(ref maintainer_scripts) = option.maintainer_scripts {
+        for script in &SCRIPTS {
+            if let Ok(mut file) = fs::File::open(maintainer_scripts.join(script)) {
+                archive.append_file(script, &mut file)
+                    .try("cargo-deb: failed to add maintainer script to control");
+            }
+        }
+    }
 }
 
 /// Creates the md5sums file which contains a list of all contained files and the md5sums of each.

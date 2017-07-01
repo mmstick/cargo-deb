@@ -44,7 +44,9 @@ pub struct Config {
     /// A list of configuration files installed by the package.
     pub conf_files: Option<String>,
     /// All of the files that are to be packaged. `{ source_file, target_path, chmod }`
-    pub assets: Vec<Vec<String>>
+    pub assets: Vec<Vec<String>>,
+    /// The path were possible maintainer scripts live
+    pub maintainer_scripts: Option<PathBuf>,
 }
 
 impl Config {
@@ -81,6 +83,7 @@ impl Cargo {
             conf_files: self.package.metadata.deb.conf_files.clone()
                 .map(|x| x.iter().fold(String::new(), |a, b| a + b + "\n")),
             assets: self.package.metadata.deb.assets.clone(),
+            maintainer_scripts: self.package.metadata.deb.maintainer_scripts.clone().map(|s| PathBuf::from(s))
         }
     }
 
@@ -120,6 +123,7 @@ pub struct CargoDeb {
     pub priority: String,
     pub conf_files: Option<Vec<String>>,
     pub assets: Vec<Vec<String>>,
+    pub maintainer_scripts: Option<String>
 }
 
 /// Returns the path of the `Cargo.toml` that we want to build.
