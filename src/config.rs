@@ -36,7 +36,7 @@ pub struct Config {
     /// The Debian dependencies required to run the project.
     pub depends: String,
     /// The category by which the package belongs.
-    pub section: String,
+    pub section: Option<String>,
     /// The priority of the project. Typically 'optional'.
     pub priority: String,
     /// The architecture of the running system.
@@ -53,7 +53,7 @@ impl Config {
     pub fn new() -> Config {
         let mut content = String::new();
         manifest_contents(&current_manifest_path(), &mut content);
-        toml::from_str::<Cargo>(&content).try("cargo-deb: could not decode manifest").to_config()
+        toml::from_str::<Cargo>(&content).try("cargo-deb: could not decode manifest").into_config()
     }
 }
 
@@ -64,25 +64,32 @@ pub struct Cargo {
 }
 
 impl Cargo {
-    fn to_config(&self) -> Config {
+    fn into_config(mut self) -> Config {
+        let depends = self.package.metadata.deb.depends.take().unwrap_or("$auto".to_owned());
         Config {
             name: self.package.name.clone(),
             license: self.package.license.clone(),
-            license_file: self.package.metadata.deb.license_file.clone(),
-            copyright: self.package.metadata.deb.copyright.clone(),
+            license_file: self.package.metadata.deb.license_file.take().unwrap_or(vec![]),
+            copyright: self.package.metadata.deb.copyright.take().unwrap_or_else(|| {
+                self.package.authors.as_ref().try("Package must have a copyright or authors").join(", ")
+            }),
             version: self.version_string(),
             homepage: self.package.homepage.clone(),
             repository: self.package.repository.clone(),
             description: self.package.description.clone(),
-            extended_description: self.package.metadata.deb.extended_description.split_by_chars(79),
-            maintainer: self.package.metadata.deb.maintainer.clone(),
-            depends: self.get_dependencies(&self.package.metadata.deb.depends),
-            section: self.package.metadata.deb.section.clone(),
-            priority: self.package.metadata.deb.priority.clone(),
+            extended_description: self.package.metadata.deb.extended_description.take()
+                .map(|d|d.split_by_chars(79)).unwrap_or(vec![]),
+            maintainer: self.package.metadata.deb.maintainer.take().unwrap_or_else(|| {
+                self.package.authors.as_ref().and_then(|a|a.get(0))
+                    .try("Package must have a maintainer or authors").to_owned()
+            }),
+            depends: self.get_dependencies(&depends),
+            section: self.package.metadata.deb.section.take(),
+            priority: self.package.metadata.deb.priority.take().unwrap_or("optional".to_owned()),
             architecture: get_arch().to_owned(),
             conf_files: self.package.metadata.deb.conf_files.clone()
                 .map(|x| x.iter().fold(String::new(), |a, b| a + b + "\n")),
-            assets: self.package.metadata.deb.assets.clone(),
+            assets: self.package.metadata.deb.assets.take().unwrap_or(vec![]),
             maintainer_scripts: self.package.metadata.deb.maintainer_scripts.clone().map(|s| PathBuf::from(s))
         }
     }
@@ -107,6 +114,7 @@ impl Cargo {
 #[derive(Clone, Debug, Deserialize)]
 pub struct CargoPackage {
     pub name: String,
+    pub authors: Option<Vec<String>>,
     pub license: String,
     pub homepage: Option<String>,
     pub repository: String,
@@ -122,16 +130,16 @@ pub struct CargoMetadata {
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct CargoDeb {
-    pub maintainer: String,
-    pub copyright: String,
-    pub license_file: Vec<String>,
-    pub depends: String,
-    pub extended_description: String,
-    pub section: String,
-    pub priority: String,
+    pub maintainer: Option<String>,
+    pub copyright: Option<String>,
+    pub license_file: Option<Vec<String>>,
+    pub depends: Option<String>,
+    pub extended_description: Option<String>,
+    pub section: Option<String>,
+    pub priority: Option<String>,
     pub revision: Option<String>,
     pub conf_files: Option<Vec<String>>,
-    pub assets: Vec<Vec<String>>,
+    pub assets: Option<Vec<Vec<String>>>,
     pub maintainer_scripts: Option<String>
 }
 

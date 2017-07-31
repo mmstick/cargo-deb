@@ -108,7 +108,9 @@ fn generate_control(archive: &mut TarBuilder<Vec<u8>>, options: &Config, time: u
     if let Some(ref homepage) = options.homepage {
         write!(&mut control, "Homepage: {}\n", homepage).unwrap();
     }
-    write!(&mut control, "Section: {}\n", options.section).unwrap();
+    if let Some(ref section) = options.section {
+        write!(&mut control, "Section: {}\n", section).unwrap();
+    }
     write!(&mut control, "Priority: {}\n", options.priority).unwrap();
     control.write(b"Standards-Version: 3.9.4\n").unwrap();
     write!(&mut control, "Maintainer: {}\n", options.maintainer).unwrap();
