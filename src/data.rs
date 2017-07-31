@@ -29,7 +29,7 @@ fn generate_copyright(archive: &mut TarBuilder<Vec<u8>>, options: &Config, time:
     write!(&mut copyright, "License: {}\n", options.license).unwrap();
     options.license_file.get(0)
         // Fail if the path cannot be found and report that the license file argument is missing.
-        .map_or_else(|| failed("cargo-deb: missing license file argument"), |path| {
+        .map(|path| {
             // Now we need to obtain the amount of lines to skip at the top of the file.
             let lines_to_skip = options.license_file.get(1)
                 // If no argument is given, or if the argument is not a number, return 0.
