@@ -10,8 +10,8 @@ repository = "https://github.com/mmstick/cargo-deb"
 [package.metadata.deb]
 maintainer = "Michael Aaron Murphy <mmstickman@gmail.com>"
 copyright = "2016, Michael Aaron Murphy <mmstickman@gmail.com>"
-license_file = ["LICENSE", "4"]
-extended_description = """\
+license-file = ["LICENSE", "4"]
+extended-description = """\
 A simple subcommand for the Cargo package manager for \
 building Debian packages from Rust projects."""
 depends = "$auto"
