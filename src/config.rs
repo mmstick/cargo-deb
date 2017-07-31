@@ -81,6 +81,7 @@ impl Config {
 #[derive(Clone, Debug, Deserialize)]
 pub struct Cargo {
     pub package: CargoPackage,
+    pub bin: Option<Vec<CargoBin>>,
 }
 
 impl Cargo {
@@ -135,7 +136,25 @@ impl Cargo {
                 }
             }).collect()
         } else {
-            vec![]
+            let mut implied_assets: Vec<_> = self.bin.as_ref().unwrap_or(&vec![])
+                .into_iter()
+                .filter(|bin| !bin.plugin.unwrap_or(false) && !bin.proc_macro.unwrap_or(false))
+                .map(|bin| {
+                Asset {
+                    source_file: format!("target/release/{}", bin.name),
+                    target_path: format!("usr/bin/{}", bin.name),
+                    chmod: 0o755,
+                }
+            }).collect();
+            if let Some(readme) = self.package.readme.take() {
+                let target_path = format!("usr/share/doc/{}/{}", self.package.name, readme);
+                implied_assets.push(Asset {
+                    source_file: readme,
+                    target_path,
+                    chmod: 0o644,
+                });
+            }
+            implied_assets
         }
     }
 
@@ -160,12 +179,21 @@ pub struct CargoPackage {
     pub repository: String,
     pub version: String,
     pub description: String,
+    pub readme: Option<String>,
     pub metadata: CargoMetadata
 }
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct CargoMetadata {
     pub deb: CargoDeb
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct CargoBin {
+    pub name: String,
+    pub plugin: Option<bool>,
+    pub proc_macro: Option<bool>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
