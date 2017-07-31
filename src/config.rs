@@ -47,6 +47,8 @@ pub struct Config {
     pub assets: Vec<Vec<String>>,
     /// The path were possible maintainer scripts live
     pub maintainer_scripts: Option<PathBuf>,
+    /// List of Cargo features to use during build
+    pub features: Vec<String>,
 }
 
 impl Config {
@@ -54,6 +56,14 @@ impl Config {
         let mut content = String::new();
         manifest_contents(&current_manifest_path(), &mut content);
         toml::from_str::<Cargo>(&content).try("cargo-deb: could not decode manifest").into_config()
+    }
+
+    pub fn get_dependencies(&self) -> String {
+        self.depends.split_whitespace().map(|word| match word {
+            "$auto"  => resolve(String::from("target/release/") + &self.name),
+            "$auto," => resolve(String::from("target/release/") + &self.name + ","),
+            _        => word.to_owned()
+        }).join(" ")
     }
 }
 
@@ -65,7 +75,6 @@ pub struct Cargo {
 
 impl Cargo {
     fn into_config(mut self) -> Config {
-        let depends = self.package.metadata.deb.depends.take().unwrap_or("$auto".to_owned());
         Config {
             name: self.package.name.clone(),
             license: self.package.license.clone(),
@@ -83,23 +92,16 @@ impl Cargo {
                 self.package.authors.as_ref().and_then(|a|a.get(0))
                     .try("Package must have a maintainer or authors").to_owned()
             }),
-            depends: self.get_dependencies(&depends),
+            depends: self.package.metadata.deb.depends.take().unwrap_or("$auto".to_owned()),
             section: self.package.metadata.deb.section.take(),
             priority: self.package.metadata.deb.priority.take().unwrap_or("optional".to_owned()),
             architecture: get_arch().to_owned(),
             conf_files: self.package.metadata.deb.conf_files.clone()
                 .map(|x| x.iter().fold(String::new(), |a, b| a + b + "\n")),
             assets: self.package.metadata.deb.assets.take().unwrap_or(vec![]),
-            maintainer_scripts: self.package.metadata.deb.maintainer_scripts.clone().map(|s| PathBuf::from(s))
+            maintainer_scripts: self.package.metadata.deb.maintainer_scripts.clone().map(|s| PathBuf::from(s)),
+            features: self.package.metadata.deb.features.take().unwrap_or(vec![]),
         }
-    }
-
-    fn get_dependencies(&self, input: &str) -> String {
-        input.split_whitespace().map(|word| match word {
-            "$auto"  => resolve(String::from("target/release/") + &self.package.name),
-            "$auto," => resolve(String::from("target/release/") + &self.package.name + ","),
-            _        => word.to_owned()
-        }).join(" ")
     }
 
     fn version_string(&self) -> String {
@@ -140,7 +142,8 @@ pub struct CargoDeb {
     pub revision: Option<String>,
     pub conf_files: Option<Vec<String>>,
     pub assets: Option<Vec<Vec<String>>>,
-    pub maintainer_scripts: Option<String>
+    pub maintainer_scripts: Option<String>,
+    pub features: Option<Vec<String>>,
 }
 
 /// Returns the path of the `Cargo.toml` that we want to build.
