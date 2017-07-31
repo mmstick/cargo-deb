@@ -25,7 +25,8 @@ pub struct Config {
     /// The software license of the project.
     pub license: String,
     /// The location of the license file followed by the amount of lines to skip.
-    pub license_file: Vec<String>,
+    pub license_file: Option<String>,
+    pub license_file_skip_lines: usize,
     /// The copyright of the project.
     pub copyright: String,
     /// The version number of the project.
@@ -83,10 +84,17 @@ pub struct Cargo {
 
 impl Cargo {
     fn into_config(mut self) -> Config {
+        let (license_file, license_file_skip_lines) = if let Some(mut args) = self.package.metadata.deb.license_file.take() {
+            let mut args = args.drain(..);
+            (args.next(), args.next().map(|p|p.parse().try("invalid number of lines to skip")).unwrap_or(0))
+        } else {
+            (None, 0)
+        };
         Config {
             name: self.package.name.clone(),
             license: self.package.license.clone(),
-            license_file: self.package.metadata.deb.license_file.take().unwrap_or(vec![]),
+            license_file,
+            license_file_skip_lines,
             copyright: self.package.metadata.deb.copyright.take().unwrap_or_else(|| {
                 self.package.authors.as_ref().try("Package must have a copyright or authors").join(", ")
             }),

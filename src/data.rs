@@ -30,19 +30,15 @@ fn generate_copyright(archive: &mut TarBuilder<Vec<u8>>, options: &Config, time:
     write!(&mut copyright, "Source: {}\n", options.repository).unwrap();
     write!(&mut copyright, "Copyright: {}\n", options.copyright).unwrap();
     write!(&mut copyright, "License: {}\n", options.license).unwrap();
-    options.license_file.get(0)
+    options.license_file.as_ref()
         // Fail if the path cannot be found and report that the license file argument is missing.
         .map(|path| {
-            // Now we need to obtain the amount of lines to skip at the top of the file.
-            let lines_to_skip = options.license_file.get(1)
-                // If no argument is given, or if the argument is not a number, return 0.
-                .map_or(0, |x| x.parse::<usize>().unwrap_or(0));
             // Now we need to attempt to open the file.
             let mut file = fs::File::open(path).try("cargo-deb: license file could not be opened");
             let mut license_string = String::new();
             file.read_to_string(&mut license_string).try("cargo-deb: error reading license file");
             // Skip the first `A` number of lines and then iterate each line after that.
-            for line in license_string.lines().skip(lines_to_skip) {
+            for line in license_string.lines().skip(options.license_file_skip_lines) {
                 // If the line is empty, write a dot, else write the line.
                 if line.is_empty() {
                     copyright.write(b".\n").unwrap();
