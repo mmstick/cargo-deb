@@ -33,6 +33,7 @@ pub struct Config {
     pub version: String,
     /// The homepage of the project.
     pub homepage: Option<String>,
+    pub documentation: Option<String>,
     /// The URL of the software repository.
     pub repository: String,
     /// A short description of the project.
@@ -100,6 +101,7 @@ impl Cargo {
             }),
             version: self.version_string(),
             homepage: self.package.homepage.clone(),
+            documentation: self.package.documentation.clone(),
             repository: self.package.repository.clone(),
             description: self.package.description.clone(),
             extended_description: self.package.metadata.deb.extended_description.take()
@@ -154,6 +156,7 @@ pub struct CargoPackage {
     pub license: String,
     pub license_file: Option<String>,
     pub homepage: Option<String>,
+    pub documentation: Option<String>,
     pub repository: String,
     pub version: String,
     pub description: String,

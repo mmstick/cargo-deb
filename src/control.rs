@@ -109,7 +109,7 @@ fn generate_control(archive: &mut TarBuilder<Vec<u8>>, options: &Config, time: u
     write!(&mut control, "Version: {}\n", options.version).unwrap();
     write!(&mut control, "Architecture: {}\n", options.architecture).unwrap();
     write!(&mut control, "Repository: {}\n", options.repository).unwrap();
-    if let Some(ref homepage) = options.homepage {
+    if let Some(ref homepage) = options.homepage.as_ref().or(options.documentation.as_ref()) {
         write!(&mut control, "Homepage: {}\n", homepage).unwrap();
     }
     if let Some(ref section) = options.section {
