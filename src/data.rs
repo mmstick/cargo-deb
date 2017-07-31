@@ -34,9 +34,9 @@ fn generate_copyright(archive: &mut TarBuilder<Vec<u8>>, options: &Config, time:
         // Fail if the path cannot be found and report that the license file argument is missing.
         .map(|path| {
             // Now we need to attempt to open the file.
-            let mut file = fs::File::open(path).try("cargo-deb: license file could not be opened");
+            let mut file = fs::File::open(path).try("license file could not be opened");
             let mut license_string = String::new();
-            file.read_to_string(&mut license_string).try("cargo-deb: error reading license file");
+            file.read_to_string(&mut license_string).try("error reading license file");
             // Skip the first `A` number of lines and then iterate each line after that.
             for line in license_string.lines().skip(options.license_file_skip_lines) {
                 // If the line is empty, write a dot, else write the line.
@@ -52,9 +52,9 @@ fn generate_copyright(archive: &mut TarBuilder<Vec<u8>>, options: &Config, time:
     // Write a copy to the disk for the sake of obtaining a md5sum for the control archive.
     let mut file = fs::OpenOptions::new().create(true).write(true).truncate(true).mode(CHMOD_FILE)
         .open("target/debian/copyright").unwrap_or_else(|err| {
-            failed(format!("cargo-deb: unable to open copyright file for writing: {}", err.to_string()));
+            failed(format!("unable to open copyright file for writing: {}", err.to_string()));
         });
-    file.write_all(copyright.as_slice()).try("cargo-deb: unable to write copyright file to disk");
+    file.write_all(copyright.as_slice()).try("unable to write copyright file to disk");
     let target = String::from("./usr/share/doc/") + &options.name + "/";
 
     for dir in &[".", "./usr/", "./usr/share/", "./usr/share/doc/", target.as_str()] {
@@ -75,7 +75,7 @@ fn generate_copyright(archive: &mut TarBuilder<Vec<u8>>, options: &Config, time:
     header.set_size(copyright.len() as u64);
     header.set_mode(CHMOD_FILE);
     header.set_cksum();
-    archive.append(&header, copyright.as_slice()).try("cargo-deb: unable to append copyright");
+    archive.append(&header, copyright.as_slice()).try("unable to append copyright");
 }
 
 /// Copies all the files to be packaged into the tar archive.
@@ -113,9 +113,9 @@ fn copy_files(archive: &mut TarBuilder<Vec<u8>>, options: &Config, time: u64) ->
             });
 
         // Add the file to the archive
-        let mut file = fs::File::open(&asset.source_file).try("cargo-deb: unable to open file");
+        let mut file = fs::File::open(&asset.source_file).try("unable to open file");
         let mut out_data = Vec::new();
-        file.read_to_end(&mut out_data).try("cargo-deb: unable to read asset's data");
+        file.read_to_end(&mut out_data).try("unable to read asset's data");
 
         hashes.insert(asset.source_file.clone(), md5::compute(&out_data));
 
@@ -125,7 +125,7 @@ fn copy_files(archive: &mut TarBuilder<Vec<u8>>, options: &Config, time: u64) ->
         header.set_mode(asset.chmod);
         header.set_size(out_data.len() as u64);
         header.set_cksum();
-        archive.append(&header, out_data.as_slice()).try("cargo-deb: unable to write data to archive.");
+        archive.append(&header, out_data.as_slice()).try("unable to write data to archive.");
     }
     hashes
 }

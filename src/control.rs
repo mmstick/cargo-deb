@@ -41,7 +41,7 @@ fn generate_scripts(archive: &mut TarBuilder<Vec<u8>>, option: &Config) {
         for script in &SCRIPTS {
             if let Ok(mut file) = fs::File::open(maintainer_scripts.join(script)) {
                 archive.append_file(script, &mut file)
-                    .try("cargo-deb: failed to add maintainer script to control");
+                    .try("failed to add maintainer script to control");
             }
         }
     }
@@ -87,7 +87,7 @@ fn generate_md5sums(archive: &mut TarBuilder<Vec<u8>>, options: &Config, time: u
     md5sums.push(10);
 
     // We can now exterminate the copyright file as it has outlived it's usefulness.
-    fs::remove_file("target/debian/copyright").try("cargo-deb: copyright file doesn't exist.");
+    fs::remove_file("target/debian/copyright").try("copyright file doesn't exist.");
 
     // Write the data to the archive
     let mut header = TarHeader::new_gnu();
@@ -96,7 +96,7 @@ fn generate_md5sums(archive: &mut TarBuilder<Vec<u8>>, options: &Config, time: u
     header.set_size(md5sums.len() as u64);
     header.set_mode(CHMOD_FILE);
     header.set_cksum();
-    archive.append(&header, md5sums.as_slice()).try("cargo-deb: unable to append md5sums");
+    archive.append(&header, md5sums.as_slice()).try("unable to append md5sums");
 }
 
 /// Generates the control file that obtains all the important information about the package.
@@ -134,7 +134,7 @@ fn generate_control(archive: &mut TarBuilder<Vec<u8>>, options: &Config, time: u
     header.set_size(control.len() as u64);
     header.set_mode(CHMOD_FILE);
     header.set_cksum();
-    archive.append(&header, control.as_slice()).try("cargo-deb: unable to append control");
+    archive.append(&header, control.as_slice()).try("unable to append control");
 }
 
 /// If configuration files are required, the conffiles file will be created.
@@ -149,6 +149,6 @@ fn generate_conf_files(archive: &mut TarBuilder<Vec<u8>>, conf_file: Option<&Str
         header.set_size(data.len() as u64);
         header.set_mode(CHMOD_FILE);
         header.set_cksum();
-        archive.append(&header, data.as_slice()).try("cargo-deb: unable to append conffiles");
+        archive.append(&header, data.as_slice()).try("unable to append conffiles");
     }
 }

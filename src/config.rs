@@ -65,7 +65,7 @@ impl Config {
     pub fn new() -> Config {
         let mut content = String::new();
         manifest_contents(&current_manifest_path(), &mut content);
-        toml::from_str::<Cargo>(&content).try("cargo-deb: could not decode manifest").into_config()
+        toml::from_str::<Cargo>(&content).try("could not decode manifest").into_config()
     }
 
     pub fn get_dependencies(&self) -> String {
@@ -189,7 +189,7 @@ pub struct CargoDeb {
 /// Returns the path of the `Cargo.toml` that we want to build.
 fn current_manifest_path() -> PathBuf {
     let output = Command::new("cargo").arg("locate-project").output()
-        .try("cargo-deb: unable to obtain output of `cargo locate-proect`");
+        .try("unable to obtain output of `cargo locate-proect`");
     if !output.status.success() { exit(output.status.code().unwrap_or(-1)); }
 
     #[derive(Deserialize)]
@@ -201,8 +201,8 @@ fn current_manifest_path() -> PathBuf {
 
 /// Opens the Cargo.toml file and places the contents into the `content` `String`.
 fn manifest_contents(manifest_path: &Path, content: &mut String) {
-    File::open(manifest_path).try("cargo-deb: could not open manifest file")
-        .read_to_string(content).try("cargo-deb: invalid or missing Cargo.toml options");
+    File::open(manifest_path).try("could not open manifest file")
+        .read_to_string(content).try("invalid or missing Cargo.toml options");
 }
 
 /// Calls the `uname` function from libc to obtain the machine architecture,

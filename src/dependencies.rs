@@ -8,7 +8,7 @@ pub fn resolve<S: AsRef<str>>(path: S) -> String {
     let dependencies = {
         let path = path.as_ref();
         let output = Command::new("ldd").arg(path).output().map(|x| x.stdout)
-            .try("cargo-deb: failed to launch ldd command");
+            .try("failed to launch ldd command");
         String::from_utf8(output).unwrap()
     };
 
@@ -42,7 +42,7 @@ pub fn resolve<S: AsRef<str>>(path: S) -> String {
 /// Obtains the name of the package that belongs to the file that ldd returned.
 fn get_package_name(path: &str) -> String {
     let output = Command::new("dpkg").arg("-S").arg(path).output().ok()
-        .try("cargo-deb: dpkg command not found. Automatic dependency resolution is only supported on Debian.");
+        .try("dpkg command not found. Automatic dependency resolution is only supported on Debian.");
     if !output.status.success() {
         failed(format!("Unable to find package for {}\ndpkg failed: {}", path, String::from_utf8_lossy(&output.stderr)));
     }
@@ -53,7 +53,7 @@ fn get_package_name(path: &str) -> String {
 /// Uses apt-cache policy to determine the version of the package that this project was built against.
 fn get_version(package: &str) -> Option<String> {
     let output = Command::new("apt-cache").arg("policy").arg(&package).output().ok().map(|x| x.stdout)
-        .try("cargo-deb: apt-cache command not found. Automatic dependency resolution is only supported on Debian.");
+        .try("apt-cache command not found. Automatic dependency resolution is only supported on Debian.");
     let string = String::from_utf8(output).unwrap();
     string.lines().nth(1).map(|installed_line| {
         let installed = installed_line.split_whitespace().nth(1).unwrap();

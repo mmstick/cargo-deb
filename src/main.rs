@@ -41,7 +41,7 @@ fn main() {
 
     // Obtain the current time which will be used to stamp the generated files in the archives.
     let system_time = time::SystemTime::now().duration_since(time::UNIX_EPOCH)
-        .try("cargo-deb: unable to get system time").as_secs();
+        .try("unable to get system time").as_secs();
 
     // Initailize the contents of the data archive (files that go into the filesystem).
     let mut data_archive = TarBuilder::new(Vec::new());
@@ -53,7 +53,7 @@ fn main() {
 
     // Compress the data archive with the LZMA compression algorithm.
     {
-        let tar = data_archive.into_inner().try("cargo-deb: failed to tar contents");
+        let tar = data_archive.into_inner().try("failed to tar contents");
         if let Err(reason) = compress::xz(tar, "target/debian/data.tar.xz") {
             compress::exit_with(reason);
         }
@@ -61,7 +61,7 @@ fn main() {
 
     // Compress the control archive with the Zopfli compression algorithm.
     {
-        let tar = control_archive.into_inner().try("cargo-deb: failed to tar contents");
+        let tar = control_archive.into_inner().try("failed to tar contents");
         if let Err(reason) = compress::gz(tar, "target/debian/control.tar.gz") {
             compress::exit_with(reason);
         }
@@ -78,21 +78,21 @@ fn generate_deb(config: &Config) {
         &config.architecture + ".deb";
     let _ = fs::remove_file(&outpath); // Remove it if it exists
     Command::new("ar").arg("r").arg(outpath).arg("debian-binary").arg("control.tar.gz").arg("data.tar.xz").status()
-        .try("cargo-deb: unable to create debian archive");
+        .try("unable to create debian archive");
 }
 
 // Creates the debian-binary file that will be added to the final ar archive.
 fn generate_debian_binary_file() {
     let mut file = fs::OpenOptions::new().create(true).write(true)
         .truncate(true).mode(CHMOD_FILE).open("target/debian/debian-binary")
-        .try("cargo-deb: unable to create target/debian/debian-binary");
+        .try("unable to create target/debian/debian-binary");
     file.write(&[50, 46, 48, 10]).unwrap(); // [2][.][0][BS]
 }
 
 /// Removes the target/debian directory so that we can start fresh.
 fn remove_leftover_files() {
     let _ = fs::remove_dir_all("target/debian");
-    fs::create_dir_all("target/debian").try("cargo-deb: unable to create debian target");
+    fs::create_dir_all("target/debian").try("unable to create debian target");
 }
 
 /// Builds a release binary with `cargo build --release`
@@ -107,11 +107,11 @@ fn cargo_build(features: &[String], default_features: bool) {
         cmd.arg(format!("--features={}", features.join(",")));
     }
 
-    cmd.status().try("cargo-deb: failed to build project");
+    cmd.status().try("failed to build project");
 }
 
 // Strips the binary that was created with cargo
 fn strip_binary(name: &str) {
     Command::new("strip").arg("--strip-unneeded").arg(String::from("target/release/") + name)
-        .status().try("cargo-deb: could not strip binary");
+        .status().try("could not strip binary");
 }

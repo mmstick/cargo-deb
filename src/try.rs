@@ -13,7 +13,7 @@ impl<T, U: Error> Try for Result<T, U> {
 
     fn try(self, error: &str) -> T {
         self.unwrap_or_else(|reason| {
-            let _ = writeln!(&mut io::stderr(), "{}: {}", error, reason.to_string());
+            let _ = writeln!(&mut io::stderr(), "cargo-deb: {}: {}", error, reason.to_string());
             exit(1);
         })
     }
@@ -24,7 +24,7 @@ impl<T> Try for Option<T> {
 
     fn try(self, error: &str) -> T {
         self.unwrap_or_else(|| {
-            let _ = writeln!(&mut io::stderr(), "{}", error);
+            let _ = writeln!(&mut io::stderr(), "cargo-deb: {}", error);
             exit(1);
         })
     }
@@ -32,6 +32,6 @@ impl<T> Try for Option<T> {
 
 pub fn failed<T: AsRef<str>>(input: T) -> ! {
     let input = input.as_ref();
-    let _ = writeln!(&mut io::stderr(), "{}", input);
+    let _ = writeln!(&mut io::stderr(), "cargo-deb: {}", input);
     exit(1);
 }
