@@ -1,21 +1,23 @@
-use std::io::{self, Write};
+use std::io::{self, Write, Read};
 use std::fs;
 use std::path::Path;
-use std::process::Command;
 use config::Config;
-use try::{failed, Try};
+use try::Try;
 use tar::Builder as TarBuilder;
 use tar::Header as TarHeader;
 use tar::EntryType;
+use md5::Digest;
+use md5;
+use std::collections::HashMap;
 
 const CHMOD_FILE:       u32 = 420;
 const CHMOD_BIN_OR_DIR: u32 = 493;
 const SCRIPTS: 		[&str; 4] = ["preinst", "postinst", "prerm", "postrm"];
 
 /// Generates the uncompressed control.tar archive
-pub fn generate_archive(archive: &mut TarBuilder<Vec<u8>>, options: &Config, time: u64) {
+pub fn generate_archive(archive: &mut TarBuilder<Vec<u8>>, options: &Config, time: u64, asset_hashes: HashMap<String, Digest>) {
     initialize_control(archive, time);
-    generate_md5sums(archive, options, time);
+    generate_md5sums(archive, options, time, asset_hashes);
     generate_control(archive, options, time);
     generate_conf_files(archive, options.conf_files.as_ref(), time);
     generate_scripts(archive, options);
@@ -46,38 +48,40 @@ fn generate_scripts(archive: &mut TarBuilder<Vec<u8>>, option: &Config) {
 }
 
 /// Creates the md5sums file which contains a list of all contained files and the md5sums of each.
-fn generate_md5sums(archive: &mut TarBuilder<Vec<u8>>, options: &Config, time: u64) {
+fn generate_md5sums(archive: &mut TarBuilder<Vec<u8>>, options: &Config, time: u64, asset_hashes: HashMap<String, md5::Digest>) {
     let mut md5sums: Vec<u8> = Vec::new();
 
     // Collect md5sums from each asset in the archive.
     for asset in &options.assets {
-        let origin = asset.get(0).try("cargo-deb: unable to get asset's path");
-        let mut target: String = asset.get(1).try("cargo-deb: unable to get asset's target").clone();
+        let mut target = asset.target_path.clone();
         if target.chars().next().unwrap() == '/' { target.remove(0); }
+
+        let mut hash = Vec::new();
+        write!(hash, "{:x}", asset_hashes[&asset.source_file]).unwrap();
+        hash.write(b"  ").unwrap();
+
         let target_is_dir = target.chars().last().unwrap() == '/';
-        Command::new("md5sum").arg(&origin).output().ok()
-            .map_or_else(|| failed("cargo-deb: could not get output of md5sum"), |x| {
-                let mut hash = x.stdout.iter().take_while(|&&x| x != b' ').cloned().collect::<Vec<u8>>();
-                hash.write(b"  ").unwrap();
-                if target_is_dir {
-                    let filename = Path::new(origin).file_name().unwrap().to_str().unwrap();
-                    hash.write(target.as_bytes()).unwrap();
-                    hash.write(filename.as_bytes()).unwrap();
-                } else {
-                    hash.write(asset.get(1).unwrap().as_bytes()).unwrap();
-                }
-                hash.write(&[b'\n']).unwrap();
-                md5sums.append(&mut hash);
-            });
+        if target_is_dir {
+            let filename = Path::new(&asset.source_file).file_name().unwrap().to_str().unwrap();
+            hash.write(target.as_bytes()).unwrap();
+            hash.write(filename.as_bytes()).unwrap();
+        } else {
+            hash.write(asset.target_path.as_bytes()).unwrap();
+        }
+        hash.write(&[b'\n']).unwrap();
+        md5sums.append(&mut hash);
     }
 
     // Obtain the md5sum of the copyright file
-    let mut hash = Command::new("md5sum").arg("target/debian/copyright").output()
-        .try("cargo-deb: could not get output of md5sum")
-        .stdout.iter().take_while(|&&x| x != b' ').cloned()
-        .collect::<Vec<u8>>();
-    let path = String::from("usr/share/doc/") + &options.name + "/copyright";
+    let mut file = fs::File::open("target/debian/copyright").try("unable to open target/debian/copyright");
+    let mut copyright_file = Vec::new();
+    file.read_to_end(&mut copyright_file).try("read error");
+
+    let mut hash = Vec::new();
+    write!(hash, "{:x}", md5::compute(&copyright_file)).unwrap();
     hash.write(b"  ").unwrap();
+
+    let path = String::from("usr/share/doc/") + &options.name + "/copyright";
     hash.write(path.as_bytes()).unwrap();
     md5sums.append(&mut hash);
     md5sums.push(10);

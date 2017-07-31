@@ -4,6 +4,7 @@ extern crate toml;
 extern crate tar;
 extern crate lzma;
 extern crate zopfli;
+extern crate md5;
 #[macro_use]
 extern crate serde_derive;
 extern crate serde_json;
@@ -44,11 +45,11 @@ fn main() {
 
     // Initailize the contents of the data archive (files that go into the filesystem).
     let mut data_archive = TarBuilder::new(Vec::new());
-    data::generate_archive(&mut data_archive, &options, system_time);
+    let asset_hashes = data::generate_archive(&mut data_archive, &options, system_time);
 
     // Initialize the contents of the control archive (metadata for the package manager).
     let mut control_archive = TarBuilder::new(Vec::new());
-    control::generate_archive(&mut control_archive, &options, system_time);
+    control::generate_archive(&mut control_archive, &options, system_time, asset_hashes);
 
     // Compress the data archive with the LZMA compression algorithm.
     {

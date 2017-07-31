@@ -6,18 +6,21 @@ use itertools::Itertools;
 use tar::Header as TarHeader;
 use tar::Builder as TarBuilder;
 use tar::EntryType;
+use md5::Digest;
+use md5;
 
 use config::Config;
 use try::{failed, Try};
-
+use std::collections::HashMap;
 
 const CHMOD_FILE:       u32 = 420;
 const CHMOD_BIN_OR_DIR: u32 = 493;
 
 /// Generates the uncompressed control.tar archive
-pub fn generate_archive(archive: &mut TarBuilder<Vec<u8>>, options: &Config, time: u64) {
-    copy_files(archive, options, time);
+pub fn generate_archive(archive: &mut TarBuilder<Vec<u8>>, options: &Config, time: u64) -> HashMap<String, Digest>{
+    let copy_hashes = copy_files(archive, options, time);
     generate_copyright(archive, options, time);
+    copy_hashes
 }
 
 /// Generates the copyright file from the license file and adds that to the tar archive.
@@ -80,17 +83,16 @@ fn generate_copyright(archive: &mut TarBuilder<Vec<u8>>, options: &Config, time:
 }
 
 /// Copies all the files to be packaged into the tar archive.
-fn copy_files(archive: &mut TarBuilder<Vec<u8>>, options: &Config, time: u64) {
+/// Returns MD5 hashes of files copied
+fn copy_files(archive: &mut TarBuilder<Vec<u8>>, options: &Config, time: u64) -> HashMap<String, Digest> {
+    let mut hashes = HashMap::new();
     let mut added_directories: Vec<String> = Vec::new();
     for asset in &options.assets {
         // Collect the source and target paths
-        let origin = asset.get(0).try("cargo-deb: unable to get asset's path");
-        let mut target = String::from("./") + asset.get(1).try("cargo-deb: unable to get asset's target");
-        let chmod = asset.get(2).map(|x| u32::from_str_radix(x, 8).unwrap())
-            .try("cargo-deb: unable to get chmod argument");
+        let mut target = String::from("./") + &asset.target_path;
         if target.chars().next().unwrap() == '/' { target.remove(0); }
         if target.chars().last().unwrap() == '/' {
-            target.push_str(Path::new(origin).file_name().unwrap().to_str().unwrap());
+            target.push_str(Path::new(&asset.source_file).file_name().unwrap().to_str().unwrap());
         }
 
         // Append each of the directories found in the file's pathname to the archive before adding the file
@@ -115,16 +117,19 @@ fn copy_files(archive: &mut TarBuilder<Vec<u8>>, options: &Config, time: u64) {
             });
 
         // Add the file to the archive
-        let mut file = fs::File::open(&origin).try("cargo-deb: unable to open file");
-        let capacity = file.metadata().ok().map_or(0, |x| x.len()) as usize;
-        let mut out_data: Vec<u8> = Vec::with_capacity(capacity);
+        let mut file = fs::File::open(&asset.source_file).try("cargo-deb: unable to open file");
+        let mut out_data = Vec::new();
         file.read_to_end(&mut out_data).try("cargo-deb: unable to read asset's data");
+
+        hashes.insert(asset.source_file.clone(), md5::compute(&out_data));
+
         let mut header = TarHeader::new_gnu();
         header.set_mtime(time);
         header.set_path(&target).unwrap();
-        header.set_mode(chmod);
-        header.set_size(capacity as u64);
+        header.set_mode(asset.chmod);
+        header.set_size(out_data.len() as u64);
         header.set_cksum();
         archive.append(&header, out_data.as_slice()).try("cargo-deb: unable to write data to archive.");
     }
+    hashes
 }
