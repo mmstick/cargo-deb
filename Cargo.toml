@@ -25,6 +25,7 @@ assets = [
 [dependencies]
 itertools = "0.4.17"
 libc = "0.2.15"
+md5 = "0.3.5"
 rust-lzma = "0.2.1"
 tar = { git = "https://github.com/mmstick/tar-rs" }
 serde = "1.0.11"
