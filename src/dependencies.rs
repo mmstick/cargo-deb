@@ -26,9 +26,13 @@ pub fn resolve<S: AsRef<str>>(path: S) -> String {
     // Create a formatted string with the output from ldd.
     let mut output = String::with_capacity(256);
     if let Some(package) = dependencies.next() {
-        write!(&mut output, "{} (>= {})", &package, &get_version(&package)).unwrap();
-        for package in dependencies {
-            write!(&mut output, ", {} (>= {})", &package, &get_version(&package)).unwrap();
+        if let Some(version) = get_version(&package) {
+            write!(&mut output, "{} (>= {})", &package, &version).unwrap();
+            for package in dependencies {
+                write!(&mut output, ", {} (>= {})", &package, &version).unwrap();
+            }
+        } else {
+            failed(format!("Unable to get version of package {}", package));
         }
     }
 
@@ -44,7 +48,7 @@ fn get_package_name(path: &str) -> String {
 }
 
 /// Uses apt-cache policy to determine the version of the package that this project was built against.
-fn get_version(package: &str) -> String {
+fn get_version(package: &str) -> Option<String> {
     let output = Command::new("apt-cache").arg("policy").arg(&package).output().ok().map(|x| x.stdout)
         .try("cargo-deb: apt-cache command not found. Automatic dependency resolution is only supported on Debian.");
     let string = String::from_utf8(output).unwrap();
@@ -55,5 +59,5 @@ fn get_version(package: &str) -> String {
         } else {
             installed.chars().take_while(|&x| x != '-').collect()
         }
-    }).unwrap()
+    })
 }
