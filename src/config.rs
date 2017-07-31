@@ -105,46 +105,51 @@ pub struct Cargo {
 
 impl Cargo {
     fn into_config(mut self) -> Config {
-        let (license_file, license_file_skip_lines) = if let Some(mut args) = self.package.metadata.deb.license_file.take() {
-            let mut args = args.drain(..);
-            (args.next(), args.next().map(|p|p.parse().try("invalid number of lines to skip")).unwrap_or(0))
-        } else {
-            (self.package.license_file.take(), 0)
-        };
+        let mut deb = self.package.metadata.take().and_then(|m|m.deb)
+            .unwrap_or_else(|| CargoDeb::default());
+        let (license_file, license_file_skip_lines) = self.take_license_file(deb.license_file.take());
         Config {
             name: self.package.name.clone(),
             license: self.package.license.clone(),
             license_file,
             license_file_skip_lines,
-            copyright: self.package.metadata.deb.copyright.take().unwrap_or_else(|| {
+            copyright: deb.copyright.take().unwrap_or_else(|| {
                 self.package.authors.as_ref().try("Package must have a copyright or authors").join(", ")
             }),
-            version: self.version_string(),
+            version: self.version_string(deb.revision),
             homepage: self.package.homepage.clone(),
             documentation: self.package.documentation.clone(),
             repository: self.package.repository.clone(),
             description: self.package.description.clone(),
-            extended_description: self.package.metadata.deb.extended_description.take()
+            extended_description: deb.extended_description.take()
                 .map(|d|d.split_by_chars(79)).unwrap_or(vec![]),
-            maintainer: self.package.metadata.deb.maintainer.take().unwrap_or_else(|| {
+            maintainer: deb.maintainer.take().unwrap_or_else(|| {
                 self.package.authors.as_ref().and_then(|a|a.get(0))
                     .try("Package must have a maintainer or authors").to_owned()
             }),
-            depends: self.package.metadata.deb.depends.take().unwrap_or("$auto".to_owned()),
-            section: self.package.metadata.deb.section.take(),
-            priority: self.package.metadata.deb.priority.take().unwrap_or("optional".to_owned()),
+            depends: deb.depends.take().unwrap_or("$auto".to_owned()),
+            section: deb.section.take(),
+            priority: deb.priority.take().unwrap_or("optional".to_owned()),
             architecture: get_arch().to_owned(),
-            conf_files: self.package.metadata.deb.conf_files.clone()
-                .map(|x| x.iter().fold(String::new(), |a, b| a + b + "\n")),
-            assets: self.take_assets(),
-            maintainer_scripts: self.package.metadata.deb.maintainer_scripts.clone().map(|s| PathBuf::from(s)),
-            features: self.package.metadata.deb.features.take().unwrap_or(vec![]),
-            default_features: self.package.metadata.deb.default_features.unwrap_or(true),
+            conf_files: deb.conf_files.map(|x| x.iter().fold(String::new(), |a, b| a + b + "\n")),
+            assets: self.take_assets(deb.assets.take()),
+            maintainer_scripts: deb.maintainer_scripts.map(|s| PathBuf::from(s)),
+            features: deb.features.take().unwrap_or(vec![]),
+            default_features: deb.default_features.unwrap_or(true),
         }
     }
 
-    fn take_assets(&mut self) -> Vec<Asset> {
-        if let Some(assets) = self.package.metadata.deb.assets.take() {
+    fn take_license_file(&mut self, license_file: Option<Vec<String>>) -> (Option<String>, usize) {
+        if let Some(mut args) = license_file {
+            let mut args = args.drain(..);
+            (args.next(), args.next().map(|p|p.parse().try("invalid number of lines to skip")).unwrap_or(0))
+        } else {
+            (self.package.license_file.take(), 0)
+        }
+    }
+
+    fn take_assets(&mut self, assets: Option<Vec<Vec<String>>>) -> Vec<Asset> {
+        if let Some(assets) = assets {
             assets.into_iter().map(|mut v| {
                 let mut v = v.drain(..);
                 Asset {
@@ -177,8 +182,8 @@ impl Cargo {
         }
     }
 
-    fn version_string(&self) -> String {
-        if let Some(ref revision) = self.package.metadata.deb.revision {
+    fn version_string(&self, revision: Option<String>) -> String {
+        if let Some(revision) = revision {
             format!("{}-{}", self.package.version, revision)
         } else {
             self.package.version.clone()
@@ -199,12 +204,12 @@ pub struct CargoPackage {
     pub version: String,
     pub description: String,
     pub readme: Option<String>,
-    pub metadata: CargoMetadata
+    pub metadata: Option<CargoMetadata>
 }
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct CargoMetadata {
-    pub deb: CargoDeb
+    pub deb: Option<CargoDeb>
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -215,7 +220,7 @@ pub struct CargoBin {
     pub proc_macro: Option<bool>,
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Default)]
 #[serde(rename_all = "kebab-case")]
 pub struct CargoDeb {
     pub maintainer: Option<String>,
