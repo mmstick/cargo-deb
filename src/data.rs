@@ -34,7 +34,7 @@ fn generate_copyright(archive: &mut TarBuilder<Vec<u8>>, options: &Config, time:
         // Fail if the path cannot be found and report that the license file argument is missing.
         .map(|path| {
             // Now we need to attempt to open the file.
-            let mut file = fs::File::open(path).try("license file could not be opened");
+            let mut file = fs::File::open(path).try(&format!("license file {} could not be opened", path));
             let mut license_string = String::new();
             file.read_to_string(&mut license_string).try("error reading license file");
             // Skip the first `A` number of lines and then iterate each line after that.
