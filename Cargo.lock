@@ -1,6 +1,6 @@
 [root]
 name = "cargo-deb"
-version = "0.0.1"
+version = "0.1.0"
 dependencies = [
  "itertools 0.4.17 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc 0.2.15 (registry+https://github.com/rust-lang/crates.io-index)",

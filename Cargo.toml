@@ -1,11 +1,12 @@
 [package]
 name = "cargo-deb"
-version = "0.0.1"
 license = "MIT"
-authors = ["Michael Aaron Murphy <mmstickman@gmail.com>"]
+authors = ["Michael Aaron Murphy <mmstickman@gmail.com>", "Kornel Lesiński <kornel@geekhood.net>"]
+categories = ["command-line-utilities", "development-tools::cargo-plugins", "development-tools::build-utils"]
 description = "Cargo subcommand that generates Debian packages"
-keywords = [ "cargo", "subcommand", "deb" ]
+keywords = ["cargo", "subcommand", "deb", "debian"]
 repository = "https://github.com/mmstick/cargo-deb"
+version = "0.1.0"
 
 [package.metadata.deb]
 maintainer = "Michael Aaron Murphy <mmstickman@gmail.com>"
