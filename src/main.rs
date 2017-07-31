@@ -32,10 +32,10 @@ const CHMOD_FILE: u32 = 420;
 
 fn main() {
     remove_leftover_files();
-    if !std::env::args().any(|x| x.as_str() == "--no-build") {
-        cargo_build();
-    }
     let options = Config::new();
+    if !std::env::args().any(|x| x.as_str() == "--no-build") {
+        cargo_build(&options.features, options.default_features);
+    }
     strip_binary(options.name.as_str());
 
     // Obtain the current time which will be used to stamp the generated files in the archives.
@@ -95,9 +95,18 @@ fn remove_leftover_files() {
 }
 
 /// Builds a release binary with `cargo build --release`
-fn cargo_build() {
-    Command::new("cargo").arg("build").arg("--release").status()
-        .try("cargo-deb: failed to build project");
+fn cargo_build(features: &[String], default_features: bool) {
+    let mut cmd = Command::new("cargo");
+    cmd.arg("build").arg("--release");
+
+    if !default_features {
+        cmd.arg("--no-default-features");
+    }
+    if !features.is_empty() {
+        cmd.arg(format!("--features={}", features.join(",")));
+    }
+
+    cmd.status().try("cargo-deb: failed to build project");
 }
 
 // Strips the binary that was created with cargo

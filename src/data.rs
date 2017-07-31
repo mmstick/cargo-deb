@@ -36,11 +36,7 @@ fn generate_copyright(archive: &mut TarBuilder<Vec<u8>>, options: &Config, time:
                 .map_or(0, |x| x.parse::<usize>().unwrap_or(0));
             // Now we need to attempt to open the file.
             let mut file = fs::File::open(path).try("cargo-deb: license file could not be opened");
-            // The capacity of the file can be obtained from the metadata.
-            let capacity = file.metadata().ok().map_or(0, |x| x.len());
-            // We are going to store the contents of the license file in a single string with the size of file.
-            let mut license_string = String::with_capacity(capacity as usize);
-            // Attempt to read the contents of the license file into the license string.
+            let mut license_string = String::new();
             file.read_to_string(&mut license_string).try("cargo-deb: error reading license file");
             // Skip the first `A` number of lines and then iterate each line after that.
             for line in license_string.lines().skip(lines_to_skip) {
