@@ -41,9 +41,12 @@ pub fn resolve<S: AsRef<str>>(path: S) -> String {
 
 /// Obtains the name of the package that belongs to the file that ldd returned.
 fn get_package_name(path: &str) -> String {
-    let output = Command::new("dpkg").arg("-S").arg(path).output().ok().map(|x| x.stdout)
+    let output = Command::new("dpkg").arg("-S").arg(path).output().ok()
         .try("cargo-deb: dpkg command not found. Automatic dependency resolution is only supported on Debian.");
-    let package = output.iter().take_while(|&&x| x != b':').cloned().collect::<Vec<u8>>();
+    if !output.status.success() {
+        failed(format!("Unable to find package for {}\ndpkg failed: {}", path, String::from_utf8_lossy(&output.stderr)));
+    }
+    let package = output.stdout.iter().take_while(|&&x| x != b':').cloned().collect::<Vec<u8>>();
     String::from_utf8(package).unwrap()
 }
 
