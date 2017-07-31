@@ -1,10 +1,13 @@
 extern crate itertools;
 extern crate libc;
-extern crate rustc_serialize;
 extern crate toml;
 extern crate tar;
 extern crate lzma;
 extern crate zopfli;
+#[macro_use]
+extern crate serde_derive;
+extern crate serde_json;
+
 
 mod compress;
 mod config;

@@ -4,9 +4,9 @@ use std::env::consts::ARCH;
 use std::path::{Path, PathBuf};
 use std::process::{exit, Command};
 use itertools::Itertools;
-use rustc_serialize;
 use toml;
 use dependencies::resolve;
+use serde_json;
 
 use wordsplit::WordSplit;
 use try::Try;
@@ -53,12 +53,12 @@ impl Config {
     pub fn new() -> Config {
         let mut content = String::new();
         manifest_contents(&current_manifest_path(), &mut content);
-        toml::decode_str::<Cargo>(&content).try("cargo-deb: could not decode manifest").to_config()
+        toml::from_str::<Cargo>(&content).try("cargo-deb: could not decode manifest").to_config()
     }
 }
 
 
-#[derive(Clone, Debug, RustcDecodable)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct Cargo {
     pub package: CargoPackage,
 }
@@ -104,7 +104,7 @@ impl Cargo {
     }
 }
 
-#[derive(Clone, Debug, RustcDecodable)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct CargoPackage {
     pub name: String,
     pub license: String,
@@ -115,12 +115,12 @@ pub struct CargoPackage {
     pub metadata: CargoMetadata
 }
 
-#[derive(Clone, Debug, RustcDecodable)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct CargoMetadata {
     pub deb: CargoDeb
 }
 
-#[derive(Clone, Debug, RustcDecodable)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct CargoDeb {
     pub maintainer: String,
     pub copyright: String,
@@ -141,10 +141,10 @@ fn current_manifest_path() -> PathBuf {
         .try("cargo-deb: unable to obtain output of `cargo locate-proect`");
     if !output.status.success() { exit(output.status.code().unwrap_or(-1)); }
 
-    #[derive(RustcDecodable)]
+    #[derive(Deserialize)]
     struct Data { root: String }
     let stdout = String::from_utf8(output.stdout).unwrap();
-    let decoded: Data = rustc_serialize::json::decode(&stdout).unwrap();
+    let decoded: Data = serde_json::from_str(&stdout).unwrap();
     Path::new(&decoded.root).to_owned()
 }
 
