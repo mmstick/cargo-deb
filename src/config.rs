@@ -88,7 +88,7 @@ impl Cargo {
             let mut args = args.drain(..);
             (args.next(), args.next().map(|p|p.parse().try("invalid number of lines to skip")).unwrap_or(0))
         } else {
-            (None, 0)
+            (self.package.license_file.take(), 0)
         };
         Config {
             name: self.package.name.clone(),
@@ -147,10 +147,12 @@ impl Cargo {
 }
 
 #[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "kebab-case")]
 pub struct CargoPackage {
     pub name: String,
     pub authors: Option<Vec<String>>,
     pub license: String,
+    pub license_file: Option<String>,
     pub homepage: Option<String>,
     pub repository: String,
     pub version: String,
