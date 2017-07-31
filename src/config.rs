@@ -75,6 +75,25 @@ impl Config {
             _        => word.to_owned()
         }).join(" ")
     }
+
+    /// Tries to guess type of source control used for the repo URL.
+    /// It's a guess, and it won't be 100% accurate, because Cargo suggests using
+    /// user-friendly URLs or webpages instead of tool-specific URL schemes.
+    pub fn repository_type(&self) -> &str {
+        if self.repository.starts_with("git+") || self.repository.contains("git@") || self.repository.contains("github.com") || self.repository.contains("gitlab.com") {
+            return "Git";
+        }
+        if self.repository.starts_with("cvs+") || self.repository.contains("pserver:") || self.repository.contains("@cvs.") {
+            return "Cvs";
+        }
+        if self.repository.starts_with("hg+") || self.repository.contains("hg@") || self.repository.contains("/hg.") {
+            return "Hg";
+        }
+        if self.repository.starts_with("svn+") || self.repository.contains("/svn.") {
+            return "Svn";
+        }
+        return "Git";
+    }
 }
 
 
