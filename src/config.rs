@@ -12,6 +12,13 @@ use wordsplit::WordSplit;
 use try::Try;
 
 #[derive(Debug)]
+pub struct Asset {
+    pub source_file: String,
+    pub target_path: String,
+    pub chmod: u32,
+}
+
+#[derive(Debug)]
 pub struct Config {
     /// The name of the project to build
     pub name: String,
@@ -43,8 +50,8 @@ pub struct Config {
     pub architecture: String,
     /// A list of configuration files installed by the package.
     pub conf_files: Option<String>,
-    /// All of the files that are to be packaged. `{ source_file, target_path, chmod }`
-    pub assets: Vec<Vec<String>>,
+    /// All of the files that are to be packaged.
+    pub assets: Vec<Asset>,
     /// The path were possible maintainer scripts live
     pub maintainer_scripts: Option<PathBuf>,
     /// List of Cargo features to use during build
@@ -99,10 +106,26 @@ impl Cargo {
             architecture: get_arch().to_owned(),
             conf_files: self.package.metadata.deb.conf_files.clone()
                 .map(|x| x.iter().fold(String::new(), |a, b| a + b + "\n")),
-            assets: self.package.metadata.deb.assets.take().unwrap_or(vec![]),
+            assets: self.take_assets(),
             maintainer_scripts: self.package.metadata.deb.maintainer_scripts.clone().map(|s| PathBuf::from(s)),
             features: self.package.metadata.deb.features.take().unwrap_or(vec![]),
             default_features: self.package.metadata.deb.default_features.unwrap_or(true),
+        }
+    }
+
+    fn take_assets(&mut self) -> Vec<Asset> {
+        if let Some(assets) = self.package.metadata.deb.assets.take() {
+            assets.into_iter().map(|mut v| {
+                let mut v = v.drain(..);
+                Asset {
+                    source_file: v.next().try("missing path for asset"),
+                    target_path: v.next().try("missing target for asset"),
+                    chmod: u32::from_str_radix(&v.next().try("missing chmod for asset"), 8)
+                        .try("unable to parse chmod argument"),
+                }
+            }).collect()
+        } else {
+            vec![]
         }
     }
 

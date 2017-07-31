@@ -51,20 +51,19 @@ fn generate_md5sums(archive: &mut TarBuilder<Vec<u8>>, options: &Config, time: u
 
     // Collect md5sums from each asset in the archive.
     for asset in &options.assets {
-        let origin = asset.get(0).try("cargo-deb: unable to get asset's path");
-        let mut target: String = asset.get(1).try("cargo-deb: unable to get asset's target").clone();
+        let mut target = asset.target_path.clone();
         if target.chars().next().unwrap() == '/' { target.remove(0); }
         let target_is_dir = target.chars().last().unwrap() == '/';
-        Command::new("md5sum").arg(&origin).output().ok()
+        Command::new("md5sum").arg(&asset.source_file).output().ok()
             .map_or_else(|| failed("cargo-deb: could not get output of md5sum"), |x| {
                 let mut hash = x.stdout.iter().take_while(|&&x| x != b' ').cloned().collect::<Vec<u8>>();
                 hash.write(b"  ").unwrap();
                 if target_is_dir {
-                    let filename = Path::new(origin).file_name().unwrap().to_str().unwrap();
+                    let filename = Path::new(&asset.source_file).file_name().unwrap().to_str().unwrap();
                     hash.write(target.as_bytes()).unwrap();
                     hash.write(filename.as_bytes()).unwrap();
                 } else {
-                    hash.write(asset.get(1).unwrap().as_bytes()).unwrap();
+                    hash.write(asset.target_path.as_bytes()).unwrap();
                 }
                 hash.write(&[b'\n']).unwrap();
                 md5sums.append(&mut hash);
