@@ -36,7 +36,7 @@ pub struct Config {
     /// The Debian dependencies required to run the project.
     pub depends: String,
     /// The category by which the package belongs.
-    pub section: String,
+    pub section: Option<String>,
     /// The priority of the project. Typically 'optional'.
     pub priority: String,
     /// The architecture of the running system.
@@ -84,7 +84,7 @@ impl Cargo {
                     .try("Package must have a maintainer or authors").to_owned()
             }),
             depends: self.get_dependencies(&depends),
-            section: self.package.metadata.deb.section.clone(),
+            section: self.package.metadata.deb.section.take(),
             priority: self.package.metadata.deb.priority.take().unwrap_or("optional".to_owned()),
             architecture: get_arch().to_owned(),
             conf_files: self.package.metadata.deb.conf_files.clone()
@@ -135,7 +135,7 @@ pub struct CargoDeb {
     pub license_file: Option<Vec<String>>,
     pub depends: Option<String>,
     pub extended_description: Option<String>,
-    pub section: String,
+    pub section: Option<String>,
     pub priority: Option<String>,
     pub revision: Option<String>,
     pub conf_files: Option<Vec<String>>,
