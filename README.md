@@ -20,6 +20,7 @@ This command will obtain all of the information that it needs from the `Cargo.to
         - Otherwise, it will be inferred that the source argument will be renamed when copied.
     - The third argument is the permissions to assign that file.
  - **features**: List of Cargo features to use when building the package
+ - **default-features**: whether to use default crate features in addition to the `features` list (default `true`)
 
 # Running `cargo deb`
 Upon running `cargo deb` from the base directory of your Rust project, a Debian package will be saved in the same

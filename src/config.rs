@@ -49,6 +49,7 @@ pub struct Config {
     pub maintainer_scripts: Option<PathBuf>,
     /// List of Cargo features to use during build
     pub features: Vec<String>,
+    pub default_features: bool,
 }
 
 impl Config {
@@ -101,6 +102,7 @@ impl Cargo {
             assets: self.package.metadata.deb.assets.take().unwrap_or(vec![]),
             maintainer_scripts: self.package.metadata.deb.maintainer_scripts.clone().map(|s| PathBuf::from(s)),
             features: self.package.metadata.deb.features.take().unwrap_or(vec![]),
+            default_features: self.package.metadata.deb.default_features.unwrap_or(true),
         }
     }
 
@@ -131,6 +133,7 @@ pub struct CargoMetadata {
 }
 
 #[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "kebab-case")]
 pub struct CargoDeb {
     pub maintainer: Option<String>,
     pub copyright: Option<String>,
@@ -144,6 +147,7 @@ pub struct CargoDeb {
     pub assets: Option<Vec<Vec<String>>>,
     pub maintainer_scripts: Option<String>,
     pub features: Option<Vec<String>>,
+    pub default_features: Option<bool>,
 }
 
 /// Returns the path of the `Cargo.toml` that we want to build.

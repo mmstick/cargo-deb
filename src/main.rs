@@ -34,7 +34,7 @@ fn main() {
     remove_leftover_files();
     let options = Config::new();
     if !std::env::args().any(|x| x.as_str() == "--no-build") {
-        cargo_build(&options.features);
+        cargo_build(&options.features, options.default_features);
     }
     strip_binary(options.name.as_str());
 
@@ -95,10 +95,13 @@ fn remove_leftover_files() {
 }
 
 /// Builds a release binary with `cargo build --release`
-fn cargo_build(features: &[String]) {
+fn cargo_build(features: &[String], default_features: bool) {
     let mut cmd = Command::new("cargo");
     cmd.arg("build").arg("--release");
 
+    if !default_features {
+        cmd.arg("--no-default-features");
+    }
     if !features.is_empty() {
         cmd.arg(format!("--features={}", features.join(",")));
     }
