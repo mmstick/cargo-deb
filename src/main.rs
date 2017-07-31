@@ -26,7 +26,7 @@ use std::time;
 use std::os::unix::fs::OpenOptionsExt;
 
 use config::Config;
-use try::Try;
+use try::{failed, Try};
 use tar::Builder as TarBuilder;
 
 const CHMOD_FILE: u32 = 420;
@@ -107,11 +107,17 @@ fn cargo_build(features: &[String], default_features: bool) {
         cmd.arg(format!("--features={}", features.join(",")));
     }
 
-    cmd.status().try("failed to build project");
+    let status = cmd.status().try("failed to build project");
+    if !status.success() {
+        failed("build failed");
+    }
 }
 
 // Strips the binary that was created with cargo
 fn strip_binary(name: &str) {
-    Command::new("strip").arg("--strip-unneeded").arg(String::from("target/release/") + name)
+    let status = Command::new("strip").arg("--strip-unneeded").arg(String::from("target/release/") + name)
         .status().try("could not strip binary");
+    if !status.success() {
+        failed("strip failed");
+    }
 }
