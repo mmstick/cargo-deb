@@ -37,7 +37,7 @@ fn main() {
     if !std::env::args().any(|x| x.as_str() == "--no-build") {
         cargo_build(&options.features, options.default_features);
     }
-    if options.strip {
+    if options.strip &&  !std::env::args().any(|x| x.as_str() == "--no-strip") {
         strip_binary(options.name.as_str());
     }
 
