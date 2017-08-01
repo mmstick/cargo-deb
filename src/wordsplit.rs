@@ -2,7 +2,7 @@ pub trait WordSplit {
     fn split_by_chars(&self, length: usize) -> Vec<String>;
 }
 
-impl WordSplit for String {
+impl WordSplit for str {
     fn split_by_chars(&self, length: usize) -> Vec<String> {
         let output_capacity = self.len() + self.len() % length + 1;
         let mut lines: Vec<String> = Vec::with_capacity(output_capacity);
@@ -11,7 +11,7 @@ impl WordSplit for String {
                 lines.push(String::from("."));
                 continue
             }
-            let words: Vec<&str> = line.split_whitespace().collect();
+            let words: Vec<&str> = line.split(' ').collect();
             let mut current_line = String::with_capacity(length);
             let (mut chars, mut initialized) = (0, false);
             for word in words {

@@ -113,6 +113,7 @@ impl Cargo {
         let mut deb = self.package.metadata.take().and_then(|m|m.deb)
             .unwrap_or_else(|| CargoDeb::default());
         let (license_file, license_file_skip_lines) = self.take_license_file(deb.license_file.take())?;
+        let readme = self.package.readme.take();
         Ok(Config {
             name: self.package.name.clone(),
             license: self.package.license.clone(),
@@ -126,8 +127,7 @@ impl Cargo {
             documentation: self.package.documentation.clone(),
             repository: self.package.repository.take(),
             description: self.package.description.clone(),
-            extended_description: deb.extended_description.take()
-                .map(|d|d.split_by_chars(79)).unwrap_or(vec![]),
+            extended_description: self.extended_description(deb.extended_description.as_ref().map(|s|s.as_ref()), readme.as_ref().map(|s|s.as_ref()))?,
             maintainer: deb.maintainer.take().ok_or_then(|| {
                 Ok(self.package.authors.as_ref().and_then(|a|a.get(0))
                     .ok_or("Package must have a maintainer or authors")?.to_owned())
@@ -137,11 +137,22 @@ impl Cargo {
             priority: deb.priority.take().unwrap_or("optional".to_owned()),
             architecture: get_arch().to_owned(),
             conf_files: deb.conf_files.map(|x| x.iter().fold(String::new(), |a, b| a + b + "\n")),
-            assets: self.take_assets(deb.assets.take())?,
+            assets: self.take_assets(deb.assets.take(), readme)?,
             maintainer_scripts: deb.maintainer_scripts.map(|s| PathBuf::from(s)),
             features: deb.features.take().unwrap_or(vec![]),
             default_features: deb.default_features.unwrap_or(true),
             strip: self.profile.and_then(|p|p.release).and_then(|r|r.debug).map(|debug|!debug).unwrap_or(true),
+        })
+    }
+
+    fn extended_description(&self, desc: Option<&str>, readme: Option<&str>) -> CDResult<Vec<String>> {
+        Ok(if let Some(desc) = desc {
+            desc.split_by_chars(79)
+        } else if let Some(readme) = readme {
+            file::get_text(readme)?
+                .split_by_chars(159)
+        } else {
+            vec![]
         })
     }
 
@@ -158,7 +169,7 @@ impl Cargo {
         }
     }
 
-    fn take_assets(&mut self, assets: Option<Vec<Vec<String>>>) -> CDResult<Vec<Asset>> {
+    fn take_assets(&self, assets: Option<Vec<Vec<String>>>, readme: Option<String>) -> CDResult<Vec<Asset>> {
         Ok(if let Some(assets) = assets {
             assets.into_iter().map(|mut v| {
                 let mut v = v.drain(..);
@@ -180,7 +191,7 @@ impl Cargo {
                     chmod: 0o755,
                 }
             }).collect();
-            if let Some(readme) = self.package.readme.take() {
+            if let Some(readme) = readme {
                 let target_path = format!("usr/share/doc/{}/{}", self.package.name, readme);
                 implied_assets.push(Asset {
                     source_file: readme,

@@ -32,7 +32,7 @@ This command obtains basic information it needs from [the `Cargo.toml` file](htt
 - **copyright**: To whom and when the copyright of the software is granted. If not present, the list of authors is used.
 - **license-file**: The location of the license and the amount of lines to skip at the top. If not present, package-level `license-file` is used.
 - **depends**: The runtime [dependencies](https://www.debian.org/doc/debian-policy/ch-relationships.html) of the project, which are automatically generated with the `$auto` keyword.
-- **extended-description**: An extended description of the project — the more detailed the better.
+- **extended-description**: An extended description of the project — the more detailed the better. Package's `readme` file is used as a fallback.
 - **revision**: Version of the Debian package (when the package is updated more often than the project).
 - **section**: The [application category](https://packages.debian.org/stretch/) that the software belongs to.
 - **priority**: Defines if the package is `required` or `optional`.
