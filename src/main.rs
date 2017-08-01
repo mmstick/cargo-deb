@@ -153,7 +153,7 @@ fn generate_deb(config: &Config) -> CDResult<String> {
         .arg("data.tar.xz")
         .status().map_err(|e| CargoDebError::CommandFailed(e, "ar"))?;
     if !status.success() {
-        Err(CargoDebError::ArFailed)?;
+        return Err(CargoDebError::CommandError("ar", out_abspath, vec![]));
     }
     Ok(out_abspath)
 }
@@ -198,7 +198,7 @@ fn strip_binary(name: &str) -> CDResult<()> {
         .arg(String::from("target/release/") + name)
         .status()?;
     if !status.success() {
-        Err(CargoDebError::StripFailed)?;
+        Err(CargoDebError::StripFailed(name.to_owned()))?;
     }
     Ok(())
 }

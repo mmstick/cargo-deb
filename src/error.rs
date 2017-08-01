@@ -35,17 +35,15 @@ quick_error! {
             description(msg)
             cause(err)
         }
-        ArFailed {
-            description("ar failed")
-        }
         InstallFailed {
             description("dpkg install failed")
         }
         BuildFailed {
             description("build failed")
         }
-        StripFailed {
+        StripFailed(name: String) {
             description("strip failed")
+            display("strip failed: {}", name)
         }
         SystemTime(err: time::SystemTimeError) {
             from()
