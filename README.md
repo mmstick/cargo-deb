@@ -1,6 +1,4 @@
-**Build Status:** [![Build Status](https://travis-ci.org/mmstick/cargo-deb.svg?branch=master)](https://travis-ci.org/mmstick/cargo-deb)
-
-# Create Debian packages from Cargo projects
+# Debian packages from Cargo projects [![Build Status](https://travis-ci.org/mmstick/cargo-deb.svg?branch=master)](https://travis-ci.org/mmstick/cargo-deb)
 
 This is a [Cargo](http://doc.crates.io/) helper command which automatically creates [Debian packages](https://www.debian.org/doc/debian-policy/ch-binary.html) (`.deb`) from Cargo projects.
 
