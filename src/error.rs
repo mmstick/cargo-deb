@@ -25,6 +25,10 @@ quick_error! {
         StripFailed {
             description("strip failed")
         }
+        AptPolicyFailed(package: String, reason: Vec<u8>) {
+            description("apt-get policy failed")
+            display("apt-get policy '{}' failed: {}", package, String::from_utf8_lossy(&reason))
+        }
         SystemTime(err: time::SystemTimeError) {
             from()
             description("unable to get system time")
@@ -35,6 +39,18 @@ quick_error! {
             description(err.description())
             display("TOML error: {}", err)
             cause(err)
+        }
+        PackageNotFound(path: String, reason: Vec<u8>) {
+            description("unable to find package for the library")
+            display("path '{}' does not belong to a package: {}", path, String::from_utf8_lossy(&reason))
+        }
+        NotInstalled(package: String) {
+            description("required dependencies are not installed")
+            display("dependency package '{}' is not installed", package)
+        }
+        GetVersionError(package: String) {
+            description("unable to get version of a package")
+            display("unable to get version of '{}'", package)
         }
         Compress(err: CompressErr) {
             from()

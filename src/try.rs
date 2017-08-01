@@ -29,9 +29,3 @@ impl<T> Try for Option<T> {
         })
     }
 }
-
-pub fn failed<T: AsRef<str>>(input: T) -> ! {
-    let input = input.as_ref();
-    let _ = writeln!(&mut io::stderr(), "cargo-deb: {}", input);
-    exit(1);
-}
