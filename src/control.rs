@@ -133,7 +133,7 @@ fn generate_control(archive: &mut TarBuilder<Vec<u8>>, options: &Config, time: u
     control.write(b"Standards-Version: 3.9.4\n")?;
     write!(&mut control, "Maintainer: {}\n", options.maintainer)?;
     write!(&mut control, "Depends: {}\n", options.get_dependencies()?)?;
-    write!(&mut control, "Description: {}\n", options.description)?;
+    write!(&mut control, "Description: {}\n", options.description.replace('\n',"  "))?;
 
     // Write each of the lines that were collected from the extended_description to the file.
     for line in &options.extended_description {
