@@ -1,11 +1,12 @@
 use std::fs;
 use std::io::{self, Write};
-use std::process::exit;
 use zopfli::{self, Options, Format};
 use lzma;
 
+#[derive(Debug)]
 pub enum Archive { Data, Control }
 
+#[derive(Debug)]
 pub enum CompressErr {
     UnableToCreatePath(io::Error),
     Compression(String),
@@ -48,32 +49,3 @@ pub fn xz(data: Vec<u8>, path: &str) -> Result<(), CompressErr> {
         })
 }
 
-/// Handle the compression error by printing the error and exiting.
-pub fn exit_with(error: CompressErr) -> ! {
-    let stderr = io::stderr();
-    let mut stderr = stderr.lock();
-    stderr.write(b"cargo-deb: ").unwrap();
-    match error {
-        // The application was unable to compress an archive.
-        CompressErr::Compression(reason) => {
-            stderr.write(b"error with zopfli compression: ").unwrap();
-            stderr.write(reason.as_bytes()).unwrap();
-        },
-        // The application was unable to create the `target/debian` directory.
-        CompressErr::UnableToCreatePath(reason) => {
-            stderr.write(b"unable to create 'target/debian': ").unwrap();
-            stderr.write(reason.to_string().as_bytes()).unwrap();
-        },
-        // The application was unable to write the archive to disk.
-        CompressErr::Write(archive, reason) => {
-            let message: &'static [u8] = match archive {
-                Archive::Control => b"unable to write to 'target/debian/control.tar.gz': ",
-                Archive::Data    => b"unable to write to 'target/debian/data.tar.xz': "
-            };
-            stderr.write(message).unwrap();
-            stderr.write(reason.to_string().as_bytes()).unwrap();
-        }
-    }
-    stderr.write(b"\n").unwrap();
-    exit(1);
-}

@@ -7,6 +7,8 @@ extern crate zopfli;
 extern crate md5;
 extern crate file;
 #[macro_use]
+extern crate quick_error;
+#[macro_use]
 extern crate serde_derive;
 extern crate serde_json;
 extern crate getopts;
@@ -18,13 +20,15 @@ mod data;
 mod dependencies;
 mod try;
 mod wordsplit;
+mod error;
 
 use std::env;
 use std::fs;
-use std::io::Write;
-use std::process::Command;
+use std::io::{self, Write};
+use std::process::{self, Command};
 use std::time;
 use std::os::unix::fs::OpenOptionsExt;
+use error::*;
 
 use config::Config;
 use try::{failed, Try};
@@ -54,22 +58,31 @@ fn main() {
     let no_build = matches.opt_present("no-build");
     let no_strip = matches.opt_present("no-strip");
 
-    remove_leftover_files();
+    match process(no_build, no_strip) {
+        Ok(()) => {},
+        Err(err) => {
+            eprintln!("cargo-deb: {}", err);
+            process::exit(1);
+        }
+    }
+}
+
+fn process(no_build: bool, no_strip: bool) -> CDResult<()> {
+    remove_leftover_files()?;
     let options = Config::new();
     if !no_build {
-        cargo_build(&options.features, options.default_features);
+        cargo_build(&options.features, options.default_features)?;
     }
     if options.strip && !no_strip {
-        strip_binary(options.name.as_str());
+        strip_binary(options.name.as_str())?;
     }
 
     // Obtain the current time which will be used to stamp the generated files in the archives.
-    let system_time = time::SystemTime::now().duration_since(time::UNIX_EPOCH)
-        .try("unable to get system time").as_secs();
+    let system_time = time::SystemTime::now().duration_since(time::UNIX_EPOCH)?.as_secs();
 
     // Initailize the contents of the data archive (files that go into the filesystem).
     let mut data_archive = TarBuilder::new(Vec::new());
-    let asset_hashes = data::generate_archive(&mut data_archive, &options, system_time);
+    let asset_hashes = data::generate_archive(&mut data_archive, &options, system_time)?;
 
     // Initialize the contents of the control archive (metadata for the package manager).
     let mut control_archive = TarBuilder::new(Vec::new());
@@ -78,21 +91,18 @@ fn main() {
     // Compress the data archive with the LZMA compression algorithm.
     {
         let tar = data_archive.into_inner().try("failed to tar contents");
-        if let Err(reason) = compress::xz(tar, "target/debian/data.tar.xz") {
-            compress::exit_with(reason);
-        }
+        compress::xz(tar, "target/debian/data.tar.xz")?;
     }
 
     // Compress the control archive with the Zopfli compression algorithm.
     {
         let tar = control_archive.into_inner().try("failed to tar contents");
-        if let Err(reason) = compress::gz(tar, "target/debian/control.tar.gz") {
-            compress::exit_with(reason);
-        }
+        compress::gz(tar, "target/debian/control.tar.gz")?;
     }
 
     generate_debian_binary_file();
     generate_deb(&options);
+    Ok(())
 }
 
 /// Uses the ar program to create the final Debian package, at least until a native ar implementation is implemented.
@@ -114,13 +124,13 @@ fn generate_debian_binary_file() {
 }
 
 /// Removes the target/debian directory so that we can start fresh.
-fn remove_leftover_files() {
+fn remove_leftover_files() -> io::Result<()> {
     let _ = fs::remove_dir_all("target/debian");
-    fs::create_dir_all("target/debian").try("unable to create debian target");
+    fs::create_dir_all("target/debian")
 }
 
 /// Builds a release binary with `cargo build --release`
-fn cargo_build(features: &[String], default_features: bool) {
+fn cargo_build(features: &[String], default_features: bool) -> CDResult<()> {
     let mut cmd = Command::new("cargo");
     cmd.arg("build").arg("--release");
 
@@ -131,17 +141,21 @@ fn cargo_build(features: &[String], default_features: bool) {
         cmd.arg(format!("--features={}", features.join(",")));
     }
 
-    let status = cmd.status().try("failed to build project");
+    let status = cmd.status()?;
     if !status.success() {
-        failed("build failed");
+        Err(CargoDebError::BuildFailed)?;
     }
+    Ok(())
 }
 
 // Strips the binary that was created with cargo
-fn strip_binary(name: &str) {
-    let status = Command::new("strip").arg("--strip-unneeded").arg(String::from("target/release/") + name)
-        .status().try("could not strip binary");
+fn strip_binary(name: &str) -> CDResult<()> {
+    let status = Command::new("strip")
+        .arg("--strip-unneeded")
+        .arg(String::from("target/release/") + name)
+        .status()?;
     if !status.success() {
-        failed("strip failed");
+        Err(CargoDebError::StripFailed)?;
     }
+    Ok(())
 }
