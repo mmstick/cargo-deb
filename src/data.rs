@@ -1,5 +1,5 @@
 use std::fs;
-use std::io::{self, Read, Write};
+use std::io::{self, Write};
 use std::path::Path;
 use std::os::unix::fs::OpenOptionsExt;
 use itertools::Itertools;
