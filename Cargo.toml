@@ -30,10 +30,10 @@ itertools = "0.4.17"
 libc = "0.2.15"
 md5 = "0.3.5"
 rust-lzma = "0.2.1"
-tar = { git = "https://github.com/mmstick/tar-rs" }
 serde = "1.0.11"
 serde_derive = "1.0.11"
 serde_json = "1.0.2"
+tar = "0.4.13"
 toml = "0.4.4"
 zopfli = "0.3.0"
 

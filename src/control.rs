@@ -26,6 +26,9 @@ pub fn generate_archive(archive: &mut TarBuilder<Vec<u8>>, options: &Config, tim
 
 /// Creates the initial hidden directory where all the files are stored.
 fn initialize_control(archive: &mut TarBuilder<Vec<u8>>, time: u64) {
+    if ::TAR_REJECTS_CUR_DIR {
+        return;
+    }
     let mut header = TarHeader::new_gnu();
     header.set_mtime(time);
     header.set_size(0);

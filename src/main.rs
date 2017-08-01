@@ -31,6 +31,7 @@ use try::{failed, Try};
 use tar::Builder as TarBuilder;
 
 const CHMOD_FILE: u32 = 420;
+const TAR_REJECTS_CUR_DIR: bool = true;
 
 fn main() {
     let args: Vec<String> = env::args().collect();

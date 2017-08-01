@@ -58,6 +58,10 @@ fn generate_copyright(archive: &mut TarBuilder<Vec<u8>>, options: &Config, time:
     let target = String::from("./usr/share/doc/") + &options.name + "/";
 
     for dir in &[".", "./usr/", "./usr/share/", "./usr/share/doc/", target.as_str()] {
+        if ::TAR_REJECTS_CUR_DIR && dir == &"." {
+            continue;
+        }
+
         let mut header = TarHeader::new_gnu();
         header.set_mtime(time);
         header.set_size(0);
@@ -99,6 +103,9 @@ fn copy_files(archive: &mut TarBuilder<Vec<u8>>, options: &Config, time: u64) ->
             .map(|(id, _)| &target[0..id+1])
             // For each directory pathname found, attempt to add it to the list of directories
             .foreach(|directory| {
+                if ::TAR_REJECTS_CUR_DIR && directory == "./" {
+                    return;
+                }
                 if !added_directories.iter().any(|x| x.as_str() == directory) {
                     added_directories.push(directory.to_owned());
                     let mut header = TarHeader::new_gnu();
