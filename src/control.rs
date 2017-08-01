@@ -1,4 +1,5 @@
-use std::io::{self, Write, Read};
+use file;
+use std::io::{self, Write};
 use std::fs;
 use std::path::Path;
 use config::Config;
@@ -73,9 +74,7 @@ fn generate_md5sums(archive: &mut TarBuilder<Vec<u8>>, options: &Config, time: u
     }
 
     // Obtain the md5sum of the copyright file
-    let mut file = fs::File::open("target/debian/copyright").try("unable to open target/debian/copyright");
-    let mut copyright_file = Vec::new();
-    file.read_to_end(&mut copyright_file).try("read error");
+    let copyright_file = file::get("target/debian/copyright").try("unable to open target/debian/copyright");
 
     let mut hash = Vec::new();
     write!(hash, "{:x}", md5::compute(&copyright_file)).unwrap();

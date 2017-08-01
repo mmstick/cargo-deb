@@ -24,6 +24,7 @@ assets = [
 ]
 
 [dependencies]
+file = "1.1.1"
 getopts = "0.2.14"
 itertools = "0.4.17"
 libc = "0.2.15"

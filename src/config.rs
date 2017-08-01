@@ -1,10 +1,9 @@
-use std::fs::File;
-use std::io::Read;
 use std::env::consts::ARCH;
 use std::path::{Path, PathBuf};
 use std::process::{exit, Command};
 use itertools::Itertools;
 use toml;
+use file;
 use dependencies::resolve;
 use serde_json;
 
@@ -65,8 +64,7 @@ pub struct Config {
 
 impl Config {
     pub fn new() -> Config {
-        let mut content = String::new();
-        manifest_contents(&current_manifest_path(), &mut content);
+        let content = file::get_text(&current_manifest_path()).try("could not open manifest file");
         toml::from_str::<Cargo>(&content).try("could not decode manifest").into_config()
     }
 
@@ -263,12 +261,6 @@ fn current_manifest_path() -> PathBuf {
     let stdout = String::from_utf8(output.stdout).unwrap();
     let decoded: Data = serde_json::from_str(&stdout).unwrap();
     Path::new(&decoded.root).to_owned()
-}
-
-/// Opens the Cargo.toml file and places the contents into the `content` `String`.
-fn manifest_contents(manifest_path: &Path, content: &mut String) {
-    File::open(manifest_path).try("could not open manifest file")
-        .read_to_string(content).try("invalid or missing Cargo.toml options");
 }
 
 /// Calls the `uname` function from libc to obtain the machine architecture,

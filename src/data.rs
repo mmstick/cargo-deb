@@ -8,7 +8,7 @@ use tar::Builder as TarBuilder;
 use tar::EntryType;
 use md5::Digest;
 use md5;
-
+use file;
 use config::Config;
 use try::{failed, Try};
 use std::collections::HashMap;
@@ -34,9 +34,7 @@ fn generate_copyright(archive: &mut TarBuilder<Vec<u8>>, options: &Config, time:
         // Fail if the path cannot be found and report that the license file argument is missing.
         .map(|path| {
             // Now we need to attempt to open the file.
-            let mut file = fs::File::open(path).try(&format!("license file {} could not be opened", path));
-            let mut license_string = String::new();
-            file.read_to_string(&mut license_string).try("error reading license file");
+            let license_string = file::get_text(path).try(&format!("license file {} could not be opened", path));
             // Skip the first `A` number of lines and then iterate each line after that.
             for line in license_string.lines().skip(options.license_file_skip_lines) {
                 // If the line is empty, write a dot, else write the line.
@@ -50,11 +48,13 @@ fn generate_copyright(archive: &mut TarBuilder<Vec<u8>>, options: &Config, time:
         });
 
     // Write a copy to the disk for the sake of obtaining a md5sum for the control archive.
-    let mut file = fs::OpenOptions::new().create(true).write(true).truncate(true).mode(CHMOD_FILE)
+    {
+        let mut copyright_file = fs::OpenOptions::new().create(true).write(true).truncate(true).mode(CHMOD_FILE)
         .open("target/debian/copyright").unwrap_or_else(|err| {
             failed(format!("unable to open copyright file for writing: {}", err.to_string()));
         });
-    file.write_all(copyright.as_slice()).try("unable to write copyright file to disk");
+        copyright_file.write_all(copyright.as_slice()).try("unable to write copyright file to disk");
+    }
     let target = String::from("./usr/share/doc/") + &options.name + "/";
 
     for dir in &[".", "./usr/", "./usr/share/", "./usr/share/doc/", target.as_str()] {
@@ -113,9 +113,7 @@ fn copy_files(archive: &mut TarBuilder<Vec<u8>>, options: &Config, time: u64) ->
             });
 
         // Add the file to the archive
-        let mut file = fs::File::open(&asset.source_file).try("unable to open file");
-        let mut out_data = Vec::new();
-        file.read_to_end(&mut out_data).try("unable to read asset's data");
+        let out_data = file::get(&asset.source_file).try("unable to open file");
 
         hashes.insert(asset.source_file.clone(), md5::compute(&out_data));
 

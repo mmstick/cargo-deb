@@ -5,6 +5,7 @@ extern crate tar;
 extern crate lzma;
 extern crate zopfli;
 extern crate md5;
+extern crate file;
 #[macro_use]
 extern crate serde_derive;
 extern crate serde_json;
