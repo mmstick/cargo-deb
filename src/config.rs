@@ -1,6 +1,6 @@
 use std::env::consts::ARCH;
-use std::path::{Path, PathBuf};
-use std::process::{exit, Command};
+use std::path::PathBuf;
+use std::process::Command;
 use toml;
 use file;
 use dependencies::resolve;
@@ -64,7 +64,7 @@ pub struct Config {
 
 impl Config {
     pub fn from_manifest() -> CDResult<Config> {
-        let content = file::get_text(&current_manifest_path())?;
+        let content = file::get_text(&current_manifest_path()?)?;
         toml::from_str::<Cargo>(&content)?.into_config()
     }
 
@@ -109,7 +109,7 @@ impl Cargo {
     fn into_config(mut self) -> CDResult<Config> {
         let mut deb = self.package.metadata.take().and_then(|m|m.deb)
             .unwrap_or_else(|| CargoDeb::default());
-        let (license_file, license_file_skip_lines) = self.take_license_file(deb.license_file.take());
+        let (license_file, license_file_skip_lines) = self.take_license_file(deb.license_file.take())?;
         Ok(Config {
             name: self.package.name.clone(),
             license: self.package.license.clone(),
@@ -134,7 +134,7 @@ impl Cargo {
             priority: deb.priority.take().unwrap_or("optional".to_owned()),
             architecture: get_arch().to_owned(),
             conf_files: deb.conf_files.map(|x| x.iter().fold(String::new(), |a, b| a + b + "\n")),
-            assets: self.take_assets(deb.assets.take()),
+            assets: self.take_assets(deb.assets.take())?,
             maintainer_scripts: deb.maintainer_scripts.map(|s| PathBuf::from(s)),
             features: deb.features.take().unwrap_or(vec![]),
             default_features: deb.default_features.unwrap_or(true),
@@ -142,26 +142,30 @@ impl Cargo {
         })
     }
 
-    fn take_license_file(&mut self, license_file: Option<Vec<String>>) -> (Option<String>, usize) {
+    fn take_license_file(&mut self, license_file: Option<Vec<String>>) -> CDResult<(Option<String>, usize)> {
         if let Some(mut args) = license_file {
             let mut args = args.drain(..);
-            (args.next(), args.next().map(|p|p.parse().try("invalid number of lines to skip")).unwrap_or(0))
+            let file = args.next();
+            let lines = if let Some(lines) = args.next() {
+                lines.parse().map_err(|e| CargoDebError::NumParse("invalid number of lines", e))?
+            } else {0};
+            Ok((file, lines))
         } else {
-            (self.package.license_file.take(), 0)
+            Ok((self.package.license_file.take(), 0))
         }
     }
 
-    fn take_assets(&mut self, assets: Option<Vec<Vec<String>>>) -> Vec<Asset> {
-        if let Some(assets) = assets {
+    fn take_assets(&mut self, assets: Option<Vec<Vec<String>>>) -> CDResult<Vec<Asset>> {
+        Ok(if let Some(assets) = assets {
             assets.into_iter().map(|mut v| {
                 let mut v = v.drain(..);
-                Asset {
+                Ok(Asset {
                     source_file: v.next().try("missing path for asset"),
                     target_path: v.next().try("missing target for asset"),
                     chmod: u32::from_str_radix(&v.next().try("missing chmod for asset"), 8)
-                        .try("unable to parse chmod argument"),
-                }
-            }).collect()
+                        .map_err(|e| CargoDebError::NumParse("unable to parse chmod argument",e))?,
+                })
+            }).collect::<Result<Vec<_>, CargoDebError>>()?
         } else {
             let mut implied_assets: Vec<_> = self.bin.as_ref().unwrap_or(&vec![])
                 .into_iter()
@@ -182,7 +186,7 @@ impl Cargo {
                 });
             }
             implied_assets
-        }
+        })
     }
 
     fn version_string(&self, revision: Option<String>) -> String {
@@ -252,16 +256,18 @@ pub struct CargoDeb {
 }
 
 /// Returns the path of the `Cargo.toml` that we want to build.
-fn current_manifest_path() -> PathBuf {
-    let output = Command::new("cargo").arg("locate-project").output()
-        .try("unable to obtain output of `cargo locate-proect`");
-    if !output.status.success() { exit(output.status.code().unwrap_or(-1)); }
+fn current_manifest_path() -> CDResult<PathBuf> {
+    let output = Command::new("cargo").arg("locate-project")
+        .output().map_err(|e| CargoDebError::CommandFailed(e, "cargo"))?;
+    if !output.status.success() {
+        return Err(CargoDebError::CommandError("cargo", "locate-project".to_owned(), output.stderr));
+    }
 
     #[derive(Deserialize)]
     struct Data { root: String }
     let stdout = String::from_utf8(output.stdout).unwrap();
     let decoded: Data = serde_json::from_str(&stdout).unwrap();
-    Path::new(&decoded.root).to_owned()
+    Ok(decoded.root.into())
 }
 
 /// Calls the `uname` function from libc to obtain the machine architecture,

@@ -1,4 +1,5 @@
 use std::io;
+use std::num;
 use std::time;
 use compress::{CompressErr, Archive};
 use toml;
@@ -24,6 +25,10 @@ quick_error! {
         Str(msg: &'static str) {
             from()
             description(msg)
+        }
+        NumParse(msg: &'static str, err: num::ParseIntError) {
+            description(msg)
+            cause(err)
         }
         ArFailed {
             description("ar failed")
