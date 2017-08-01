@@ -59,6 +59,8 @@ pub struct Config {
     /// List of Cargo features to use during build
     pub features: Vec<String>,
     pub default_features: bool,
+    /// Should the binary be stripped from debug symbols?
+    pub strip: bool,
 }
 
 impl Config {
@@ -101,6 +103,7 @@ impl Config {
 pub struct Cargo {
     pub package: CargoPackage,
     pub bin: Option<Vec<CargoBin>>,
+    pub profile: Option<CargoProfiles>,
 }
 
 impl Cargo {
@@ -136,6 +139,7 @@ impl Cargo {
             maintainer_scripts: deb.maintainer_scripts.map(|s| PathBuf::from(s)),
             features: deb.features.take().unwrap_or(vec![]),
             default_features: deb.default_features.unwrap_or(true),
+            strip: self.profile.and_then(|p|p.release).and_then(|r|r.debug).map(|debug|!debug).unwrap_or(true),
         }
     }
 
@@ -204,12 +208,22 @@ pub struct CargoPackage {
     pub version: String,
     pub description: String,
     pub readme: Option<String>,
-    pub metadata: Option<CargoMetadata>
+    pub metadata: Option<CargoMetadata>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct CargoMetadata {
     pub deb: Option<CargoDeb>
+}
+
+#[derive(Clone, Debug, Deserialize)]
+pub struct CargoProfiles {
+    pub release: Option<CargoProfile>
+}
+
+#[derive(Clone, Debug, Deserialize)]
+pub struct CargoProfile {
+    pub debug: Option<bool>
 }
 
 #[derive(Clone, Debug, Deserialize)]

@@ -37,7 +37,9 @@ fn main() {
     if !std::env::args().any(|x| x.as_str() == "--no-build") {
         cargo_build(&options.features, options.default_features);
     }
-    strip_binary(options.name.as_str());
+    if options.strip {
+        strip_binary(options.name.as_str());
+    }
 
     // Obtain the current time which will be used to stamp the generated files in the archives.
     let system_time = time::SystemTime::now().duration_since(time::UNIX_EPOCH)
