@@ -2,7 +2,14 @@ use std::io;
 use std::num;
 use std::time;
 use toml;
+#[cfg(feature = "lzma")]
 use lzma;
+#[cfg(not(feature = "lzma"))]
+mod lzma {
+    // it's not used, but has to pass type-check, becasue quick_error! doesn't support cfg()
+    pub type LzmaError = ::std::num::ParseIntError;
+}
+
 
 quick_error! {
     #[derive(Debug)]

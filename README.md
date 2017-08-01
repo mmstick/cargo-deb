@@ -8,7 +8,7 @@ This is a [Cargo](http://doc.crates.io/) helper command which automatically crea
 cargo install cargo-deb
 ```
 
-Requires Rust 1.19+, Debian/Ubuntu, `dpkg`, `ldd`, `liblzma`.
+Requires Rust 1.19+, Debian/Ubuntu, `dpkg`, `ldd`, and optionally `liblzma-dev`.
 
 ## Usage
 

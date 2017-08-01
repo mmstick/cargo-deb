@@ -2,6 +2,7 @@ extern crate itertools;
 extern crate libc;
 extern crate toml;
 extern crate tar;
+#[cfg(feature = "lzma")]
 extern crate lzma;
 extern crate zopfli;
 extern crate md5;
@@ -119,20 +120,23 @@ fn process(CliOptions {install, no_build, no_strip, quiet}: CliOptions) -> CDRes
     let mut control_archive = TarBuilder::new(Vec::new());
     control::generate_archive(&mut control_archive, &options, system_time, asset_hashes)?;
 
-    // Compress the data archive with the LZMA compression algorithm.
-    {
-        let tar = data_archive.into_inner()?;
-        compress::xz(tar, "target/debian/data.tar.xz")?;
-    }
+    let mut contents = vec![];
+    generate_debian_binary_file("target/debian/debian-binary")?;
+    contents.push("target/debian/debian-binary".to_owned());
 
     // Compress the control archive with the Zopfli compression algorithm.
     {
         let tar = control_archive.into_inner()?;
-        compress::gz(tar, "target/debian/control.tar.gz")?;
+        contents.push(compress::gz(tar, "target/debian/control.tar")?);
     }
 
-    generate_debian_binary_file()?;
-    let generated = generate_deb(&options)?;
+    // Compress the data archive with the LZMA compression algorithm.
+    {
+        let tar = data_archive.into_inner()?;
+        contents.push(compress::xz_or_gz(tar, "target/debian/data.tar")?);
+    }
+
+    let generated = generate_deb(&options, &contents)?;
     if install {
         install_deb(&generated)?;
     }
@@ -149,17 +153,19 @@ fn install_deb(path: &str) -> CDResult<()> {
 }
 
 /// Uses the ar program to create the final Debian package, at least until a native ar implementation is implemented.
-fn generate_deb(config: &Config) -> CDResult<String> {
+fn generate_deb(config: &Config, contents: &[String]) -> CDResult<String> {
     let out_relpath = format!("{}_{}_{}.deb", config.name, config.version, config.architecture);
     let out_abspath = format!("target/debian/{}", out_relpath);
     let _ = fs::remove_file(&out_abspath); // Remove it if it exists
 
-    let status = Command::new("ar")
-        .current_dir("target/debian")
-        .arg("r").arg(out_relpath).arg("debian-binary")
-        .arg("control.tar.gz")
-        .arg("data.tar.xz")
-        .status().map_err(|e| CargoDebError::CommandFailed(e, "ar"))?;
+    let mut cmd = Command::new("ar");
+    cmd.current_dir("target/debian").arg("r").arg(out_relpath);
+    for path in contents {
+        assert!(path.starts_with("target/debian/"));
+        cmd.arg(&path["target/debian/".len()..]);
+    }
+    let status = cmd.status()
+        .map_err(|e| CargoDebError::CommandFailed(e, "ar"))?;
     if !status.success() {
         return Err(CargoDebError::CommandError("ar", out_abspath, vec![]));
     }
@@ -167,9 +173,9 @@ fn generate_deb(config: &Config) -> CDResult<String> {
 }
 
 // Creates the debian-binary file that will be added to the final ar archive.
-fn generate_debian_binary_file() -> io::Result<()> {
+fn generate_debian_binary_file(path: &str) -> io::Result<()> {
     let mut file = fs::OpenOptions::new().create(true).write(true)
-        .truncate(true).mode(CHMOD_FILE).open("target/debian/debian-binary")?;
+        .truncate(true).mode(CHMOD_FILE).open(path)?;
     file.write(b"2.0\n")?;
     Ok(())
 }

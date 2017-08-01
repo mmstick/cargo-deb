@@ -31,13 +31,17 @@ itertools = "0.4.17"
 libc = "0.2.15"
 md5 = "0.3.5"
 quick-error = "1.2.0"
-rust-lzma = "0.2.1"
+rust-lzma = { version = "0.2.1", optional = true }
 serde = "1.0.11"
 serde_derive = "1.0.11"
 serde_json = "1.0.2"
 tar = "0.4.13"
 toml = "0.4.4"
 zopfli = "0.3.0"
+
+[features]
+default = ["lzma"]
+lzma = ["rust-lzma"]
 
 [profile.release]
 lto = true
