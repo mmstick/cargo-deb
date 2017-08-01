@@ -42,6 +42,7 @@ fn main() {
     let mut cli_opts = getopts::Options::new();
     cli_opts.optflag("", "no-build", "Assume project is already built");
     cli_opts.optflag("", "no-strip", "Do not strip debug symbols from the binary");
+    cli_opts.optflag("", "install", "Immediately install created package");
     cli_opts.optflag("q", "quiet", "Don't print warnings");
     cli_opts.optflag("h", "help", "Print this help menu");
 
@@ -58,8 +59,9 @@ fn main() {
     let no_build = matches.opt_present("no-build");
     let no_strip = matches.opt_present("no-strip");
     let quiet = matches.opt_present("quiet");
+    let install = matches.opt_present("install");
 
-    match process(no_build, no_strip, quiet) {
+    match process(install, no_build, no_strip, quiet) {
         Ok(()) => {},
         Err(err) => {
             err_exit(&err);
@@ -82,7 +84,7 @@ fn err_exit(err: &std::error::Error) -> ! {
     process::exit(1);
 }
 
-fn process(no_build: bool, no_strip: bool, quiet: bool) -> CDResult<()> {
+fn process(install: bool, no_build: bool, no_strip: bool, quiet: bool) -> CDResult<()> {
     remove_leftover_files()?;
     let (options, warnings) = Config::from_manifest()?;
     if !quiet {
@@ -122,21 +124,38 @@ fn process(no_build: bool, no_strip: bool, quiet: bool) -> CDResult<()> {
     }
 
     generate_debian_binary_file()?;
-    generate_deb(&options)
+    let generated = generate_deb(&options)?;
+    if install {
+        install_deb(&generated)?;
+    }
+    Ok(())
+}
+
+fn install_deb(path: &str) -> CDResult<()> {
+    let status = Command::new("dpkg").arg("-i").arg(path)
+        .status()?;
+    if !status.success() {
+        Err(CargoDebError::InstallFailed)?;
+    }
+    Ok(())
 }
 
 /// Uses the ar program to create the final Debian package, at least until a native ar implementation is implemented.
-fn generate_deb(config: &Config) -> CDResult<()> {
-    env::set_current_dir("target/debian")?;
-    let outpath = format!("{}_{}_{}.deb", config.name, config.version, config.architecture);
-    let _ = fs::remove_file(&outpath); // Remove it if it exists
-    let status = Command::new("ar").arg("r").arg(outpath).arg("debian-binary")
-        .arg("control.tar.gz").arg("data.tar.xz")
+fn generate_deb(config: &Config) -> CDResult<String> {
+    let out_relpath = format!("{}_{}_{}.deb", config.name, config.version, config.architecture);
+    let out_abspath = format!("target/debian/{}", out_relpath);
+    let _ = fs::remove_file(&out_abspath); // Remove it if it exists
+
+    let status = Command::new("ar")
+        .current_dir("target/debian")
+        .arg("r").arg(out_relpath).arg("debian-binary")
+        .arg("control.tar.gz")
+        .arg("data.tar.xz")
         .status().map_err(|e| CargoDebError::CommandFailed(e, "ar"))?;
     if !status.success() {
         Err(CargoDebError::ArFailed)?;
     }
-    Ok(())
+    Ok(out_abspath)
 }
 
 // Creates the debian-binary file that will be added to the final ar archive.

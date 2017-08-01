@@ -8,7 +8,7 @@ This is a [Cargo](http://doc.crates.io/) helper command which automatically crea
 cargo install cargo-deb
 ```
 
-Requires Rust 1.19+, Debian, `dpkg`, `ldd`, `liblzma`.
+Requires Rust 1.19+, Debian/Ubuntu, `dpkg`, `ldd`, `liblzma`.
 
 ## Usage
 
@@ -21,6 +21,12 @@ Upon running `cargo deb` from the base directory of your Rust project, the Debia
 If you would like to handle the build process yourself, you can use `cargo deb --no-build` so that the `cargo-deb` command will not attempt to rebuild your project.
 
 Debug symbols are stripped from the main binary by default. To keep debug symbols, either set `[profile.release] debug = true` in `Cargo.toml` or run `cargo deb --no-strip`.
+
+```sh
+cargo deb --install
+```
+
+Builds and installs the project system-wide.
 
 ## Configuration
 

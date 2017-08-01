@@ -38,6 +38,9 @@ quick_error! {
         ArFailed {
             description("ar failed")
         }
+        InstallFailed {
+            description("dpkg install failed")
+        }
         BuildFailed {
             description("build failed")
         }
