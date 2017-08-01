@@ -7,8 +7,12 @@ use error::*;
 /// Resolves the dependencies based on the output of ldd on the binary.
 pub fn resolve(path: &str) -> CDResult<String> {
     let dependencies = {
-        let output = Command::new("ldd").arg(path).output().map(|x| x.stdout)?;
-        String::from_utf8(output).unwrap()
+        let output = Command::new("ldd").arg(path)
+            .output().map_err(|e| CargoDebError::CommandFailed(e, "ldd"))?;
+        if !output.status.success() {
+            return Err(CargoDebError::CommandError("ldd", path.to_owned(), output.stderr));
+        }
+        String::from_utf8(output.stdout).unwrap()
     };
 
     // Create an iterator of unique dependencies
@@ -36,7 +40,8 @@ pub fn resolve(path: &str) -> CDResult<String> {
 
 /// Obtains the name of the package that belongs to the file that ldd returned.
 fn get_package_name(path: &str) -> CDResult<String> {
-    let output = Command::new("dpkg").arg("-S").arg(path).output()?;
+    let output = Command::new("dpkg").arg("-S").arg(path)
+        .output().map_err(|e| CargoDebError::CommandFailed(e, "dpkg -S"))?;
     if !output.status.success() {
         return Err(CargoDebError::PackageNotFound(path.to_owned(), output.stderr));
     }
@@ -46,9 +51,10 @@ fn get_package_name(path: &str) -> CDResult<String> {
 
 /// Uses apt-cache policy to determine the version of the package that this project was built against.
 fn get_version(package: &str) -> CDResult<String> {
-    let output = Command::new("apt-cache").arg("policy").arg(&package).output()?;
+    let output = Command::new("apt-cache").arg("policy").arg(&package)
+        .output().map_err(|e| CargoDebError::CommandFailed(e, "apt-cache policy"))?;
     if !output.status.success() {
-        return Err(CargoDebError::AptPolicyFailed(package.to_owned(), output.stderr));
+        return Err(CargoDebError::CommandError("apt-cache policy", package.to_owned(), output.stderr));
     }
     let string = String::from_utf8(output.stdout).unwrap();
     if let Some(installed_line) = string.lines().nth(1) {

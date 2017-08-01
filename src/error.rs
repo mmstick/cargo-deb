@@ -12,6 +12,15 @@ quick_error! {
             display("I/O error: {}", err)
             cause(err)
         }
+        CommandFailed(err: io::Error, cmd: &'static str) {
+            description(err.description())
+            display("Command {} failed to launch", cmd)
+            cause(err)
+        }
+        CommandError(msg: &'static str, arg: String, reason: Vec<u8>) {
+            description(msg)
+            display("{} ({}): {}", msg, arg, String::from_utf8_lossy(&reason))
+        }
         Str(msg: &'static str) {
             from()
             description(msg)
@@ -24,10 +33,6 @@ quick_error! {
         }
         StripFailed {
             description("strip failed")
-        }
-        AptPolicyFailed(package: String, reason: Vec<u8>) {
-            description("apt-get policy failed")
-            display("apt-get policy '{}' failed: {}", package, String::from_utf8_lossy(&reason))
         }
         SystemTime(err: time::SystemTimeError) {
             from()

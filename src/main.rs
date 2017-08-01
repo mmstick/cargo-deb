@@ -46,9 +46,8 @@ fn main() {
 
     let matches = match cli_opts.parse(&args[1..]) {
         Ok(m) => m,
-        Err(e) => {
-            eprintln!("cargo-deb: {}", e);
-            process::exit(1);
+        Err(err) => {
+            err_exit(&err);
         },
     };
     if matches.opt_present("h") {
@@ -61,10 +60,24 @@ fn main() {
     match process(no_build, no_strip) {
         Ok(()) => {},
         Err(err) => {
-            eprintln!("cargo-deb: {}", err);
-            process::exit(1);
+            err_exit(&err);
         }
     }
+}
+
+fn err_cause(err: &std::error::Error, max: usize) {
+    if let Some(reason) = err.cause() {
+        eprintln!("  because: {}", reason);
+        if max > 0 {
+            err_cause(reason, max - 1);
+        }
+    }
+}
+
+fn err_exit(err: &std::error::Error) -> ! {
+    eprintln!("cargo-deb: {}", err);
+    err_cause(err, 3);
+    process::exit(1);
 }
 
 fn process(no_build: bool, no_strip: bool) -> CDResult<()> {
@@ -110,7 +123,8 @@ fn generate_deb(config: &Config) -> CDResult<()> {
     let outpath = format!("{}_{}_{}.deb", config.name, config.version, config.architecture);
     let _ = fs::remove_file(&outpath); // Remove it if it exists
     let status = Command::new("ar").arg("r").arg(outpath).arg("debian-binary")
-        .arg("control.tar.gz").arg("data.tar.xz").status()?;
+        .arg("control.tar.gz").arg("data.tar.xz")
+        .status().map_err(|e| CargoDebError::CommandFailed(e, "ar"))?;
     if !status.success() {
         Err(CargoDebError::ArFailed)?;
     }
@@ -143,7 +157,7 @@ fn cargo_build(features: &[String], default_features: bool) -> CDResult<()> {
         cmd.arg(format!("--features={}", features.join(",")));
     }
 
-    let status = cmd.status()?;
+    let status = cmd.status().map_err(|e| CargoDebError::CommandFailed(e, "cargo"))?;
     if !status.success() {
         Err(CargoDebError::BuildFailed)?;
     }
