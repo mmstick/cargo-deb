@@ -36,6 +36,13 @@ use tar::Builder as TarBuilder;
 const CHMOD_FILE: u32 = 420;
 const TAR_REJECTS_CUR_DIR: bool = true;
 
+struct CliOptions {
+    no_build: bool,
+    no_strip: bool,
+    quiet: bool,
+    install: bool,
+}
+
 fn main() {
     let args: Vec<String> = env::args().collect();
 
@@ -56,12 +63,13 @@ fn main() {
         print!("{}", cli_opts.usage("Usage: cargo deb [options]"));
         return;
     }
-    let no_build = matches.opt_present("no-build");
-    let no_strip = matches.opt_present("no-strip");
-    let quiet = matches.opt_present("quiet");
-    let install = matches.opt_present("install");
 
-    match process(install, no_build, no_strip, quiet) {
+    match process(CliOptions {
+        no_build: matches.opt_present("no-build"),
+        no_strip: matches.opt_present("no-strip"),
+        quiet: matches.opt_present("quiet"),
+        install: matches.opt_present("install"),
+    }) {
         Ok(()) => {},
         Err(err) => {
             err_exit(&err);
@@ -84,7 +92,7 @@ fn err_exit(err: &std::error::Error) -> ! {
     process::exit(1);
 }
 
-fn process(install: bool, no_build: bool, no_strip: bool, quiet: bool) -> CDResult<()> {
+fn process(CliOptions {install, no_build, no_strip, quiet}: CliOptions) -> CDResult<()> {
     remove_leftover_files()?;
     let (options, warnings) = Config::from_manifest()?;
     if !quiet {
