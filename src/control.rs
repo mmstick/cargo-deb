@@ -3,7 +3,6 @@ use std::io::{self, Write};
 use std::fs;
 use std::path::Path;
 use config::Config;
-use try::Try;
 use tar::Builder as TarBuilder;
 use tar::Header as TarHeader;
 use tar::EntryType;
@@ -24,7 +23,7 @@ pub fn generate_archive(archive: &mut TarBuilder<Vec<u8>>, options: &Config, tim
     if let Some(ref files) = options.conf_files {
         generate_conf_files(archive, files, time)?;
     }
-    generate_scripts(archive, options);
+    generate_scripts(archive, options)?;
     Ok(())
 }
 
@@ -44,15 +43,15 @@ fn initialize_control(archive: &mut TarBuilder<Vec<u8>>, time: u64) -> io::Resul
 }
 
 /// Append all files that reside in the `maintainer_scripts` path to the archive
-fn generate_scripts(archive: &mut TarBuilder<Vec<u8>>, option: &Config) {
+fn generate_scripts(archive: &mut TarBuilder<Vec<u8>>, option: &Config) -> io::Result<()> {
     if let Some(ref maintainer_scripts) = option.maintainer_scripts {
         for script in &SCRIPTS {
             if let Ok(mut file) = fs::File::open(maintainer_scripts.join(script)) {
-                archive.append_file(script, &mut file)
-                    .try("failed to add maintainer script to control");
+                archive.append_file(script, &mut file)?;
             }
         }
     }
+    Ok(())
 }
 
 /// Creates the md5sums file which contains a list of all contained files and the md5sums of each.
@@ -81,7 +80,7 @@ fn generate_md5sums(archive: &mut TarBuilder<Vec<u8>>, options: &Config, time: u
     }
 
     // Obtain the md5sum of the copyright file
-    let copyright_file = file::get("target/debian/copyright").try("unable to open target/debian/copyright");
+    let copyright_file = file::get("target/debian/copyright")?;
 
     let mut hash = Vec::new();
     write!(hash, "{:x}", md5::compute(&copyright_file))?;
@@ -93,7 +92,7 @@ fn generate_md5sums(archive: &mut TarBuilder<Vec<u8>>, options: &Config, time: u
     md5sums.push(b'\n');
 
     // We can now exterminate the copyright file as it has outlived it's usefulness.
-    fs::remove_file("target/debian/copyright").try("copyright file doesn't exist.");
+    fs::remove_file("target/debian/copyright")?;
 
     // Write the data to the archive
     let mut header = TarHeader::new_gnu();
