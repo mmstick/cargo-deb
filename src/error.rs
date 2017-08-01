@@ -1,8 +1,8 @@
 use std::io;
 use std::num;
 use std::time;
-use compress::{CompressErr, Archive};
 use toml;
+use lzma;
 
 quick_error! {
     #[derive(Debug)]
@@ -68,21 +68,10 @@ quick_error! {
             description("unable to get version of a package")
             display("unable to get version of '{}'", package)
         }
-        Compress(err: CompressErr) {
+        CompressError(err: lzma::LzmaError) {
             from()
-            description(match *err {
-                CompressErr::Compression(_) => "error with zopfli compression",
-                // The application was unable to create the `target/debian` directory.
-                CompressErr::UnableToCreatePath(_) => "unable to create 'target/debian'",
-                // The application was unable to write the archive to disk.
-                CompressErr::Write(Archive::Control, _) => "unable to write to 'target/debian/control.tar.gz'",
-                CompressErr::Write(Archive::Data, _) => "unable to write to 'target/debian/data.tar.xz'",
-            })
-            display("{}", match *err {
-                CompressErr::Compression(ref reason) => reason.clone(),
-                CompressErr::UnableToCreatePath(ref reason) => reason.to_string(),
-                CompressErr::Write(_, ref reason) => reason.to_string(),
-            })
+            description(err.description())
+            cause(err)
         }
     }
 }
