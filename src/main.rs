@@ -69,7 +69,7 @@ fn main() {
 
 fn process(no_build: bool, no_strip: bool) -> CDResult<()> {
     remove_leftover_files()?;
-    let options = Config::new();
+    let options = Config::from_manifest()?;
     if !no_build {
         cargo_build(&options.features, options.default_features)?;
     }
@@ -86,41 +86,43 @@ fn process(no_build: bool, no_strip: bool) -> CDResult<()> {
 
     // Initialize the contents of the control archive (metadata for the package manager).
     let mut control_archive = TarBuilder::new(Vec::new());
-    control::generate_archive(&mut control_archive, &options, system_time, asset_hashes);
+    control::generate_archive(&mut control_archive, &options, system_time, asset_hashes)?;
 
     // Compress the data archive with the LZMA compression algorithm.
     {
-        let tar = data_archive.into_inner().try("failed to tar contents");
+        let tar = data_archive.into_inner()?;
         compress::xz(tar, "target/debian/data.tar.xz")?;
     }
 
     // Compress the control archive with the Zopfli compression algorithm.
     {
-        let tar = control_archive.into_inner().try("failed to tar contents");
+        let tar = control_archive.into_inner()?;
         compress::gz(tar, "target/debian/control.tar.gz")?;
     }
 
-    generate_debian_binary_file();
-    generate_deb(&options);
-    Ok(())
+    generate_debian_binary_file()?;
+    generate_deb(&options)
 }
 
 /// Uses the ar program to create the final Debian package, at least until a native ar implementation is implemented.
-fn generate_deb(config: &Config) {
-    env::set_current_dir("target/debian").unwrap();
-    let outpath = config.name.clone() + "_" + &config.version + "_" +
-        &config.architecture + ".deb";
+fn generate_deb(config: &Config) -> CDResult<()> {
+    env::set_current_dir("target/debian")?;
+    let outpath = format!("{}_{}_{}.deb", config.name, config.version, config.architecture);
     let _ = fs::remove_file(&outpath); // Remove it if it exists
-    Command::new("ar").arg("r").arg(outpath).arg("debian-binary").arg("control.tar.gz").arg("data.tar.xz").status()
-        .try("unable to create debian archive");
+    let status = Command::new("ar").arg("r").arg(outpath).arg("debian-binary")
+        .arg("control.tar.gz").arg("data.tar.xz").status()?;
+    if !status.success() {
+        Err(CargoDebError::ArFailed)?;
+    }
+    Ok(())
 }
 
 // Creates the debian-binary file that will be added to the final ar archive.
-fn generate_debian_binary_file() {
+fn generate_debian_binary_file() -> io::Result<()> {
     let mut file = fs::OpenOptions::new().create(true).write(true)
-        .truncate(true).mode(CHMOD_FILE).open("target/debian/debian-binary")
-        .try("unable to create target/debian/debian-binary");
-    file.write(&[50, 46, 48, 10]).unwrap(); // [2][.][0][BS]
+        .truncate(true).mode(CHMOD_FILE).open("target/debian/debian-binary")?;
+    file.write(b"2.0\n")?;
+    Ok(())
 }
 
 /// Removes the target/debian directory so that we can start fresh.

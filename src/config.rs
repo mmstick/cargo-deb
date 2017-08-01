@@ -6,6 +6,7 @@ use toml;
 use file;
 use dependencies::resolve;
 use serde_json;
+use error::*;
 
 use wordsplit::WordSplit;
 use try::Try;
@@ -63,9 +64,9 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn new() -> Config {
-        let content = file::get_text(&current_manifest_path()).try("could not open manifest file");
-        toml::from_str::<Cargo>(&content).try("could not decode manifest").into_config()
+    pub fn from_manifest() -> CDResult<Config> {
+        let content = file::get_text(&current_manifest_path())?;
+        toml::from_str::<Cargo>(&content)?.into_config()
     }
 
     pub fn get_dependencies(&self) -> String {
@@ -105,11 +106,11 @@ pub struct Cargo {
 }
 
 impl Cargo {
-    fn into_config(mut self) -> Config {
+    fn into_config(mut self) -> CDResult<Config> {
         let mut deb = self.package.metadata.take().and_then(|m|m.deb)
             .unwrap_or_else(|| CargoDeb::default());
         let (license_file, license_file_skip_lines) = self.take_license_file(deb.license_file.take());
-        Config {
+        Ok(Config {
             name: self.package.name.clone(),
             license: self.package.license.clone(),
             license_file,
@@ -138,7 +139,7 @@ impl Cargo {
             features: deb.features.take().unwrap_or(vec![]),
             default_features: deb.default_features.unwrap_or(true),
             strip: self.profile.and_then(|p|p.release).and_then(|r|r.debug).map(|debug|!debug).unwrap_or(true),
-        }
+        })
     }
 
     fn take_license_file(&mut self, license_file: Option<Vec<String>>) -> (Option<String>, usize) {

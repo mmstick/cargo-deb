@@ -1,6 +1,7 @@
 use std::io;
 use std::time;
 use compress::{CompressErr, Archive};
+use toml;
 
 quick_error! {
     #[derive(Debug)]
@@ -15,6 +16,9 @@ quick_error! {
             from()
             description(msg)
         }
+        ArFailed {
+            description("ar failed")
+        }
         BuildFailed {
             description("build failed")
         }
@@ -24,6 +28,12 @@ quick_error! {
         SystemTime(err: time::SystemTimeError) {
             from()
             description("unable to get system time")
+            cause(err)
+        }
+        Parse(err: toml::de::Error) {
+            from()
+            description(err.description())
+            display("TOML error: {}", err)
             cause(err)
         }
         Compress(err: CompressErr) {
