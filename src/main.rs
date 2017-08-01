@@ -8,7 +8,7 @@ extern crate md5;
 #[macro_use]
 extern crate serde_derive;
 extern crate serde_json;
-
+extern crate getopts;
 
 mod compress;
 mod config;
@@ -32,12 +32,32 @@ use tar::Builder as TarBuilder;
 const CHMOD_FILE: u32 = 420;
 
 fn main() {
+    let args: Vec<String> = env::args().collect();
+
+    let mut cli_opts = getopts::Options::new();
+    cli_opts.optflag("", "no-build", "Assume project is already built");
+    cli_opts.optflag("", "no-strip", "Do not strip debug symbols from the binary");
+    cli_opts.optflag("h", "help", "Print this help menu");
+
+    let matches = match cli_opts.parse(&args[1..]) {
+        Ok(m) => m,
+        Err(e) => {
+            failed(e.to_string());
+        },
+    };
+    if matches.opt_present("h") {
+        print!("{}", cli_opts.usage("Usage: cargo deb [options]"));
+        return;
+    }
+    let no_build = matches.opt_present("no-build");
+    let no_strip = matches.opt_present("no-strip");
+
     remove_leftover_files();
     let options = Config::new();
-    if !std::env::args().any(|x| x.as_str() == "--no-build") {
+    if !no_build {
         cargo_build(&options.features, options.default_features);
     }
-    if options.strip &&  !std::env::args().any(|x| x.as_str() == "--no-strip") {
+    if options.strip && !no_strip {
         strip_binary(options.name.as_str());
     }
 
