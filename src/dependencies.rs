@@ -2,11 +2,11 @@ use std::process::Command;
 use std::fmt::Write;
 use itertools::Itertools;
 use try::{Try, failed};
+use error::*;
 
 /// Resolves the dependencies based on the output of ldd on the binary.
-pub fn resolve<S: AsRef<str>>(path: S) -> String {
+pub fn resolve(path: &str) -> CDResult<String> {
     let dependencies = {
-        let path = path.as_ref();
         let output = Command::new("ldd").arg(path).output().map(|x| x.stdout)
             .try("failed to launch ldd command");
         String::from_utf8(output).unwrap()
@@ -36,7 +36,7 @@ pub fn resolve<S: AsRef<str>>(path: S) -> String {
         }
     }
 
-    output
+    Ok(output)
 }
 
 /// Obtains the name of the package that belongs to the file that ldd returned.

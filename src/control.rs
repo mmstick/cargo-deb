@@ -107,7 +107,7 @@ fn generate_md5sums(archive: &mut TarBuilder<Vec<u8>>, options: &Config, time: u
 }
 
 /// Generates the control file that obtains all the important information about the package.
-fn generate_control(archive: &mut TarBuilder<Vec<u8>>, options: &Config, time: u64) -> io::Result<()> {
+fn generate_control(archive: &mut TarBuilder<Vec<u8>>, options: &Config, time: u64) -> CDResult<()> {
     // Create and return the handle to the control file with write access.
     let mut control: Vec<u8> = Vec::with_capacity(1024);
 
@@ -125,7 +125,7 @@ fn generate_control(archive: &mut TarBuilder<Vec<u8>>, options: &Config, time: u
     write!(&mut control, "Priority: {}\n", options.priority)?;
     control.write(b"Standards-Version: 3.9.4\n")?;
     write!(&mut control, "Maintainer: {}\n", options.maintainer)?;
-    write!(&mut control, "Depends: {}\n", options.get_dependencies())?;
+    write!(&mut control, "Depends: {}\n", options.get_dependencies()?)?;
     write!(&mut control, "Description: {}\n", options.description)?;
 
     // Write each of the lines that were collected from the extended_description to the file.
@@ -141,7 +141,8 @@ fn generate_control(archive: &mut TarBuilder<Vec<u8>>, options: &Config, time: u
     header.set_size(control.len() as u64);
     header.set_mode(CHMOD_FILE);
     header.set_cksum();
-    archive.append(&header, control.as_slice())
+    archive.append(&header, control.as_slice())?;
+    Ok(())
 }
 
 /// If configuration files are required, the conffiles file will be created.

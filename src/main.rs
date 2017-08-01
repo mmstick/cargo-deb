@@ -31,7 +31,6 @@ use std::os::unix::fs::OpenOptionsExt;
 use error::*;
 
 use config::Config;
-use try::{failed, Try};
 use tar::Builder as TarBuilder;
 
 const CHMOD_FILE: u32 = 420;
@@ -48,7 +47,8 @@ fn main() {
     let matches = match cli_opts.parse(&args[1..]) {
         Ok(m) => m,
         Err(e) => {
-            failed(e.to_string());
+            eprintln!("cargo-deb: {}", e);
+            process::exit(1);
         },
     };
     if matches.opt_present("h") {

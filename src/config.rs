@@ -1,7 +1,6 @@
 use std::env::consts::ARCH;
 use std::path::{Path, PathBuf};
 use std::process::{exit, Command};
-use itertools::Itertools;
 use toml;
 use file;
 use dependencies::resolve;
@@ -69,12 +68,13 @@ impl Config {
         toml::from_str::<Cargo>(&content)?.into_config()
     }
 
-    pub fn get_dependencies(&self) -> String {
-        self.depends.split_whitespace().map(|word| match word {
-            "$auto"  => resolve(String::from("target/release/") + &self.name),
-            "$auto," => resolve(String::from("target/release/") + &self.name + ","),
-            _        => word.to_owned()
-        }).join(" ")
+    pub fn get_dependencies(&self) -> CDResult<String> {
+        let deps: Result<Vec<_>,_> = self.depends.split_whitespace().map(|word| match word {
+            "$auto"  => resolve(&format!("target/release/{}", &self.name)),
+            "$auto," => resolve(&format!("target/release/{},", &self.name)),
+            _        => Ok(word.to_owned())
+        }).collect();
+        Ok(deps?.join(" "))
     }
 
     /// Tries to guess type of source control used for the repo URL.
