@@ -42,6 +42,7 @@ fn main() {
     let mut cli_opts = getopts::Options::new();
     cli_opts.optflag("", "no-build", "Assume project is already built");
     cli_opts.optflag("", "no-strip", "Do not strip debug symbols from the binary");
+    cli_opts.optflag("q", "quiet", "Don't print warnings");
     cli_opts.optflag("h", "help", "Print this help menu");
 
     let matches = match cli_opts.parse(&args[1..]) {
@@ -56,8 +57,9 @@ fn main() {
     }
     let no_build = matches.opt_present("no-build");
     let no_strip = matches.opt_present("no-strip");
+    let quiet = matches.opt_present("quiet");
 
-    match process(no_build, no_strip) {
+    match process(no_build, no_strip, quiet) {
         Ok(()) => {},
         Err(err) => {
             err_exit(&err);
@@ -80,9 +82,15 @@ fn err_exit(err: &std::error::Error) -> ! {
     process::exit(1);
 }
 
-fn process(no_build: bool, no_strip: bool) -> CDResult<()> {
+fn process(no_build: bool, no_strip: bool, quiet: bool) -> CDResult<()> {
     remove_leftover_files()?;
-    let options = Config::from_manifest()?;
+    let (options, warnings) = Config::from_manifest()?;
+    if !quiet {
+        for warning in warnings {
+            println!("warning: {}", warning);
+        }
+    }
+
     if !no_build {
         cargo_build(&options.features, options.default_features)?;
     }

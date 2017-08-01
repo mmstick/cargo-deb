@@ -1,5 +1,5 @@
 use std::env::consts::ARCH;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 use toml;
 use file;
@@ -63,7 +63,7 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn from_manifest() -> CDResult<Config> {
+    pub fn from_manifest() -> CDResult<(Config, Vec<String>)> {
         let manifest_path = current_manifest_path()?;
         let content = file::get_text(&manifest_path)
             .map_err(|e| CargoDebError::IoFile(e, manifest_path))?;
@@ -111,12 +111,13 @@ pub struct Cargo {
 }
 
 impl Cargo {
-    fn into_config(mut self) -> CDResult<Config> {
+    fn into_config(mut self) -> CDResult<(Config, Vec<String>)> {
         let mut deb = self.package.metadata.take().and_then(|m|m.deb)
             .unwrap_or_else(|| CargoDeb::default());
         let (license_file, license_file_skip_lines) = self.take_license_file(deb.license_file.take())?;
         let readme = self.package.readme.take();
-        Ok(Config {
+        let warnings = self.check_config(readme.as_ref(), &deb);
+        Ok((Config {
             name: self.package.name.clone(),
             license: self.package.license.clone(),
             license_file,
@@ -144,7 +145,24 @@ impl Cargo {
             features: deb.features.take().unwrap_or(vec![]),
             default_features: deb.default_features.unwrap_or(true),
             strip: self.profile.and_then(|p|p.release).and_then(|r|r.debug).map(|debug|!debug).unwrap_or(true),
-        })
+        }, warnings))
+    }
+
+    fn check_config(&self, readme: Option<&String>, deb: &CargoDeb) -> Vec<String> {
+        let mut warnings = vec![];
+        if let Some(readme) = readme {
+            if deb.extended_description.is_none() && (readme.ends_with(".md") || readme.ends_with(".markdown")) {
+                warnings.push(format!("extended-description field missing. Using {}, but markdown may not render well.",readme));
+            }
+        } else {
+            for p in &["README.md", "README.txt", "README"] {
+                if Path::new(p).exists() {
+                    warnings.push(format!("{} file exists, but is not specified in `readme` Cargo.toml field", p));
+                    break;
+                }
+            }
+        }
+        warnings
     }
 
     fn extended_description(&self, desc: Option<&str>, readme: Option<&str>) -> CDResult<Vec<String>> {
