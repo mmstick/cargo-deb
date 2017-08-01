@@ -13,6 +13,11 @@ quick_error! {
             display("I/O error: {}", err)
             cause(err)
         }
+        IoFile(err: io::Error, file: String) {
+            description(err.description())
+            display("I/O error: {}", file)
+            cause(err)
+        }
         CommandFailed(err: io::Error, cmd: &'static str) {
             description(err.description())
             display("Command {} failed to launch", cmd)

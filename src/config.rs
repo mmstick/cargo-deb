@@ -64,7 +64,9 @@ pub struct Config {
 
 impl Config {
     pub fn from_manifest() -> CDResult<Config> {
-        let content = file::get_text(&current_manifest_path()?)?;
+        let manifest_path = current_manifest_path()?;
+        let content = file::get_text(&manifest_path)
+            .map_err(|e| CargoDebError::IoFile(e, manifest_path))?;
         toml::from_str::<Cargo>(&content)?.into_config()
     }
 
@@ -149,7 +151,8 @@ impl Cargo {
         Ok(if let Some(desc) = desc {
             desc.split_by_chars(79)
         } else if let Some(readme) = readme {
-            file::get_text(readme)?
+            file::get_text(readme)
+                .map_err(|e| CargoDebError::IoFile(e, readme.to_owned()))?
                 .split_by_chars(159)
         } else {
             vec![]
@@ -270,7 +273,7 @@ pub struct CargoDeb {
 }
 
 /// Returns the path of the `Cargo.toml` that we want to build.
-fn current_manifest_path() -> CDResult<PathBuf> {
+fn current_manifest_path() -> CDResult<String> {
     let output = Command::new("cargo").arg("locate-project")
         .output().map_err(|e| CargoDebError::CommandFailed(e, "cargo"))?;
     if !output.status.success() {
@@ -281,7 +284,7 @@ fn current_manifest_path() -> CDResult<PathBuf> {
     struct Data { root: String }
     let stdout = String::from_utf8(output.stdout).unwrap();
     let decoded: Data = serde_json::from_str(&stdout).unwrap();
-    Ok(decoded.root.into())
+    Ok(decoded.root)
 }
 
 /// Calls the `uname` function from libc to obtain the machine architecture,

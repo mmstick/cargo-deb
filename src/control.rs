@@ -80,19 +80,22 @@ fn generate_md5sums(archive: &mut TarBuilder<Vec<u8>>, options: &Config, time: u
     }
 
     // Obtain the md5sum of the copyright file
-    let copyright_file = file::get("target/debian/copyright")?;
+    let copyright_path = "target/debian/copyright".to_owned();
+    let copyright_file = file::get(&copyright_path)
+        .map_err(|e| CargoDebError::IoFile(e, copyright_path.clone()))?;
 
     let mut hash = Vec::new();
     write!(hash, "{:x}", md5::compute(&copyright_file))?;
     hash.write(b"  ")?;
 
-    let path = String::from("usr/share/doc/") + &options.name + "/copyright";
+    let path = format!("usr/share/doc/{}/copyright", options.name);
     hash.write(path.as_bytes())?;
     md5sums.append(&mut hash);
     md5sums.push(b'\n');
 
     // We can now exterminate the copyright file as it has outlived it's usefulness.
-    fs::remove_file("target/debian/copyright")?;
+    fs::remove_file(&copyright_path)
+        .map_err(|e| CargoDebError::IoFile(e, copyright_path))?;
 
     // Write the data to the archive
     let mut header = TarHeader::new_gnu();

@@ -23,7 +23,7 @@ pub fn generate_archive(archive: &mut TarBuilder<Vec<u8>>, options: &Config, tim
 }
 
 /// Generates the copyright file from the license file and adds that to the tar archive.
-fn generate_copyright(archive: &mut TarBuilder<Vec<u8>>, options: &Config, time: u64) -> io::Result<()> {
+fn generate_copyright(archive: &mut TarBuilder<Vec<u8>>, options: &Config, time: u64) -> CDResult<()> {
     let mut copyright: Vec<u8> = Vec::new();
     write!(&mut copyright, "Upstream Name: {}\n", options.name)?;
     if let Some(source) = options.repository.as_ref().or(options.homepage.as_ref()) {
@@ -32,7 +32,8 @@ fn generate_copyright(archive: &mut TarBuilder<Vec<u8>>, options: &Config, time:
     write!(&mut copyright, "Copyright: {}\n", options.copyright)?;
     write!(&mut copyright, "License: {}\n", options.license)?;
     if let Some(ref path) = options.license_file {
-        let license_string = file::get_text(path)?;
+        let license_string = file::get_text(path)
+            .map_err(|e| CargoDebError::IoFile(e, path.to_owned()))?;
         // Skip the first `A` number of lines and then iterate each line after that.
         for line in license_string.lines().skip(options.license_file_skip_lines) {
             // If the line is empty, write a dot, else write the line.
@@ -75,7 +76,8 @@ fn generate_copyright(archive: &mut TarBuilder<Vec<u8>>, options: &Config, time:
     header.set_size(copyright.len() as u64);
     header.set_mode(CHMOD_FILE);
     header.set_cksum();
-    archive.append(&header, copyright.as_slice())
+    archive.append(&header, copyright.as_slice())?;
+    Ok(())
 }
 
 /// Copies all the files to be packaged into the tar archive.
@@ -115,7 +117,8 @@ fn copy_files(archive: &mut TarBuilder<Vec<u8>>, options: &Config, time: u64) ->
         }
 
         // Add the file to the archive
-        let out_data = file::get(&asset.source_file)?;
+        let out_data = file::get(&asset.source_file)
+            .map_err(|e| CargoDebError::IoFile(e, asset.source_file.clone()))?;
 
         hashes.insert(asset.source_file.clone(), md5::compute(&out_data));
 
