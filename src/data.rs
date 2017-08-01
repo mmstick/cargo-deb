@@ -26,7 +26,9 @@ pub fn generate_archive(archive: &mut TarBuilder<Vec<u8>>, options: &Config, tim
 fn generate_copyright(archive: &mut TarBuilder<Vec<u8>>, options: &Config, time: u64) -> io::Result<()> {
     let mut copyright: Vec<u8> = Vec::new();
     write!(&mut copyright, "Upstream Name: {}\n", options.name)?;
-    write!(&mut copyright, "Source: {}\n", options.repository)?;
+    if let Some(source) = options.repository.as_ref().or(options.homepage.as_ref()) {
+        write!(&mut copyright, "Source: {}\n", source)?;
+    }
     write!(&mut copyright, "Copyright: {}\n", options.copyright)?;
     write!(&mut copyright, "License: {}\n", options.license)?;
     if let Some(ref path) = options.license_file {

@@ -34,7 +34,7 @@ pub struct Config {
     pub homepage: Option<String>,
     pub documentation: Option<String>,
     /// The URL of the software repository.
-    pub repository: String,
+    pub repository: Option<String>,
     /// A short description of the project.
     pub description: String,
     /// An extended description of the project.
@@ -80,20 +80,23 @@ impl Config {
     /// Tries to guess type of source control used for the repo URL.
     /// It's a guess, and it won't be 100% accurate, because Cargo suggests using
     /// user-friendly URLs or webpages instead of tool-specific URL schemes.
-    pub fn repository_type(&self) -> &str {
-        if self.repository.starts_with("git+") || self.repository.contains("git@") || self.repository.contains("github.com") || self.repository.contains("gitlab.com") {
-            return "Git";
+    pub fn repository_type(&self) -> Option<&str> {
+        if let Some(ref repo) = self.repository {
+            if repo.starts_with("git+") || repo.ends_with(".git") || repo.contains("git@") || repo.contains("github.com") || repo.contains("gitlab.com") {
+                return Some("Git");
+            }
+            if repo.starts_with("cvs+") || repo.contains("pserver:") || repo.contains("@cvs.") {
+                return Some("Cvs");
+            }
+            if repo.starts_with("hg+") || repo.contains("hg@") || repo.contains("/hg.") {
+                return Some("Hg");
+            }
+            if repo.starts_with("svn+") || repo.contains("/svn.") {
+                return Some("Svn");
+            }
+            return None;
         }
-        if self.repository.starts_with("cvs+") || self.repository.contains("pserver:") || self.repository.contains("@cvs.") {
-            return "Cvs";
-        }
-        if self.repository.starts_with("hg+") || self.repository.contains("hg@") || self.repository.contains("/hg.") {
-            return "Hg";
-        }
-        if self.repository.starts_with("svn+") || self.repository.contains("/svn.") {
-            return "Svn";
-        }
-        return "Git";
+        None
     }
 }
 
@@ -121,7 +124,7 @@ impl Cargo {
             version: self.version_string(deb.revision),
             homepage: self.package.homepage.clone(),
             documentation: self.package.documentation.clone(),
-            repository: self.package.repository.clone(),
+            repository: self.package.repository.take(),
             description: self.package.description.clone(),
             extended_description: deb.extended_description.take()
                 .map(|d|d.split_by_chars(79)).unwrap_or(vec![]),
@@ -207,7 +210,7 @@ pub struct CargoPackage {
     pub license_file: Option<String>,
     pub homepage: Option<String>,
     pub documentation: Option<String>,
-    pub repository: String,
+    pub repository: Option<String>,
     pub version: String,
     pub description: String,
     pub readme: Option<String>,
