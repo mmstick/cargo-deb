@@ -22,11 +22,7 @@ If you would like to handle the build process yourself, you can use `cargo deb -
 
 Debug symbols are stripped from the main binary by default. To keep debug symbols, either set `[profile.release] debug = true` in `Cargo.toml` or run `cargo deb --no-strip`.
 
-```sh
-cargo deb --install
-```
-
-Builds and installs the project system-wide.
+`cargo deb --install` builds and installs the project system-wide.
 
 ## Configuration
 

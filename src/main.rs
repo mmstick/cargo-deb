@@ -97,7 +97,7 @@ fn process(install: bool, no_build: bool, no_strip: bool, quiet: bool) -> CDResu
         cargo_build(&options.features, options.default_features)?;
     }
     if options.strip && !no_strip {
-        strip_binary(options.name.as_str())?;
+        strip_binaries(&options.binaries())?;
     }
 
     // Obtain the current time which will be used to stamp the generated files in the archives.
@@ -192,13 +192,15 @@ fn cargo_build(features: &[String], default_features: bool) -> CDResult<()> {
 }
 
 // Strips the binary that was created with cargo
-fn strip_binary(name: &str) -> CDResult<()> {
-    let status = Command::new("strip")
-        .arg("--strip-unneeded")
-        .arg(String::from("target/release/") + name)
-        .status()?;
-    if !status.success() {
-        Err(CargoDebError::StripFailed(name.to_owned()))?;
+fn strip_binaries(binaries: &[&str]) -> CDResult<()> {
+    for &name in binaries {
+        let status = Command::new("strip")
+            .arg("--strip-unneeded")
+            .arg(name)
+            .status()?;
+        if !status.success() {
+            Err(CargoDebError::StripFailed(name.to_owned()))?;
+        }
     }
     Ok(())
 }

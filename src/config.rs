@@ -17,6 +17,12 @@ pub struct Asset {
     pub chmod: u32,
 }
 
+impl Asset {
+    pub fn is_binary_executable(&self) -> bool {
+        self.source_file.starts_with("target/release/") && 0 != (self.chmod & 0o111)
+    }
+}
+
 #[derive(Debug)]
 pub struct Config {
     /// The name of the project to build
@@ -77,6 +83,16 @@ impl Config {
             _        => Ok(word.to_owned())
         }).collect();
         Ok(deps?.join(" "))
+    }
+
+    pub fn binaries(&self) -> Vec<&str> {
+        self.assets.iter().filter_map(|asset| {
+            if asset.is_binary_executable() {
+                Some(asset.source_file.as_str())
+            } else {
+                None
+            }
+        }).collect()
     }
 
     /// Tries to guess type of source control used for the repo URL.
