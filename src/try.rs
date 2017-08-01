@@ -1,19 +1,15 @@
-use std::io::{self, Write};
-use std::process::exit;
+use error::*;
 
-pub trait Try {
-    type Succ;
-
-    fn try(self, error: &str) -> Self::Succ;
+pub trait Try<T> {
+    fn ok_or_then<F: FnOnce() -> CDResult<T>>(self, cb: F) -> CDResult<T>;
 }
 
-impl<T> Try for Option<T> {
-    type Succ = T;
-
-    fn try(self, error: &str) -> T {
-        self.unwrap_or_else(|| {
-            let _ = writeln!(&mut io::stderr(), "cargo-deb: {}", error);
-            exit(1);
-        })
+impl<T> Try<T> for Option<T> {
+    fn ok_or_then<F: FnOnce() -> CDResult<T>>(self, cb: F) -> CDResult<T> {
+        if let Some(s) = self {
+            Ok(s)
+        } else {
+            cb()
+        }
     }
 }

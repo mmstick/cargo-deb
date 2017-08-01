@@ -115,9 +115,9 @@ impl Cargo {
             license: self.package.license.clone(),
             license_file,
             license_file_skip_lines,
-            copyright: deb.copyright.take().unwrap_or_else(|| {
-                self.package.authors.as_ref().try("Package must have a copyright or authors").join(", ")
-            }),
+            copyright: deb.copyright.take().ok_or_then(|| {
+                Ok(self.package.authors.as_ref().ok_or("Package must have a copyright or authors")?.join(", "))
+            })?,
             version: self.version_string(deb.revision),
             homepage: self.package.homepage.clone(),
             documentation: self.package.documentation.clone(),
@@ -125,10 +125,10 @@ impl Cargo {
             description: self.package.description.clone(),
             extended_description: deb.extended_description.take()
                 .map(|d|d.split_by_chars(79)).unwrap_or(vec![]),
-            maintainer: deb.maintainer.take().unwrap_or_else(|| {
-                self.package.authors.as_ref().and_then(|a|a.get(0))
-                    .try("Package must have a maintainer or authors").to_owned()
-            }),
+            maintainer: deb.maintainer.take().ok_or_then(|| {
+                Ok(self.package.authors.as_ref().and_then(|a|a.get(0))
+                    .ok_or("Package must have a maintainer or authors")?.to_owned())
+            })?,
             depends: deb.depends.take().unwrap_or("$auto".to_owned()),
             section: deb.section.take(),
             priority: deb.priority.take().unwrap_or("optional".to_owned()),
@@ -160,9 +160,9 @@ impl Cargo {
             assets.into_iter().map(|mut v| {
                 let mut v = v.drain(..);
                 Ok(Asset {
-                    source_file: v.next().try("missing path for asset"),
-                    target_path: v.next().try("missing target for asset"),
-                    chmod: u32::from_str_radix(&v.next().try("missing chmod for asset"), 8)
+                    source_file: v.next().ok_or("missing path for asset")?,
+                    target_path: v.next().ok_or("missing target for asset")?,
+                    chmod: u32::from_str_radix(&v.next().ok_or("missing chmod for asset")?, 8)
                         .map_err(|e| CargoDebError::NumParse("unable to parse chmod argument",e))?,
                 })
             }).collect::<Result<Vec<_>, CargoDebError>>()?
