@@ -1,11 +1,10 @@
 use std::process::Command;
-use std::fmt::Write;
 use itertools::Itertools;
 use std::collections::HashSet;
 use error::*;
 
 /// Resolves the dependencies based on the output of ldd on the binary.
-pub fn resolve(path: &str) -> CDResult<String> {
+pub fn resolve(path: &str) -> CDResult<Vec<String>> {
     let dependencies = {
         let output = Command::new("ldd").arg(path)
             .output().map_err(|e| CargoDebError::CommandFailed(e, "ldd"))?;
@@ -26,16 +25,10 @@ pub fn resolve(path: &str) -> CDResult<String> {
         // only collect unique packages.
         .collect();
 
-    // Create a formatted string with the output from ldd.
-    let mut output = String::with_capacity(256);
-    for package in dependencies? {
-        let version = get_version(&package)?;
-        if !output.is_empty() {
-            output += ", ";
-        }
-        write!(&mut output, "{} (>= {})", package, &version).unwrap();
-    }
-    Ok(output)
+    Ok(dependencies?.iter().map(|package| {
+        let version = get_version(&package).unwrap();   /* If we got here, package exists. */
+        format!("{} (>= {})", package, version)
+    }).collect())
 }
 
 /// Obtains the name of the package that belongs to the file that ldd returned.
