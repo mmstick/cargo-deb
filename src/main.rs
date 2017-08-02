@@ -21,6 +21,7 @@ mod dependencies;
 mod try;
 mod wordsplit;
 mod error;
+mod archive;
 
 use std::env;
 use std::fs;
@@ -32,9 +33,7 @@ use std::os::unix::fs::OpenOptionsExt;
 use error::*;
 
 use config::Config;
-use tar::Builder as TarBuilder;
 
-const CHMOD_FILE: u32 = 420;
 const TAR_REJECTS_CUR_DIR: bool = true;
 
 struct CliOptions {
@@ -111,35 +110,25 @@ fn process(CliOptions {install, no_build, no_strip, quiet}: CliOptions) -> CDRes
 
     // Obtain the current time which will be used to stamp the generated files in the archives.
     let system_time = time::SystemTime::now().duration_since(time::UNIX_EPOCH)?.as_secs();
+    let mut deb_contents = vec![];
 
-    // Initailize the contents of the data archive (files that go into the filesystem).
-    let mut data_archive = TarBuilder::new(Vec::new());
-    let asset_hashes = data::generate_archive(&mut data_archive, &options, system_time)?;
-
-    // Initialize the contents of the control archive (metadata for the package manager).
-    let mut control_archive = TarBuilder::new(Vec::new());
-    control::generate_archive(&mut control_archive, &options, system_time, asset_hashes)?;
-
-    let mut contents = vec![];
     let bin_path = options.path_in_deb("debian-binary");
     generate_debian_binary_file(&bin_path)?;
-    contents.push(bin_path);
+    deb_contents.push(bin_path);
 
-    // Compress the control archive with the Zopfli compression algorithm.
-    {
-        let tar = control_archive.into_inner()?;
-        let control_base_path = options.path_in_deb("control.tar");
-        contents.push(compress::gz(tar, &control_base_path)?);
-    }
+    // Initailize the contents of the data archive (files that go into the filesystem).
+    let (data_archive, asset_hashes) = data::generate_archive(&options, system_time)?;
+    let data_base_path = options.path_in_deb("data.tar");
 
-    // Compress the data archive with the LZMA compression algorithm.
-    {
-        let tar = data_archive.into_inner()?;
-        let data_base_path = options.path_in_deb("data.tar");
-        contents.push(compress::xz_or_gz(tar, &data_base_path)?);
-    }
+    // Initialize the contents of the control archive (metadata for the package manager).
+    let control_archive = control::generate_archive(&options, system_time, asset_hashes)?;
+    let control_base_path = options.path_in_deb("control.tar");
 
-    let generated = generate_deb(&options, &contents)?;
+    // Order is important for Debian
+    deb_contents.push(compress::gz(&control_archive, &control_base_path)?);
+    deb_contents.push(compress::xz_or_gz(&data_archive, &data_base_path)?);
+
+    let generated = generate_deb(&options, &deb_contents)?;
     if install {
         install_deb(&generated)?;
     }
@@ -180,7 +169,7 @@ fn generate_deb(config: &Config, contents: &[PathBuf]) -> CDResult<PathBuf> {
 // Creates the debian-binary file that will be added to the final ar archive.
 fn generate_debian_binary_file(path: &Path) -> io::Result<()> {
     let mut file = fs::OpenOptions::new().create(true).write(true)
-        .truncate(true).mode(CHMOD_FILE).open(path)?;
+        .truncate(true).mode(0o644).open(path)?;
     file.write(b"2.0\n")?;
     Ok(())
 }

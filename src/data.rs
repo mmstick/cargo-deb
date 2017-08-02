@@ -1,24 +1,19 @@
-use std::fs;
-use std::io::{self, Write};
+use std::io::Write;
 use std::path::{PathBuf, Component};
-use std::os::unix::fs::OpenOptionsExt;
-use tar::Header as TarHeader;
-use tar::Builder as TarBuilder;
-use tar::EntryType;
 use md5::Digest;
 use md5;
 use file;
 use config::Config;
 use std::collections::{HashMap, HashSet};
 use error::*;
-const CHMOD_FILE:       u32 = 420;
-const CHMOD_BIN_OR_DIR: u32 = 493;
+use archive::Archive;
 
 /// Generates the uncompressed control.tar archive
-pub fn generate_archive(archive: &mut TarBuilder<Vec<u8>>, options: &Config, time: u64) -> CDResult<HashMap<PathBuf, Digest>> {
+pub fn generate_archive(options: &Config, time: u64) -> CDResult<(Vec<u8>, HashMap<PathBuf, Digest>)> {
+    let mut archive = Archive::new(time);
     generate_copyright_asset(options)?;
-    let copy_hashes = archive_files(archive, options, time)?;
-    Ok(copy_hashes)
+    let copy_hashes = archive_files(&mut archive, options)?;
+    Ok((archive.into_inner()?, copy_hashes))
 }
 
 /// Generates the copyright file from the license file and adds that to the tar archive.
@@ -46,17 +41,13 @@ fn generate_copyright_asset(options: &Config) -> CDResult<()> {
     }
 
     // Write a copy to the disk for the sake of obtaining a md5sum for the control archive.
-    {
-        let mut copyright_file = fs::OpenOptions::new().create(true).write(true).truncate(true).mode(CHMOD_FILE)
-            .open(options.path_in_deb("copyright"))?;
-        copyright_file.write_all(copyright.as_slice())?;
-    }
+    file::put(options.path_in_deb("copyright"), &copyright)?;
     Ok(())
 }
 
 /// Copies all the files to be packaged into the tar archive.
 /// Returns MD5 hashes of files copied
-fn archive_files(archive: &mut TarBuilder<Vec<u8>>, options: &Config, time: u64) -> CDResult<HashMap<PathBuf, Digest>> {
+fn archive_files(archive: &mut Archive, options: &Config) -> CDResult<HashMap<PathBuf, Digest>> {
     let mut hashes = HashMap::new();
     let mut added_directories: HashSet<PathBuf> = HashSet::new();
     for asset in &options.assets {
@@ -74,14 +65,7 @@ fn archive_files(archive: &mut TarBuilder<Vec<u8>>, options: &Config, time: u64)
             if !added_directories.contains(&directory) {
                 added_directories.insert(directory.clone());
 
-                let mut header = TarHeader::new_gnu();
-                header.set_mtime(time);
-                header.set_size(0);
-                header.set_mode(CHMOD_BIN_OR_DIR);
-                header.set_path(&directory)?;
-                header.set_entry_type(EntryType::Directory);
-                header.set_cksum();
-                archive.append(&header, &mut io::empty())?;
+                archive.directory(&directory)?;
             }
         }
 
@@ -90,14 +74,7 @@ fn archive_files(archive: &mut TarBuilder<Vec<u8>>, options: &Config, time: u64)
             .map_err(|e| CargoDebError::IoFile(e, asset.source_file.display().to_string()))?;
 
         hashes.insert(asset.source_file.clone(), md5::compute(&out_data));
-
-        let mut header = TarHeader::new_gnu();
-        header.set_mtime(time);
-        header.set_path(&asset.target_path)?;
-        header.set_mode(asset.chmod);
-        header.set_size(out_data.len() as u64);
-        header.set_cksum();
-        archive.append(&header, out_data.as_slice())?;
+        archive.file(&asset.target_path, &out_data, asset.chmod)?;
     }
     Ok(hashes)
 }
