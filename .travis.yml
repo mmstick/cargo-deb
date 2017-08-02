@@ -3,5 +3,3 @@ addons:
     apt:
         packages:
             - liblzma-dev
-script:
-    cargo build --verbose
