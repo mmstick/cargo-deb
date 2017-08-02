@@ -1,6 +1,7 @@
 use std::env::consts::ARCH;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::collections::HashSet;
 use toml;
 use file;
 use dependencies::resolve;
@@ -77,12 +78,21 @@ impl Config {
     }
 
     pub fn get_dependencies(&self) -> CDResult<String> {
-        let deps: Result<Vec<_>,_> = self.depends.split_whitespace().map(|word| match word {
-            "$auto"  => resolve(&format!("target/release/{}", &self.name)),
-            "$auto," => resolve(&format!("target/release/{},", &self.name)),
-            _        => Ok(word.to_owned())
-        }).collect();
-        Ok(deps?.join(" "))
+        let mut deps = HashSet::new();
+        for word in self.depends.split_whitespace() {
+            if word == "$auto" || word == "$auto, " {
+                for bname in self.binaries().iter() {
+                    if let Ok(bindeps) = resolve(bname) {
+                        for dep in bindeps {
+                            deps.insert(dep);
+                        }
+                    }
+                }
+            } else {
+                deps.insert(word.to_owned());
+            }
+        }
+        Ok(deps.iter().map(|s| { s.to_owned() }).collect::<Vec<_>>().join(", "))
     }
 
     pub fn binaries(&self) -> Vec<&str> {
