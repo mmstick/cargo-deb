@@ -64,14 +64,13 @@ fn archive_files(archive: &mut Archive, options: &Config) -> CDResult<HashMap<Pa
             }
             if !added_directories.contains(&directory) {
                 added_directories.insert(directory.clone());
-
                 archive.directory(&directory)?;
             }
         }
 
         // Add the file to the archive
         let out_data = file::get(&asset.source_file)
-            .map_err(|e| CargoDebError::IoFile(e, asset.source_file.display().to_string()))?;
+            .map_err(|e| CargoDebError::IoFile(e, asset.source_file.clone()))?;
 
         hashes.insert(asset.source_file.clone(), md5::compute(&out_data));
         archive.file(&asset.target_path, &out_data, asset.chmod)?;

@@ -9,8 +9,6 @@ use error::*;
 use std::os::unix::ffi::OsStrExt;
 use archive::Archive;
 
-const SCRIPTS: 		[&str; 4] = ["preinst", "postinst", "prerm", "postrm"];
-
 /// Generates the uncompressed control.tar archive
 pub fn generate_archive(options: &Config, time: u64, asset_hashes: HashMap<PathBuf, Digest>) -> CDResult<Vec<u8>> {
     let mut archive = Archive::new(time);
@@ -35,7 +33,7 @@ fn initialize_control(archive: &mut Archive) -> io::Result<()> {
 /// Append all files that reside in the `maintainer_scripts` path to the archive
 fn generate_scripts(archive: &mut Archive, option: &Config) -> io::Result<()> {
     if let Some(ref maintainer_scripts) = option.maintainer_scripts {
-        for name in &SCRIPTS {
+        for name in &["preinst", "postinst", "prerm", "postrm"] {
             if let Ok(script) = file::get(maintainer_scripts.join(name)) {
                 archive.file(name, &script, 0o755)?;
             }

@@ -21,9 +21,9 @@ quick_error! {
             display("I/O error: {}", err)
             cause(err)
         }
-        IoFile(err: io::Error, file: String) {
+        IoFile(err: io::Error, file: PathBuf) {
             description(err.description())
-            display("I/O error: {}", file)
+            display("I/O error: {}", file.display())
             cause(err)
         }
         CommandFailed(err: io::Error, cmd: &'static str) {

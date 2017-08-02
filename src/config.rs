@@ -46,7 +46,7 @@ pub struct Config {
     /// The software license of the project.
     pub license: String,
     /// The location of the license file followed by the amount of lines to skip.
-    pub license_file: Option<String>,
+    pub license_file: Option<PathBuf>,
     pub license_file_skip_lines: usize,
     /// The copyright of the project.
     pub copyright: String,
@@ -88,7 +88,7 @@ impl Config {
     pub fn from_manifest() -> CDResult<(Config, Vec<String>)> {
         let manifest_path = current_manifest_path()?;
         let content = file::get_text(&manifest_path)
-            .map_err(|e| CargoDebError::IoFile(e, manifest_path.display().to_string()))?;
+            .map_err(|e| CargoDebError::IoFile(e, manifest_path.clone()))?;
         toml::from_str::<Cargo>(&content)?.to_config(&manifest_path)
     }
 
@@ -181,7 +181,7 @@ impl Cargo {
 
         let mut deb = self.package.metadata.take().and_then(|m|m.deb)
             .unwrap_or_else(|| CargoDeb::default());
-        let (license_file, license_file_skip_lines) = self.take_license_file(deb.license_file.take())?;
+        let (license_file, license_file_skip_lines) = self.license_file(deb.license_file.as_ref())?;
         let readme = self.package.readme.as_ref();
         let warnings = self.check_config(readme, &deb);
         let mut config = Config {
@@ -248,23 +248,23 @@ impl Cargo {
             desc.split_by_chars(79)
         } else if let Some(readme) = readme {
             file::get_text(readme)
-                .map_err(|e| CargoDebError::IoFile(e, readme.to_owned()))?
+                .map_err(|e| CargoDebError::IoFile(e, PathBuf::from(readme)))?
                 .split_by_chars(159)
         } else {
             vec![]
         })
     }
 
-    fn take_license_file(&mut self, license_file: Option<Vec<String>>) -> CDResult<(Option<String>, usize)> {
-        if let Some(mut args) = license_file {
-            let mut args = args.drain(..);
+    fn license_file(&mut self, license_file: Option<&Vec<String>>) -> CDResult<(Option<PathBuf>, usize)> {
+        if let Some(args) = license_file {
+            let mut args = args.iter();
             let file = args.next();
             let lines = if let Some(lines) = args.next() {
                 lines.parse().map_err(|e| CargoDebError::NumParse("invalid number of lines", e))?
             } else {0};
-            Ok((file, lines))
+            Ok((file.map(|s|s.into()), lines))
         } else {
-            Ok((self.package.license_file.take(), 0))
+            Ok((self.package.license_file.as_ref().map(|s|s.into()), 0))
         }
     }
 
