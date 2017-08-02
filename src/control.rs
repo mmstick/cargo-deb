@@ -1,4 +1,3 @@
-use file;
 use std::io::{self, Write};
 use std::fs;
 use std::path::PathBuf;
@@ -67,22 +66,6 @@ fn generate_md5sums(archive: &mut TarBuilder<Vec<u8>>, options: &Config, time: u
         md5sums.write(asset.target_path.as_os_str().as_bytes())?;
         md5sums.write(&[b'\n'])?;
     }
-
-    // Obtain the md5sum of the copyright file
-    let copyright_path = options.path_in_deb("copyright");
-    let copyright_file = file::get(&copyright_path)
-        .map_err(|e| CargoDebError::IoFile(e, copyright_path.display().to_string()))?;
-
-    write!(md5sums, "{:x}", md5::compute(&copyright_file))?;
-    md5sums.write(b"  ")?;
-
-    let path = format!("usr/share/doc/{}/copyright", options.name);
-    md5sums.write(path.as_bytes())?;
-    md5sums.push(b'\n');
-
-    // We can now exterminate the copyright file as it has outlived it's usefulness.
-    fs::remove_file(&copyright_path)
-        .map_err(|e| CargoDebError::IoFile(e, copyright_path.display().to_string()))?;
 
     // Write the data to the archive
     let mut header = TarHeader::new_gnu();

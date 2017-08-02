@@ -16,13 +16,13 @@ const CHMOD_BIN_OR_DIR: u32 = 493;
 
 /// Generates the uncompressed control.tar archive
 pub fn generate_archive(archive: &mut TarBuilder<Vec<u8>>, options: &Config, time: u64) -> CDResult<HashMap<PathBuf, Digest>> {
-    let copy_hashes = copy_files(archive, options, time)?;
-    generate_copyright(archive, options, time)?;
+    generate_copyright_asset(options)?;
+    let copy_hashes = archive_files(archive, options, time)?;
     Ok(copy_hashes)
 }
 
 /// Generates the copyright file from the license file and adds that to the tar archive.
-fn generate_copyright(archive: &mut TarBuilder<Vec<u8>>, options: &Config, time: u64) -> CDResult<()> {
+fn generate_copyright_asset(options: &Config) -> CDResult<()> {
     let mut copyright: Vec<u8> = Vec::new();
     write!(&mut copyright, "Upstream Name: {}\n", options.name)?;
     if let Some(source) = options.repository.as_ref().or(options.homepage.as_ref()) {
@@ -51,37 +51,12 @@ fn generate_copyright(archive: &mut TarBuilder<Vec<u8>>, options: &Config, time:
             .open(options.path_in_deb("copyright"))?;
         copyright_file.write_all(copyright.as_slice())?;
     }
-    let target = format!("./usr/share/doc/{}/", options.name);
-
-    for dir in &[".", "./usr/", "./usr/share/", "./usr/share/doc/", target.as_str()] {
-        if ::TAR_REJECTS_CUR_DIR && dir == &"." {
-            continue;
-        }
-
-        let mut header = TarHeader::new_gnu();
-        header.set_mtime(time);
-        header.set_size(0);
-        header.set_mode(CHMOD_BIN_OR_DIR);
-        header.set_path(&dir)?;
-        header.set_entry_type(EntryType::Directory);
-        header.set_cksum();
-        archive.append(&header, &mut io::empty())?;
-    }
-
-    // Now add a copy to the archive
-    let mut header = TarHeader::new_gnu();
-    header.set_mtime(time);
-    header.set_path(&(target + "copyright"))?;
-    header.set_size(copyright.len() as u64);
-    header.set_mode(CHMOD_FILE);
-    header.set_cksum();
-    archive.append(&header, copyright.as_slice())?;
     Ok(())
 }
 
 /// Copies all the files to be packaged into the tar archive.
 /// Returns MD5 hashes of files copied
-fn copy_files(archive: &mut TarBuilder<Vec<u8>>, options: &Config, time: u64) -> CDResult<HashMap<PathBuf, Digest>> {
+fn archive_files(archive: &mut TarBuilder<Vec<u8>>, options: &Config, time: u64) -> CDResult<HashMap<PathBuf, Digest>> {
     let mut hashes = HashMap::new();
     let mut added_directories: HashSet<PathBuf> = HashSet::new();
     for asset in &options.assets {
