@@ -1,7 +1,7 @@
 use file;
 use std::io::{self, Write};
 use std::fs;
-use std::path::Path;
+use std::path::PathBuf;
 use config::Config;
 use tar::Builder as TarBuilder;
 use tar::Header as TarHeader;
@@ -10,13 +10,14 @@ use md5::Digest;
 use md5;
 use std::collections::HashMap;
 use error::*;
+use std::os::unix::ffi::OsStrExt;
 
 const CHMOD_FILE:       u32 = 420;
 const CHMOD_BIN_OR_DIR: u32 = 493;
 const SCRIPTS: 		[&str; 4] = ["preinst", "postinst", "prerm", "postrm"];
 
 /// Generates the uncompressed control.tar archive
-pub fn generate_archive(archive: &mut TarBuilder<Vec<u8>>, options: &Config, time: u64, asset_hashes: HashMap<String, Digest>) -> CDResult<()> {
+pub fn generate_archive(archive: &mut TarBuilder<Vec<u8>>, options: &Config, time: u64, asset_hashes: HashMap<PathBuf, Digest>) -> CDResult<()> {
     initialize_control(archive, time)?;
     generate_md5sums(archive, options, time, asset_hashes)?;
     generate_control(archive, options, time)?;
@@ -55,47 +56,33 @@ fn generate_scripts(archive: &mut TarBuilder<Vec<u8>>, option: &Config) -> io::R
 }
 
 /// Creates the md5sums file which contains a list of all contained files and the md5sums of each.
-fn generate_md5sums(archive: &mut TarBuilder<Vec<u8>>, options: &Config, time: u64, asset_hashes: HashMap<String, md5::Digest>) -> CDResult<()> {
+fn generate_md5sums(archive: &mut TarBuilder<Vec<u8>>, options: &Config, time: u64, asset_hashes: HashMap<PathBuf, md5::Digest>) -> CDResult<()> {
     let mut md5sums: Vec<u8> = Vec::new();
 
     // Collect md5sums from each asset in the archive.
     for asset in &options.assets {
-        let mut target = asset.target_path.clone();
-        if target.chars().next().unwrap() == '/' { target.remove(0); }
+        write!(md5sums, "{:x}", asset_hashes[&asset.source_file])?;
+        md5sums.write(b"  ")?;
 
-        let mut hash = Vec::new();
-        write!(hash, "{:x}", asset_hashes[&asset.source_file])?;
-        hash.write(b"  ")?;
-
-        let target_is_dir = target.chars().last().unwrap() == '/';
-        if target_is_dir {
-            let filename = Path::new(&asset.source_file).file_name().unwrap().to_str().unwrap();
-            hash.write(target.as_bytes())?;
-            hash.write(filename.as_bytes())?;
-        } else {
-            hash.write(asset.target_path.as_bytes())?;
-        }
-        hash.write(&[b'\n'])?;
-        md5sums.append(&mut hash);
+        md5sums.write(asset.target_path.as_os_str().as_bytes())?;
+        md5sums.write(&[b'\n'])?;
     }
 
     // Obtain the md5sum of the copyright file
-    let copyright_path = "target/debian/copyright".to_owned();
+    let copyright_path = options.path_in_deb("copyright");
     let copyright_file = file::get(&copyright_path)
-        .map_err(|e| CargoDebError::IoFile(e, copyright_path.clone()))?;
+        .map_err(|e| CargoDebError::IoFile(e, copyright_path.display().to_string()))?;
 
-    let mut hash = Vec::new();
-    write!(hash, "{:x}", md5::compute(&copyright_file))?;
-    hash.write(b"  ")?;
+    write!(md5sums, "{:x}", md5::compute(&copyright_file))?;
+    md5sums.write(b"  ")?;
 
     let path = format!("usr/share/doc/{}/copyright", options.name);
-    hash.write(path.as_bytes())?;
-    md5sums.append(&mut hash);
+    md5sums.write(path.as_bytes())?;
     md5sums.push(b'\n');
 
     // We can now exterminate the copyright file as it has outlived it's usefulness.
     fs::remove_file(&copyright_path)
-        .map_err(|e| CargoDebError::IoFile(e, copyright_path))?;
+        .map_err(|e| CargoDebError::IoFile(e, copyright_path.display().to_string()))?;
 
     // Write the data to the archive
     let mut header = TarHeader::new_gnu();

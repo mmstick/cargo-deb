@@ -1,6 +1,7 @@
 use std::io;
 use std::num;
 use std::time;
+use std::path::PathBuf;
 use toml;
 #[cfg(feature = "lzma")]
 use lzma;
@@ -48,9 +49,9 @@ quick_error! {
         BuildFailed {
             description("build failed")
         }
-        StripFailed(name: String) {
+        StripFailed(name: PathBuf) {
             description("strip failed")
-            display("strip failed: {}", name)
+            display("strip failed: {}", name.display())
         }
         SystemTime(err: time::SystemTimeError) {
             from()

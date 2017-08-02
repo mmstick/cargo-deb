@@ -1,14 +1,15 @@
 use std::process::Command;
+use std::path::Path;
 use std::collections::HashSet;
 use error::*;
 
 /// Resolves the dependencies based on the output of ldd on the binary.
-pub fn resolve(path: &str) -> CDResult<Vec<String>> {
+pub fn resolve(path: &Path) -> CDResult<Vec<String>> {
     let dependencies = {
         let output = Command::new("ldd").arg(path)
             .output().map_err(|e| CargoDebError::CommandFailed(e, "ldd"))?;
         if !output.status.success() {
-            return Err(CargoDebError::CommandError("ldd", path.to_owned(), output.stderr));
+            return Err(CargoDebError::CommandError("ldd", path.display().to_string(), output.stderr));
         }
         String::from_utf8(output.stdout).unwrap()
     };

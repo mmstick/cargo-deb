@@ -24,6 +24,7 @@ mod error;
 
 use std::env;
 use std::fs;
+use std::path::{Path, PathBuf};
 use std::io::{self, Write};
 use std::process::{self, Command};
 use std::time;
@@ -93,13 +94,13 @@ fn err_exit(err: &std::error::Error) -> ! {
 }
 
 fn process(CliOptions {install, no_build, no_strip, quiet}: CliOptions) -> CDResult<()> {
-    remove_leftover_files()?;
     let (options, warnings) = Config::from_manifest()?;
     if !quiet {
         for warning in warnings {
             println!("warning: {}", warning);
         }
     }
+    remove_leftover_files(&options.deb_dir())?;
 
     if !no_build {
         cargo_build(&options.features, options.default_features)?;
@@ -120,19 +121,22 @@ fn process(CliOptions {install, no_build, no_strip, quiet}: CliOptions) -> CDRes
     control::generate_archive(&mut control_archive, &options, system_time, asset_hashes)?;
 
     let mut contents = vec![];
-    generate_debian_binary_file("target/debian/debian-binary")?;
-    contents.push("target/debian/debian-binary".to_owned());
+    let bin_path = options.path_in_deb("debian-binary");
+    generate_debian_binary_file(&bin_path)?;
+    contents.push(bin_path);
 
     // Compress the control archive with the Zopfli compression algorithm.
     {
         let tar = control_archive.into_inner()?;
-        contents.push(compress::gz(tar, "target/debian/control.tar")?);
+        let control_base_path = options.path_in_deb("control.tar");
+        contents.push(compress::gz(tar, &control_base_path)?);
     }
 
     // Compress the data archive with the LZMA compression algorithm.
     {
         let tar = data_archive.into_inner()?;
-        contents.push(compress::xz_or_gz(tar, "target/debian/data.tar")?);
+        let data_base_path = options.path_in_deb("data.tar");
+        contents.push(compress::xz_or_gz(tar, &data_base_path)?);
     }
 
     let generated = generate_deb(&options, &contents)?;
@@ -142,7 +146,7 @@ fn process(CliOptions {install, no_build, no_strip, quiet}: CliOptions) -> CDRes
     Ok(())
 }
 
-fn install_deb(path: &str) -> CDResult<()> {
+fn install_deb(path: &Path) -> CDResult<()> {
     let status = Command::new("dpkg").arg("-i").arg(path)
         .status()?;
     if !status.success() {
@@ -152,27 +156,29 @@ fn install_deb(path: &str) -> CDResult<()> {
 }
 
 /// Uses the ar program to create the final Debian package, at least until a native ar implementation is implemented.
-fn generate_deb(config: &Config, contents: &[String]) -> CDResult<String> {
+fn generate_deb(config: &Config, contents: &[PathBuf]) -> CDResult<PathBuf> {
     let out_relpath = format!("{}_{}_{}.deb", config.name, config.version, config.architecture);
-    let out_abspath = format!("target/debian/{}", out_relpath);
-    let _ = fs::remove_file(&out_abspath); // Remove it if it exists
+    let out_abspath = config.path_in_deb(&out_relpath);
+    {
+        let deb_dir = out_abspath.parent().ok_or("invalid dir")?;
 
-    let mut cmd = Command::new("ar");
-    cmd.current_dir("target/debian").arg("r").arg(out_relpath);
-    for path in contents {
-        assert!(path.starts_with("target/debian/"));
-        cmd.arg(&path["target/debian/".len()..]);
-    }
-    let status = cmd.status()
-        .map_err(|e| CargoDebError::CommandFailed(e, "ar"))?;
-    if !status.success() {
-        return Err(CargoDebError::CommandError("ar", out_abspath, vec![]));
+        let _ = fs::remove_file(&out_abspath); // Remove it if it exists
+        let mut cmd = Command::new("ar");
+        cmd.current_dir(&deb_dir).arg("r").arg(out_relpath);
+        for path in contents {
+            cmd.arg(&path.strip_prefix(&deb_dir).map_err(|_|"invalid path")?);
+        }
+        let status = cmd.status()
+            .map_err(|e| CargoDebError::CommandFailed(e, "ar"))?;
+        if !status.success() {
+            return Err(CargoDebError::CommandError("ar", out_abspath.display().to_string(), vec![]));
+        }
     }
     Ok(out_abspath)
 }
 
 // Creates the debian-binary file that will be added to the final ar archive.
-fn generate_debian_binary_file(path: &str) -> io::Result<()> {
+fn generate_debian_binary_file(path: &Path) -> io::Result<()> {
     let mut file = fs::OpenOptions::new().create(true).write(true)
         .truncate(true).mode(CHMOD_FILE).open(path)?;
     file.write(b"2.0\n")?;
@@ -180,9 +186,9 @@ fn generate_debian_binary_file(path: &str) -> io::Result<()> {
 }
 
 /// Removes the target/debian directory so that we can start fresh.
-fn remove_leftover_files() -> io::Result<()> {
-    let _ = fs::remove_dir_all("target/debian");
-    fs::create_dir_all("target/debian")
+fn remove_leftover_files(deb_dir: &Path) -> io::Result<()> {
+    let _ = fs::remove_dir_all(deb_dir);
+    fs::create_dir_all(deb_dir)
 }
 
 /// Builds a release binary with `cargo build --release`
@@ -205,7 +211,7 @@ fn cargo_build(features: &[String], default_features: bool) -> CDResult<()> {
 }
 
 // Strips the binary that was created with cargo
-fn strip_binaries(binaries: &[&str]) -> CDResult<()> {
+fn strip_binaries(binaries: &[&Path]) -> CDResult<()> {
     for &name in binaries {
         let status = Command::new("strip")
             .arg("--strip-unneeded")

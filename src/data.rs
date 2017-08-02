@@ -1,6 +1,6 @@
 use std::fs;
 use std::io::{self, Write};
-use std::path::Path;
+use std::path::{PathBuf, Component};
 use std::os::unix::fs::OpenOptionsExt;
 use tar::Header as TarHeader;
 use tar::Builder as TarBuilder;
@@ -9,14 +9,13 @@ use md5::Digest;
 use md5;
 use file;
 use config::Config;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use error::*;
-
 const CHMOD_FILE:       u32 = 420;
 const CHMOD_BIN_OR_DIR: u32 = 493;
 
 /// Generates the uncompressed control.tar archive
-pub fn generate_archive(archive: &mut TarBuilder<Vec<u8>>, options: &Config, time: u64) -> CDResult<HashMap<String, Digest>> {
+pub fn generate_archive(archive: &mut TarBuilder<Vec<u8>>, options: &Config, time: u64) -> CDResult<HashMap<PathBuf, Digest>> {
     let copy_hashes = copy_files(archive, options, time)?;
     generate_copyright(archive, options, time)?;
     Ok(copy_hashes)
@@ -49,7 +48,7 @@ fn generate_copyright(archive: &mut TarBuilder<Vec<u8>>, options: &Config, time:
     // Write a copy to the disk for the sake of obtaining a md5sum for the control archive.
     {
         let mut copyright_file = fs::OpenOptions::new().create(true).write(true).truncate(true).mode(CHMOD_FILE)
-            .open("target/debian/copyright")?;
+            .open(options.path_in_deb("copyright"))?;
         copyright_file.write_all(copyright.as_slice())?;
     }
     let target = format!("./usr/share/doc/{}/", options.name);
@@ -82,29 +81,24 @@ fn generate_copyright(archive: &mut TarBuilder<Vec<u8>>, options: &Config, time:
 
 /// Copies all the files to be packaged into the tar archive.
 /// Returns MD5 hashes of files copied
-fn copy_files(archive: &mut TarBuilder<Vec<u8>>, options: &Config, time: u64) -> CDResult<HashMap<String, Digest>> {
+fn copy_files(archive: &mut TarBuilder<Vec<u8>>, options: &Config, time: u64) -> CDResult<HashMap<PathBuf, Digest>> {
     let mut hashes = HashMap::new();
-    let mut added_directories: Vec<String> = Vec::new();
+    let mut added_directories: HashSet<PathBuf> = HashSet::new();
     for asset in &options.assets {
-        // Collect the source and target paths
-        let mut target = format!("./{}", asset.target_path);
-        if target.chars().next().unwrap() == '/' { target.remove(0); }
-        if target.chars().last().unwrap() == '/' {
-            target.push_str(Path::new(&asset.source_file).file_name().unwrap().to_str().unwrap());
-        }
 
         // Append each of the directories found in the file's pathname to the archive before adding the file
         // For each directory pathname found, attempt to add it to the list of directories
-        for directory in target.char_indices()
-            // Exclusively search for `/` characters only
-            .filter(|&(_, character)| character == '/')
-            // Use the indexes of the `/` characters to collect a list of directory pathnames
-            .map(|(id, _)| &target[0..id+1]) {
-            if ::TAR_REJECTS_CUR_DIR && directory == "./" {
-                continue;
+        let asset_relative_dir = PathBuf::from(".").join(asset.target_path.parent().ok_or("invalid asset")?);
+        let mut directory = PathBuf::new();
+        for comp in asset_relative_dir.components() {
+            match comp {
+                Component::CurDir if !::TAR_REJECTS_CUR_DIR => directory.push("."),
+                Component::Normal(c) => directory.push(c),
+                _ => continue,
             }
-            if !added_directories.iter().any(|x| x.as_str() == directory) {
-                added_directories.push(directory.to_owned());
+            if !added_directories.contains(&directory) {
+                added_directories.insert(directory.clone());
+
                 let mut header = TarHeader::new_gnu();
                 header.set_mtime(time);
                 header.set_size(0);
@@ -118,13 +112,13 @@ fn copy_files(archive: &mut TarBuilder<Vec<u8>>, options: &Config, time: u64) ->
 
         // Add the file to the archive
         let out_data = file::get(&asset.source_file)
-            .map_err(|e| CargoDebError::IoFile(e, asset.source_file.clone()))?;
+            .map_err(|e| CargoDebError::IoFile(e, asset.source_file.display().to_string()))?;
 
         hashes.insert(asset.source_file.clone(), md5::compute(&out_data));
 
         let mut header = TarHeader::new_gnu();
         header.set_mtime(time);
-        header.set_path(&target)?;
+        header.set_path(&asset.target_path)?;
         header.set_mode(asset.chmod);
         header.set_size(out_data.len() as u64);
         header.set_cksum();
