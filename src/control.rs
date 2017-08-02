@@ -8,6 +8,7 @@ use std::collections::HashMap;
 use error::*;
 use std::os::unix::ffi::OsStrExt;
 use archive::Archive;
+use wordsplit::WordSplit;
 
 /// Generates the uncompressed control.tar archive
 pub fn generate_archive(options: &Config, time: u64, asset_hashes: HashMap<PathBuf, Digest>) -> CDResult<Vec<u8>> {
@@ -78,11 +79,15 @@ fn generate_control(archive: &mut Archive, options: &Config) -> CDResult<()> {
     control.write(b"Standards-Version: 3.9.4\n")?;
     write!(&mut control, "Maintainer: {}\n", options.maintainer)?;
     write!(&mut control, "Depends: {}\n", options.get_dependencies()?)?;
-    write!(&mut control, "Description: {}\n", options.description.replace('\n',"  "))?;
-
-    // Write each of the lines that were collected from the extended_description to the file.
-    for line in &options.extended_description {
+    write!(&mut control, "Description:")?;
+    for line in options.description.split_by_chars(79) {
         write!(&mut control, " {}\n", line)?;
+    }
+
+    if let Some(ref desc) = options.extended_description {
+        for line in desc.split_by_chars(79) {
+            write!(&mut control, " {}\n", line)?;
+        }
     }
     control.push(10);
 
