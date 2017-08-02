@@ -1,4 +1,4 @@
-use std::io::{self, Write};
+use std::io::Write;
 use std::path::PathBuf;
 use config::Config;
 use md5::Digest;
@@ -12,7 +12,6 @@ use archive::Archive;
 /// Generates the uncompressed control.tar archive
 pub fn generate_archive(options: &Config, time: u64, asset_hashes: HashMap<PathBuf, Digest>) -> CDResult<Vec<u8>> {
     let mut archive = Archive::new(time);
-    initialize_control(&mut archive)?;
     generate_md5sums(&mut archive, options, asset_hashes)?;
     generate_control(&mut archive, options)?;
     if let Some(ref files) = options.conf_files {
@@ -22,16 +21,8 @@ pub fn generate_archive(options: &Config, time: u64, asset_hashes: HashMap<PathB
     Ok(archive.into_inner()?)
 }
 
-/// Creates the initial hidden directory where all the files are stored.
-fn initialize_control(archive: &mut Archive) -> io::Result<()> {
-    if ::TAR_REJECTS_CUR_DIR {
-        return Ok(());
-    }
-    archive.directory("./")
-}
-
 /// Append all files that reside in the `maintainer_scripts` path to the archive
-fn generate_scripts(archive: &mut Archive, option: &Config) -> io::Result<()> {
+fn generate_scripts(archive: &mut Archive, option: &Config) -> CDResult<()> {
     if let Some(ref maintainer_scripts) = option.maintainer_scripts {
         for name in &["preinst", "postinst", "prerm", "postrm"] {
             if let Ok(script) = file::get(maintainer_scripts.join(name)) {
@@ -101,9 +92,10 @@ fn generate_control(archive: &mut Archive, options: &Config) -> CDResult<()> {
 }
 
 /// If configuration files are required, the conffiles file will be created.
-fn generate_conf_files(archive: &mut Archive, files: &str) -> io::Result<()> {
+fn generate_conf_files(archive: &mut Archive, files: &str) -> CDResult<()> {
     let mut data = Vec::new();
     data.write(files.as_bytes())?;
     data.push(b'\n');
-    archive.file("./conffiles", &data, 0o644)
+    archive.file("./conffiles", &data, 0o644)?;
+    Ok(())
 }

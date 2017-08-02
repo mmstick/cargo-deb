@@ -1,10 +1,10 @@
 use std::io::Write;
-use std::path::{PathBuf, Component};
+use std::path::PathBuf;
 use md5::Digest;
 use md5;
 use file;
 use config::Config;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use error::*;
 use archive::Archive;
 
@@ -49,26 +49,7 @@ fn generate_copyright_asset(options: &Config) -> CDResult<()> {
 /// Returns MD5 hashes of files copied
 fn archive_files(archive: &mut Archive, options: &Config) -> CDResult<HashMap<PathBuf, Digest>> {
     let mut hashes = HashMap::new();
-    let mut added_directories: HashSet<PathBuf> = HashSet::new();
     for asset in &options.assets {
-
-        // Append each of the directories found in the file's pathname to the archive before adding the file
-        // For each directory pathname found, attempt to add it to the list of directories
-        let asset_relative_dir = PathBuf::from(".").join(asset.target_path.parent().ok_or("invalid asset")?);
-        let mut directory = PathBuf::new();
-        for comp in asset_relative_dir.components() {
-            match comp {
-                Component::CurDir if !::TAR_REJECTS_CUR_DIR => directory.push("."),
-                Component::Normal(c) => directory.push(c),
-                _ => continue,
-            }
-            if !added_directories.contains(&directory) {
-                added_directories.insert(directory.clone());
-                archive.directory(&directory)?;
-            }
-        }
-
-        // Add the file to the archive
         let out_data = file::get(&asset.source_file)
             .map_err(|e| CargoDebError::IoFile(e, asset.source_file.clone()))?;
 
