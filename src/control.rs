@@ -118,7 +118,9 @@ fn generate_control(archive: &mut TarBuilder<Vec<u8>>, options: &Config, time: u
     write!(&mut control, "Version: {}\n", options.version)?;
     write!(&mut control, "Architecture: {}\n", options.architecture)?;
     if let Some(ref repo) = options.repository {
-        write!(&mut control, "Vcs-Browser: {}\n", repo)?;
+        if repo.starts_with("http") {
+            write!(&mut control, "Vcs-Browser: {}\n", repo)?;
+        }
         if let Some(kind) = options.repository_type() {
             write!(&mut control, "Vcs-{}: {}\n", kind, repo)?;
         }
