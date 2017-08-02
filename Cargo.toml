@@ -6,12 +6,12 @@ categories = ["command-line-utilities", "development-tools::cargo-plugins", "dev
 description = "Cargo subcommand that generates Debian packages"
 keywords = ["cargo", "subcommand", "deb", "debian"]
 repository = "https://github.com/mmstick/cargo-deb"
-version = "0.1.1"
 readme = "README.md"
+version = "1.0.0"
 
 [package.metadata.deb]
 maintainer = "Michael Aaron Murphy <mmstickman@gmail.com>"
-copyright = "2016, Michael Aaron Murphy <mmstickman@gmail.com>"
+copyright = "2016-2017, Michael Aaron Murphy, Kornel Lesiński"
 license-file = ["LICENSE", "4"]
 extended-description = """\
 A simple subcommand for the Cargo package manager for \
