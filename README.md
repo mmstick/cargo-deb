@@ -44,6 +44,8 @@ This command obtains basic information it needs from [the `Cargo.toml` file](htt
         - If is argument ends with `/` it will be inferred that the target is the directory where the file will be copied.
         - Otherwise, it will be inferred that the source argument will be renamed when copied.
     - The third argument is the permissions (octal string) to assign that file.
+ - **maintainer-scripts** - directory containing `preinst`, `postinst`, `prerm`, or `postrm` [scripts](https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html).
+ - **conf-files** - [List of configuration files](https://www.debian.org/doc/manuals/maint-guide/dother.en.html#conffiles) that the package management system will not overwrite when the package is upgraded.
  - **features**: List of [Cargo features](http://doc.crates.io/manifest.html#the-features-section) to use when building the package.
  - **default-features**: whether to use default crate features in addition to the `features` list (default `true`).
 
