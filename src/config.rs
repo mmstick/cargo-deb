@@ -167,7 +167,7 @@ impl Config {
 
 
 #[derive(Clone, Debug, Deserialize)]
-pub struct Cargo {
+struct Cargo {
     pub package: CargoPackage,
     pub bin: Option<Vec<CargoBin>>,
     pub profile: Option<CargoProfiles>,
@@ -318,7 +318,7 @@ impl Cargo {
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "kebab-case")]
-pub struct CargoPackage {
+struct CargoPackage {
     pub name: String,
     pub authors: Option<Vec<String>>,
     pub license: String,
@@ -329,27 +329,27 @@ pub struct CargoPackage {
     pub version: String,
     pub description: Option<String>,
     pub readme: Option<String>,
-    pub metadata: Option<CargoMetadata>,
+    pub metadata: Option<CargoPackageMetadata>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
-pub struct CargoMetadata {
+struct CargoPackageMetadata {
     pub deb: Option<CargoDeb>
 }
 
 #[derive(Clone, Debug, Deserialize)]
-pub struct CargoProfiles {
+struct CargoProfiles {
     pub release: Option<CargoProfile>
 }
 
 #[derive(Clone, Debug, Deserialize)]
-pub struct CargoProfile {
+struct CargoProfile {
     pub debug: Option<bool>
 }
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "kebab-case")]
-pub struct CargoBin {
+struct CargoBin {
     pub name: String,
     pub plugin: Option<bool>,
     pub proc_macro: Option<bool>,
@@ -357,7 +357,7 @@ pub struct CargoBin {
 
 #[derive(Clone, Debug, Deserialize, Default)]
 #[serde(rename_all = "kebab-case")]
-pub struct CargoDeb {
+struct CargoDeb {
     pub maintainer: Option<String>,
     pub copyright: Option<String>,
     pub license_file: Option<Vec<String>>,
