@@ -38,7 +38,7 @@ pub fn xz_or_gz(data: &[u8], base_path: &Path) -> CDResult<PathBuf> {
 }
 
 #[cfg(not(feature = "lzma"))]
-pub fn xz_or_gz(data: &[u8], base_path: &Path) -> CDResult<String> {
+pub fn xz_or_gz(data: &[u8], base_path: &Path) -> CDResult<PathBuf> {
     gz(data, base_path)
 }
 
