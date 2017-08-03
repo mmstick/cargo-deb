@@ -24,7 +24,9 @@ fn generate_copyright_asset(options: &Config) -> CDResult<()> {
         write!(&mut copyright, "Source: {}\n", source)?;
     }
     write!(&mut copyright, "Copyright: {}\n", options.copyright)?;
-    write!(&mut copyright, "License: {}\n", options.license)?;
+    if let Some(ref license) = options.license {
+        write!(&mut copyright, "License: {}\n", license)?;
+    }
     if let Some(ref path) = options.license_file {
         let license_string = file::get_text(path)
             .map_err(|e| CargoDebError::IoFile(e, path.to_owned()))?;

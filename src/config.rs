@@ -42,7 +42,7 @@ pub struct Config {
     /// The name of the project to build
     pub name: String,
     /// The software license of the project.
-    pub license: String,
+    pub license: Option<String>,
     /// The location of the license file followed by the amount of lines to skip.
     pub license_file: Option<PathBuf>,
     pub license_file_skip_lines: usize,
@@ -189,7 +189,7 @@ impl Cargo {
         let mut config = Config {
             target_dir,
             name: self.package.name.clone(),
-            license: self.package.license.clone(),
+            license: self.package.license.take(),
             license_file,
             license_file_skip_lines,
             copyright: deb.copyright.take().ok_or_then(|| {
@@ -229,6 +229,9 @@ impl Cargo {
         let mut warnings = vec![];
         if self.package.description.is_none() {
             warnings.push("description field is missing in Cargo.toml".to_owned());
+        }
+        if self.package.license.is_none() {
+            warnings.push("license field is missing in Cargo.toml".to_owned());
         }
         if let Some(readme) = readme {
             if deb.extended_description.is_none() && (readme.ends_with(".md") || readme.ends_with(".markdown")) {
@@ -321,7 +324,7 @@ impl Cargo {
 struct CargoPackage {
     pub name: String,
     pub authors: Option<Vec<String>>,
-    pub license: String,
+    pub license: Option<String>,
     pub license_file: Option<String>,
     pub homepage: Option<String>,
     pub documentation: Option<String>,
