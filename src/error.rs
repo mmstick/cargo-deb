@@ -3,6 +3,7 @@ use std::num;
 use std::time;
 use std::path::PathBuf;
 use toml;
+use serde_json;
 #[cfg(feature = "lzma")]
 use lzma;
 #[cfg(not(feature = "lzma"))]
@@ -58,10 +59,16 @@ quick_error! {
             description("unable to get system time")
             cause(err)
         }
-        Parse(err: toml::de::Error) {
+        ParseTOML(err: toml::de::Error) {
             from()
             description(err.description())
-            display("TOML error: {}", err)
+            display("unable to parse Cargo.toml")
+            cause(err)
+        }
+        ParseJSON(err: serde_json::Error) {
+            from()
+            description(err.description())
+            display("unable to parse `cargo metadata` output")
             cause(err)
         }
         PackageNotFound(path: String, reason: Vec<u8>) {

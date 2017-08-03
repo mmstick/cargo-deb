@@ -84,10 +84,16 @@ pub struct Config {
 
 impl Config {
     pub fn from_manifest(target: Option<&str>) -> CDResult<(Config, Vec<String>)> {
-        let manifest_path = current_manifest_path()?;
+        let metadata = cargo_metadata()?;
+        let root_id = metadata.resolve.root;
+        let root_package = metadata.packages.iter()
+            .filter(|p|p.id == root_id).next()
+            .ok_or("Unable to find root package in cargo metadata")?;
+        let target_dir = Path::new(&metadata.target_directory);
+        let manifest_path = Path::new(&root_package.manifest_path);
         let content = file::get_text(&manifest_path)
-            .map_err(|e| CargoDebError::IoFile(e, manifest_path.clone()))?;
-        toml::from_str::<Cargo>(&content)?.to_config(&manifest_path, target)
+            .map_err(|e| CargoDebError::IoFile(e, manifest_path.to_owned()))?;
+        toml::from_str::<Cargo>(&content)?.to_config(root_package, &target_dir, target)
     }
 
     pub fn get_dependencies(&self) -> CDResult<String> {
@@ -165,21 +171,20 @@ impl Config {
     }
 }
 
-
 #[derive(Clone, Debug, Deserialize)]
 struct Cargo {
     pub package: CargoPackage,
-    pub bin: Option<Vec<CargoBin>>,
     pub profile: Option<CargoProfiles>,
 }
 
 impl Cargo {
-    fn to_config(mut self, manifest_path: &Path, target: Option<&str>) -> CDResult<(Config, Vec<String>)> {
-        let mut target_dir = manifest_path.parent().ok_or("invalid project location")?.join("target");
+    fn to_config(mut self, root_package: &CargoMetadataPackage, target_dir: &Path, target: Option<&str>) -> CDResult<(Config, Vec<String>)> {
         // Cargo cross-compiles to a dir
-        if let Some(target) = target {
-            target_dir = target_dir.join(target);
-        }
+        let target_dir = if let Some(target) = target {
+            target_dir.join(target)
+        } else {
+            target_dir.to_owned()
+        };
 
         let mut deb = self.package.metadata.take().and_then(|m|m.deb)
             .unwrap_or_else(|| CargoDeb::default());
@@ -218,7 +223,10 @@ impl Cargo {
                 .and_then(|r|r.debug).map(|debug|!debug).unwrap_or(true),
         };
 
-        let assets = self.take_assets(&config, deb.assets.take(), readme)?;
+        let assets = self.take_assets(&config, deb.assets.take(), &root_package.targets, readme)?;
+        if assets.is_empty() {
+            Err("No binaries found. The package is empty. Please specify some assets to package in Cargo.toml")?;
+        }
         config.assets.extend(assets);
         config.add_copyright_asset();
 
@@ -272,7 +280,7 @@ impl Cargo {
         }
     }
 
-    fn take_assets(&self, options: &Config, assets: Option<Vec<Vec<String>>>, readme: Option<&String>) -> CDResult<Vec<Asset>> {
+    fn take_assets(&self, options: &Config, assets: Option<Vec<Vec<String>>>, targets: &[CargoMetadataTarget], readme: Option<&String>) -> CDResult<Vec<Asset>> {
         Ok(if let Some(assets) = assets {
             assets.into_iter().map(|mut v| {
                 let mut v = v.drain(..);
@@ -288,9 +296,9 @@ impl Cargo {
                 ))
             }).collect::<Result<Vec<_>, CargoDebError>>()?
         } else {
-            let mut implied_assets: Vec<_> = self.bin.as_ref().unwrap_or(&vec![])
-                .into_iter()
-                .filter(|bin| !bin.plugin.unwrap_or(false) && !bin.proc_macro.unwrap_or(false))
+            let mut implied_assets: Vec<_> = targets
+                .iter()
+                .filter(|t| t.crate_types.iter().any(|ty|ty=="bin") && t.kind.iter().any(|k|k=="bin"))
                 .map(|bin| {
                 Asset::new(
                     options.path_in_build(&bin.name),
@@ -376,19 +384,43 @@ struct CargoDeb {
     pub default_features: Option<bool>,
 }
 
+#[derive(Deserialize)]
+struct CargoMetadata {
+    packages: Vec<CargoMetadataPackage>,
+    resolve: CargoMetadataResolve,
+    target_directory: String,
+}
+
+#[derive(Deserialize)]
+struct CargoMetadataResolve {
+    root: String,
+}
+
+#[derive(Deserialize)]
+struct CargoMetadataPackage {
+    pub id: String,
+    pub targets: Vec<CargoMetadataTarget>,
+    pub manifest_path: String,
+}
+
+#[derive(Deserialize)]
+struct CargoMetadataTarget {
+    pub name: String,
+    pub kind: Vec<String>,
+    pub crate_types: Vec<String>,
+}
+
 /// Returns the path of the `Cargo.toml` that we want to build.
-fn current_manifest_path() -> CDResult<PathBuf> {
-    let output = Command::new("cargo").arg("locate-project")
-        .output().map_err(|e| CargoDebError::CommandFailed(e, "cargo"))?;
+fn cargo_metadata() -> CDResult<CargoMetadata> {
+    let output = Command::new("cargo").arg("metadata").arg("--format-version=1")
+        .output().map_err(|e| CargoDebError::CommandFailed(e, "cargo (is it in your PATH?)"))?;
     if !output.status.success() {
-        return Err(CargoDebError::CommandError("cargo", "locate-project".to_owned(), output.stderr));
+        return Err(CargoDebError::CommandError("cargo", "metadata".to_owned(), output.stderr));
     }
 
-    #[derive(Deserialize)]
-    struct Data { root: String }
     let stdout = String::from_utf8(output.stdout).unwrap();
-    let decoded: Data = serde_json::from_str(&stdout).unwrap();
-    Ok(decoded.root.into())
+    let metadata = serde_json::from_str(&stdout)?;
+    Ok(metadata)
 }
 
 /// Debianizes the architecture name
