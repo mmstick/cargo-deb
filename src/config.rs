@@ -83,11 +83,11 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn from_manifest() -> CDResult<(Config, Vec<String>)> {
+    pub fn from_manifest(target: Option<&str>) -> CDResult<(Config, Vec<String>)> {
         let manifest_path = current_manifest_path()?;
         let content = file::get_text(&manifest_path)
             .map_err(|e| CargoDebError::IoFile(e, manifest_path.clone()))?;
-        toml::from_str::<Cargo>(&content)?.to_config(&manifest_path)
+        toml::from_str::<Cargo>(&content)?.to_config(&manifest_path, target)
     }
 
     pub fn get_dependencies(&self) -> CDResult<String> {
@@ -174,8 +174,12 @@ pub struct Cargo {
 }
 
 impl Cargo {
-    fn to_config(mut self, manifest_path: &Path) -> CDResult<(Config, Vec<String>)> {
-        let target_dir = manifest_path.parent().ok_or("invalid project location")?.join("target");
+    fn to_config(mut self, manifest_path: &Path, target: Option<&str>) -> CDResult<(Config, Vec<String>)> {
+        let mut target_dir = manifest_path.parent().ok_or("invalid project location")?.join("target");
+        // Cargo cross-compiles to a dir
+        if let Some(target) = target {
+            target_dir = target_dir.join(target);
+        }
 
         let mut deb = self.package.metadata.take().and_then(|m|m.deb)
             .unwrap_or_else(|| CargoDeb::default());
@@ -204,7 +208,7 @@ impl Cargo {
             depends: deb.depends.take().unwrap_or("$auto".to_owned()),
             section: deb.section.take(),
             priority: deb.priority.take().unwrap_or("optional".to_owned()),
-            architecture: get_arch().to_owned(),
+            architecture: get_arch(target.unwrap_or(ARCH)).to_owned(),
             conf_files: deb.conf_files.map(|x| x.iter().fold(String::new(), |a, b| a + b + "\n")),
             assets: vec![],
             maintainer_scripts: deb.maintainer_scripts.map(|s| PathBuf::from(s)),
@@ -384,15 +388,35 @@ fn current_manifest_path() -> CDResult<PathBuf> {
     Ok(decoded.root.into())
 }
 
-/// Calls the `uname` function from libc to obtain the machine architecture,
-/// and then Debianizes the architecture name.
-fn get_arch() -> &'static str {
-    match ARCH {
-        "arm"     => "armhf",
-        "aarch64" => "arm64",
-        "x86_64"  => "amd64",
-        "noarch"  => "all",
-        _         => ARCH
+/// Debianizes the architecture name
+fn get_arch(target: &str) -> &str {
+    let mut parts = target.split('-');
+    let arch = parts.next().unwrap();
+    let abi = parts.last().unwrap_or("");
+    match (arch, abi) {
+        // https://wiki.debian.org/Multiarch/Tuples
+        // rustc --print target-list
+        // https://doc.rust-lang.org/std/env/consts/constant.ARCH.html
+        ("aarch64", _)          => "arm64",
+        ("mips64", "gnuabin32") => "mipsn32",
+        ("mips64el", "gnuabin32") => "mipsn32el",
+        ("mipsisa32r6", _) => "mipsr6",
+        ("mipsisa32r6el", _) => "mipsr6el",
+        ("mipsisa64r6", "gnuabi64") => "mips64r6",
+        ("mipsisa64r6", "gnuabin32") => "mipsn32r6",
+        ("mipsisa64r6el", "gnuabi64") => "mips64r6el",
+        ("mipsisa64r6el", "gnuabin32") => "mipsn32r6el",
+        ("powerpc", "gnuspe") => "powerpcspe",
+        ("powerpc64", _)   => "ppc64",
+        ("powerpc64le", _) => "ppc64el",
+        ("i586", _)  => "i386",
+        ("i686", _)  => "i386",
+        ("x86", _)   => "i386",
+        ("x86_64", "gnux32") => "x32",
+        ("x86_64", _) => "amd64",
+        (arm, gnueabi) if arm.starts_with("arm") && gnueabi.ends_with("hf") => "armhf",
+        (arm, _) if arm.starts_with("arm") => "armel",
+        (other_arch, _) => other_arch,
     }
 }
 

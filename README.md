@@ -87,3 +87,15 @@ assets = [
     ["target/release/systemd-manager", "usr/bin/", "755"]
 ]
 ```
+
+## Cross-compilation
+
+`cargo deb` supports a `--target` flag, which takes [Rust target triple](https://forge.rust-lang.org/platform-support.html). See `rustc --print target-list` for the list of supported values.
+
+The target has to be [installed for Rust](https://github.com/rust-lang-nursery/rustup.rs#cross-compilation) (e.g. `rustup target add i686-unknown-linux-gnu`) and has to be [installed for Debian](https://wiki.debian.org/ToolChain/Cross) (e.g. `apt-get install libc6-dev-i386`). Note that Rust's and [Debian's architecture names](https://www.debian.org/ports/) are different.
+
+```sh
+cargo deb --target=i686-unknown-linux-gnu
+```
+
+Cross compiled archives are saved in `target/<target triple>/debian/*.deb`.

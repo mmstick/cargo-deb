@@ -39,8 +39,10 @@ const TAR_REJECTS_CUR_DIR: bool = true;
 struct CliOptions {
     no_build: bool,
     no_strip: bool,
+    verbose: bool,
     quiet: bool,
     install: bool,
+    target: Option<String>,
 }
 
 fn main() {
@@ -50,7 +52,9 @@ fn main() {
     cli_opts.optflag("", "no-build", "Assume project is already built");
     cli_opts.optflag("", "no-strip", "Do not strip debug symbols from the binary");
     cli_opts.optflag("", "install", "Immediately install created package");
+    cli_opts.optopt("", "target", "triple", "Target for cross-compilation");
     cli_opts.optflag("q", "quiet", "Don't print warnings");
+    cli_opts.optflag("v", "verbose", "Print progress");
     cli_opts.optflag("h", "help", "Print this help menu");
 
     let matches = match cli_opts.parse(&args[1..]) {
@@ -68,7 +72,9 @@ fn main() {
         no_build: matches.opt_present("no-build"),
         no_strip: matches.opt_present("no-strip"),
         quiet: matches.opt_present("quiet"),
+        verbose: matches.opt_present("verbose"),
         install: matches.opt_present("install"),
+        target: matches.opt_str("target"),
     }) {
         Ok(()) => {},
         Err(err) => {
@@ -92,8 +98,8 @@ fn err_exit(err: &std::error::Error) -> ! {
     process::exit(1);
 }
 
-fn process(CliOptions {install, no_build, no_strip, quiet}: CliOptions) -> CDResult<()> {
-    let (options, warnings) = Config::from_manifest()?;
+fn process(CliOptions {target, install, no_build, no_strip, quiet, verbose}: CliOptions) -> CDResult<()> {
+    let (options, warnings) = Config::from_manifest(target.as_ref().map(|s|s.as_ref()))?;
     if !quiet {
         for warning in warnings {
             println!("warning: {}", warning);
@@ -102,7 +108,7 @@ fn process(CliOptions {install, no_build, no_strip, quiet}: CliOptions) -> CDRes
     remove_leftover_files(&options.deb_dir())?;
 
     if !no_build {
-        cargo_build(&options.features, options.default_features)?;
+        cargo_build(target, &options.features, options.default_features, verbose)?;
     }
     if options.strip && !no_strip {
         strip_binaries(&options.binaries())?;
@@ -181,10 +187,16 @@ fn remove_leftover_files(deb_dir: &Path) -> io::Result<()> {
 }
 
 /// Builds a release binary with `cargo build --release`
-fn cargo_build(features: &[String], default_features: bool) -> CDResult<()> {
+fn cargo_build(target: Option<String>, features: &[String], default_features: bool, verbose: bool) -> CDResult<()> {
     let mut cmd = Command::new("cargo");
     cmd.arg("build").arg("--release");
 
+    if verbose {
+        cmd.arg("--verbose");
+    }
+    if let Some(target) = target {
+        cmd.arg(format!("--target={}", target));
+    }
     if !default_features {
         cmd.arg("--no-default-features");
     }
