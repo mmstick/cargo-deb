@@ -67,13 +67,9 @@ quick_error! {
             description("unable to find package for the library")
             display("path '{}' does not belong to a package: {}", path, String::from_utf8_lossy(&reason))
         }
-        NotInstalled(package: String) {
-            description("required dependencies are not installed")
-            display("dependency package '{}' is not installed", package)
-        }
         GetVersionError(package: String) {
-            description("unable to get version of a package")
-            display("unable to get version of '{}'", package)
+            description("unable to get version of a package via dpkg -s")
+            display("unable to get version of '{}' via dpkg -s", package)
         }
         CompressError(err: lzma::LzmaError) {
             from()
