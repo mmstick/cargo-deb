@@ -122,17 +122,20 @@ fn process(CliOptions {target, install, no_build, no_strip, quiet, verbose}: Cli
     generate_debian_binary_file(&bin_path)?;
     deb_contents.push(bin_path);
 
-    // Initailize the contents of the data archive (files that go into the filesystem).
-    let (data_archive, asset_hashes) = data::generate_archive(&options, system_time)?;
-    let data_base_path = options.path_in_deb("data.tar");
+    // The block frees the large data_archive var early
+    {
+        // Initailize the contents of the data archive (files that go into the filesystem).
+        let (data_archive, asset_hashes) = data::generate_archive(&options, system_time)?;
+        let data_base_path = options.path_in_deb("data.tar");
 
-    // Initialize the contents of the control archive (metadata for the package manager).
-    let control_archive = control::generate_archive(&options, system_time, asset_hashes)?;
-    let control_base_path = options.path_in_deb("control.tar");
+        // Initialize the contents of the control archive (metadata for the package manager).
+        let control_archive = control::generate_archive(&options, system_time, asset_hashes)?;
+        let control_base_path = options.path_in_deb("control.tar");
 
-    // Order is important for Debian
-    deb_contents.push(compress::gz(&control_archive, &control_base_path)?);
-    deb_contents.push(compress::xz_or_gz(&data_archive, &data_base_path)?);
+        // Order is important for Debian
+        deb_contents.push(compress::gz(&control_archive, &control_base_path)?);
+        deb_contents.push(compress::xz_or_gz(&data_archive, &data_base_path)?);
+    }
 
     let generated = generate_deb(&options, &deb_contents)?;
     if install {
