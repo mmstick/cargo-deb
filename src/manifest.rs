@@ -93,7 +93,7 @@ impl Config {
         let target_dir = Path::new(&metadata.target_directory);
         let manifest_path = Path::new(&root_package.manifest_path);
         let content = file::get_text(&manifest_path)
-            .map_err(|e| CargoDebError::IoFile(e, manifest_path.to_owned()))?;
+            .map_err(|e| CargoDebError::IoFile("unable to read Cargo.toml", e, manifest_path.to_owned()))?;
         toml::from_str::<Cargo>(&content)?.to_config(root_package, &target_dir, target)
     }
 
@@ -266,7 +266,7 @@ impl Cargo {
             desc
         } else if let Some(readme) = readme {
             Some(file::get_text(readme)
-                .map_err(|err| CargoDebError::IoFile(err, PathBuf::from(readme)))?)
+                .map_err(|err| CargoDebError::IoFile("unable to read README", err, PathBuf::from(readme)))?)
         } else {
             None
         })

@@ -29,7 +29,7 @@ fn generate_copyright_asset(options: &Config) -> CDResult<()> {
     }
     if let Some(ref path) = options.license_file {
         let license_string = file::get_text(path)
-            .map_err(|e| CargoDebError::IoFile(e, path.to_owned()))?;
+            .map_err(|e| CargoDebError::IoFile("unable to read license file", e, path.to_owned()))?;
         // Skip the first `A` number of lines and then iterate each line after that.
         for line in license_string.lines().skip(options.license_file_skip_lines) {
             // If the line is empty, write a dot, else write the line.
@@ -53,7 +53,7 @@ fn archive_files(archive: &mut Archive, options: &Config) -> CDResult<HashMap<Pa
     let mut hashes = HashMap::new();
     for asset in &options.assets {
         let out_data = file::get(&asset.source_file)
-            .map_err(|e| CargoDebError::IoFile(e, asset.source_file.clone()))?;
+            .map_err(|e| CargoDebError::IoFile("unable to read asset to add to archive", e, asset.source_file.clone()))?;
 
         hashes.insert(asset.source_file.clone(), md5::compute(&out_data));
         archive.file(&asset.target_path, &out_data, asset.chmod)?;

@@ -21,7 +21,7 @@ pub fn gz(data: &[u8], base_path: &Path) -> CDResult<PathBuf> {
     // If the compression succeeded, attempt to write the file to disk.
     let full_path = append(base_path, ".gz");
     file::put(&full_path, compressed)
-        .map_err(|why| CargoDebError::IoFile(why, full_path.clone()))?;
+        .map_err(|why| CargoDebError::IoFile("unable to save compressed archive", why, full_path.clone()))?;
     Ok(full_path)
 }
 
@@ -32,7 +32,7 @@ pub fn xz_or_gz(data: &[u8], base_path: &Path) -> CDResult<PathBuf> {
 
     let full_path = append(base_path, ".xz");
     file::put(&full_path, &compressed)
-        .map_err(|why| CargoDebError::IoFile(why, full_path.clone()))?;
+        .map_err(|why| CargoDebError::IoFile("unable to save compressed archive", why, full_path.clone()))?;
 
     Ok(full_path)
 }
