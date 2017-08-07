@@ -1,6 +1,6 @@
 use std::io::Write;
 use std::path::PathBuf;
-use config::Config;
+use manifest::Config;
 use md5::Digest;
 use md5;
 use file;

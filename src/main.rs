@@ -14,7 +14,7 @@ extern crate serde_json;
 extern crate getopts;
 
 mod compress;
-mod config;
+mod manifest;
 mod control;
 mod data;
 mod dependencies;
@@ -32,7 +32,7 @@ use std::time;
 use std::os::unix::fs::OpenOptionsExt;
 use error::*;
 
-use config::Config;
+use manifest::Config;
 
 const TAR_REJECTS_CUR_DIR: bool = true;
 

@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use md5::Digest;
 use md5;
 use file;
-use config::Config;
+use manifest::Config;
 use std::collections::HashMap;
 use error::*;
 use archive::Archive;
