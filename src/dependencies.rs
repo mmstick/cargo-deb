@@ -4,7 +4,7 @@ use std::collections::HashSet;
 use error::*;
 
 /// Resolves the dependencies based on the output of ldd on the binary.
-pub fn resolve(path: &Path) -> CDResult<Vec<String>> {
+pub fn resolve(path: &Path, architecture: &str) -> CDResult<Vec<String>> {
     let dependencies = {
         let output = Command::new("ldd").arg(path)
             .output().map_err(|e| CargoDebError::CommandFailed(e, "ldd"))?;
@@ -26,7 +26,8 @@ pub fn resolve(path: &Path) -> CDResult<Vec<String>> {
         .collect();
 
     Ok(dependencies?.iter().map(|package| {
-        let version = get_version(&package).unwrap();   /* If we got here, package exists. */
+        // There can be multiple arch-specific versions of a package
+        let version = get_version(&format!("{}:{}", package, architecture)).unwrap();   /* If we got here, package exists. */
         format!("{} (>= {})", package, version)
     }).collect())
 }
