@@ -99,7 +99,7 @@ impl Config {
     pub fn get_dependencies(&self) -> CDResult<String> {
         let mut deps = HashSet::new();
         for word in self.depends.split_whitespace() {
-            if word == "$auto" || word == "$auto, " {
+            if word == "$auto" || word == "$auto," {
                 for bname in self.binaries().iter() {
                     if let Ok(bindeps) = resolve(bname, &self.architecture) {
                         for dep in bindeps {
