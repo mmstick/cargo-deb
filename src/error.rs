@@ -50,9 +50,9 @@ quick_error! {
         BuildFailed {
             description("build failed")
         }
-        StripFailed(name: PathBuf) {
-            description("strip failed")
-            display("strip failed: {}", name.display())
+        StripFailed(name: PathBuf, reason: String) {
+            description(reason)
+            display("unable to strip binary '{}': {}", name.display(), reason)
         }
         SystemTime(err: time::SystemTimeError) {
             from()

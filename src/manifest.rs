@@ -8,6 +8,7 @@ use dependencies::resolve;
 use serde_json;
 use error::*;
 use try::Try;
+use config::CargoConfig;
 
 #[derive(Debug)]
 pub struct Asset {
@@ -168,6 +169,10 @@ impl Config {
 
     pub fn path_in_deb<P: AsRef<Path>>(&self, rel_path: P) -> PathBuf {
         self.deb_dir().join(rel_path)
+    }
+
+    pub fn cargo_config(&self) -> CDResult<Option<CargoConfig>> {
+        CargoConfig::new(&self.target_dir)
     }
 }
 

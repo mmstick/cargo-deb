@@ -22,6 +22,7 @@ mod try;
 mod wordsplit;
 mod error;
 mod archive;
+mod config;
 
 use std::env;
 use std::fs;
@@ -108,10 +109,10 @@ fn process(CliOptions {target, install, no_build, no_strip, quiet, verbose}: Cli
     remove_leftover_files(&options.deb_dir())?;
 
     if !no_build {
-        cargo_build(target, &options.features, options.default_features, verbose)?;
+        cargo_build(&target, &options.features, options.default_features, verbose)?;
     }
     if options.strip && !no_strip {
-        strip_binaries(&options.binaries())?;
+        strip_binaries(&options, &target)?;
     }
 
     // Obtain the current time which will be used to stamp the generated files in the archives.
@@ -190,14 +191,14 @@ fn remove_leftover_files(deb_dir: &Path) -> io::Result<()> {
 }
 
 /// Builds a release binary with `cargo build --release`
-fn cargo_build(target: Option<String>, features: &[String], default_features: bool, verbose: bool) -> CDResult<()> {
+fn cargo_build(target: &Option<String>, features: &[String], default_features: bool, verbose: bool) -> CDResult<()> {
     let mut cmd = Command::new("cargo");
     cmd.arg("build").arg("--release");
 
     if verbose {
         cmd.arg("--verbose");
     }
-    if let Some(target) = target {
+    if let Some(ref target) = *target {
         cmd.arg(format!("--target={}", target));
     }
     if !default_features {
@@ -215,15 +216,39 @@ fn cargo_build(target: Option<String>, features: &[String], default_features: bo
 }
 
 // Strips the binary that was created with cargo
-fn strip_binaries(binaries: &[&Path]) -> CDResult<()> {
-    for &name in binaries {
-        let status = Command::new("strip")
+fn strip_binaries(options: &Config, target: &Option<String>) -> CDResult<()> {
+    let mut cargo_config = None;
+    let strip_tmp;
+    let mut strip_cmd = "strip";
+
+    if let Some(ref target) = *target {
+        cargo_config = options.cargo_config()?;
+        if let Some(ref conf) = cargo_config {
+            if let Some(cmd) = conf.strip_command(target) {
+                strip_tmp = cmd;
+                strip_cmd = &strip_tmp;
+            }
+        }
+    }
+
+    for name in options.binaries() {
+        Command::new(strip_cmd)
             .arg("--strip-unneeded")
             .arg(name)
-            .status()?;
-        if !status.success() {
-            Err(CargoDebError::StripFailed(name.to_owned()))?;
-        }
+            .status()
+            .and_then(|s| if s.success() {
+                Ok(())
+            } else {
+                Err(io::Error::new(io::ErrorKind::Other, format!("{}",s)))
+            })
+            .map_err(|err| {
+                if let Some(ref target) = *target {
+                    let conf_path = cargo_config.as_ref().map(|c|c.path()).unwrap_or(Path::new(".cargo/config"));
+                    CargoDebError::StripFailed(name.to_owned(), format!("{}: {}.\nhint: Target-specific strip commands are configured in [target.{}] strip = \"{}\" in {}", strip_cmd, err, target, strip_cmd, conf_path.display()))
+                } else {
+                    CargoDebError::CommandFailed(err, "strip")
+                }
+            })?;
     }
     Ok(())
 }
