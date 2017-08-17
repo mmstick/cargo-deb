@@ -102,11 +102,12 @@ impl Config {
         for word in self.depends.split_whitespace() {
             if word == "$auto" || word == "$auto," {
                 for bname in self.binaries().iter() {
-                    if let Ok(bindeps) = resolve(bname, &self.architecture) {
-                        for dep in bindeps {
+                    match resolve(bname, &self.architecture) {
+                        Ok(bindeps) => for dep in bindeps {
                             deps.insert(dep);
-                        }
-                    }
+                        },
+                        Err(err) => eprintln!("warning: {} (no auto deps for {})", err, bname.display()),
+                    };
                 }
             } else {
                 deps.insert(word.to_owned());
