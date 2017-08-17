@@ -99,8 +99,9 @@ impl Config {
 
     pub fn get_dependencies(&self) -> CDResult<String> {
         let mut deps = HashSet::new();
-        for word in self.depends.split_whitespace() {
-            if word == "$auto" || word == "$auto," {
+        for word in self.depends.split(',') {
+            let word = word.trim();
+            if word == "$auto" {
                 for bname in self.binaries().iter() {
                     match resolve(bname, &self.architecture) {
                         Ok(bindeps) => for dep in bindeps {
@@ -113,7 +114,7 @@ impl Config {
                 deps.insert(word.to_owned());
             }
         }
-        Ok(deps.iter().map(|s| { s.to_owned() }).collect::<Vec<_>>().join(", "))
+        Ok(deps.into_iter().collect::<Vec<_>>().join(", "))
     }
 
     pub fn add_copyright_asset(&mut self) {

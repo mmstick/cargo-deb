@@ -75,7 +75,7 @@ Systemd Manager:
 maintainer = "Michael Aaron Murphy <mmstickman@gmail.com>"
 copyright = "2015-2016, Michael Aaron Murphy <mmstickman@gmail.com>"
 license-file = ["LICENSE", "3"]
-depends = "$auto"
+depends = "$auto, systemd"
 extended-description = """\
 Written safely in Rust, this systemd manager provides a simple GTK3 GUI interface \
 that allows you to enable/disable/start/stop services, monitor service logs, and \
