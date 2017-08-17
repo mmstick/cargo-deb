@@ -82,9 +82,3 @@ impl CargoConfig {
     }
 }
 
-#[test]
-fn load_conf() {
-    if let Some(conf) = CargoConfig::new("/tmp/cargo-deb-test-whatever").unwrap() {
-        let _ = conf.strip_command("i686-unknown-dragonfly").unwrap();
-    }
-}
