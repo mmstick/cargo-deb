@@ -21,7 +21,7 @@ pub fn resolve(path: &Path, architecture: &str) -> CDResult<Vec<String>> {
         // If the field exists and starts with '/', we have found a filepath.
         .filter(|x| x.is_some() && x.unwrap().chars().next().unwrap() == '/')
         // Obtain the names of the packages.
-        .map(|path| get_package_name(path.unwrap()))
+        .map(|path| get_package_name_with_fallback(path.unwrap()))
         // only collect unique packages.
         .collect();
 
@@ -30,6 +30,22 @@ pub fn resolve(path: &Path, architecture: &str) -> CDResult<Vec<String>> {
         let version = get_version(&format!("{}:{}", package, architecture)).unwrap();   /* If we got here, package exists. */
         format!("{} (>= {})", package, version)
     }).collect())
+}
+
+/// Debian's libssl links with a lib that isn't "installed", #26
+/// but exists in /usr/lib instead of /lib
+fn get_package_name_with_fallback(path: &str) -> CDResult<String> {
+    match get_package_name(path) {
+        Ok(res) => Ok(res),
+        Err(e @ CargoDebError::PackageNotFound(..)) => {
+            let usr_path = format!("/usr{}", path);
+            match get_package_name(&usr_path) {
+                Ok(res) => Ok(res),
+                _ => Err(e),
+            }
+        },
+        Err(e) => Err(e),
+    }
 }
 
 /// Obtains the name of the package that belongs to the file that ldd returned.
