@@ -1,4 +1,3 @@
-extern crate libc;
 extern crate toml;
 extern crate tar;
 #[cfg(feature = "lzma")]
