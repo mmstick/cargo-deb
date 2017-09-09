@@ -9,6 +9,7 @@ use error::*;
 use std::os::unix::ffi::OsStrExt;
 use archive::Archive;
 use wordsplit::WordSplit;
+use std::fs::metadata;
 
 /// Generates the uncompressed control.tar archive
 pub fn generate_archive(options: &Config, time: u64, asset_hashes: HashMap<PathBuf, Digest>) -> CDResult<Vec<u8>> {
@@ -78,6 +79,15 @@ fn generate_control(archive: &mut Archive, options: &Config) -> CDResult<()> {
     write!(&mut control, "Priority: {}\n", options.priority)?;
     control.write(b"Standards-Version: 3.9.4\n")?;
     write!(&mut control, "Maintainer: {}\n", options.maintainer)?;
+
+    let installed_size = options.assets
+        .iter()
+        .filter_map(|asset| metadata(&asset.source_file).ok())
+        .map(|m| m.len())
+        .sum::<u64>() / 1024;
+
+    write!(&mut control, "Installed-Size: {}\n", installed_size)?;
+
     write!(&mut control, "Depends: {}\n", options.get_dependencies()?)?;
     write!(&mut control, "Description:")?;
     for line in options.description.split_by_chars(79) {
