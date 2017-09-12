@@ -19,14 +19,15 @@ impl WordSplit for str {
                     // if character length met or exceeded
                     lines.push(current_line.clone());
                     current_line.clear();
-                    current_line = String::from(word);
+                    current_line += word;
                     chars = word.len();
                 } else if !initialized {
-                    current_line = String::from(word);
+                    current_line += word;
                     chars = word.len();
                     initialized = true;
                 } else {
-                    current_line = current_line + " " + word;
+                    current_line += " ";
+                    current_line += word;
                     chars += word.len() + 1;
                 }
             }
