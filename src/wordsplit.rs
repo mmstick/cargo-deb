@@ -17,7 +17,9 @@ impl WordSplit for str {
             for word in words {
                 if chars + word.len() >= length {
                     // if character length met or exceeded
-                    lines.push(current_line.clone());
+                    if !current_line.is_empty() {
+                        lines.push(current_line.clone());
+                    }
                     current_line.clear();
                     current_line += word;
                     chars = word.len();
@@ -49,4 +51,10 @@ fn test_split_by_chars() {
     let input = String::from("This is a line\n\nthis is also a line.");
     let test = vec![String::from("This is a line"), String::from("."), String::from("this is also a line.")];
     assert_eq!(test, input.split_by_chars(79));
+}
+
+#[test]
+fn test_split_by_chars_long_word() {
+    let lines = "sh\nverylongwordverylongwordverylongwordverylongword\nend".split_by_chars(5);
+    assert_eq!(3, lines.len());
 }
