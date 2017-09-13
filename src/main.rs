@@ -149,7 +149,7 @@ fn process(CliOptions {target, install, no_build, no_strip, quiet, verbose}: Cli
 }
 
 fn install_deb(path: &Path) -> CDResult<()> {
-    let status = Command::new("dpkg").arg("-i").arg(path)
+    let status = Command::new("sudo").arg("dpkg").arg("-i").arg(path)
         .status()?;
     if !status.success() {
         Err(CargoDebError::InstallFailed)?;
