@@ -138,6 +138,10 @@ fn process(CliOptions {target, install, no_build, no_strip, quiet, verbose}: Cli
     }
 
     let generated = generate_deb(&options, &deb_contents)?;
+    if !quiet {
+        println!("{}", generated.display());
+    }
+
     if install {
         install_deb(&generated)?;
     }
@@ -166,10 +170,11 @@ fn generate_deb(config: &Config, contents: &[PathBuf]) -> CDResult<PathBuf> {
         for path in contents {
             cmd.arg(&path.strip_prefix(&deb_dir).map_err(|_|"invalid path")?);
         }
-        let status = cmd.status()
+
+        let output = cmd.output()
             .map_err(|e| CargoDebError::CommandFailed(e, "ar"))?;
-        if !status.success() {
-            return Err(CargoDebError::CommandError("ar", out_abspath.display().to_string(), vec![]));
+        if !output.status.success() {
+            return Err(CargoDebError::CommandError("ar", out_abspath.display().to_string(), output.stderr));
         }
     }
     Ok(out_abspath)
