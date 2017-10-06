@@ -197,7 +197,7 @@ fn remove_leftover_files(deb_dir: &Path) -> io::Result<()> {
 /// Builds a release binary with `cargo build --release`
 fn cargo_build(target: &Option<String>, features: &[String], default_features: bool, verbose: bool) -> CDResult<()> {
     let mut cmd = Command::new("cargo");
-    cmd.arg("build").arg("--release");
+    cmd.arg("build").args(&["--release", "--all"]);
 
     if verbose {
         cmd.arg("--verbose");
