@@ -102,4 +102,4 @@ cargo deb --target=i686-unknown-linux-gnu
 
 Cross compiled archives are saved in `target/<target triple>/debian/*.deb`.
 
-In `.cargo/config` you can add `[target.<target triple>] strip = "…"` to specify path to the architecture-specific `strip` command.
+In `.cargo/config` you can add `[target.<target triple>] strip = { path = "…" }` to specify path to the architecture-specific `strip` command.

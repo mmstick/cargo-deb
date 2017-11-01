@@ -39,11 +39,15 @@ impl CargoConfig {
         if !path.exists() {
             return Ok(None);
         }
-        let config = toml::from_str(&file::get_text(&path)?)?;
-        Ok(Some(CargoConfig {
+        Ok(Some(Self::from_str(&file::get_text(&path)?, path)?))
+    }
+
+    fn from_str(input: &str, path: PathBuf) -> CDResult<Self> {
+        let config = toml::from_str(input)?;
+        Ok(CargoConfig {
             path,
             config,
-        }))
+        })
     }
 
     fn target_conf(&self, target_triple: &str) -> Option<&toml::value::Table> {
@@ -55,7 +59,11 @@ impl CargoConfig {
 
     pub fn strip_command(&self, target_triple: &str) -> Option<Cow<str>> {
         if let Some(target) = self.target_conf(target_triple) {
-            if let Some(strip) = target.get("strip").and_then(|s|s.get("path")).and_then(|s|s.as_str()) {
+            let strip_config = target.get("strip").and_then(|top| {
+                let as_obj = top.get("path").and_then(|s|s.as_str());
+                top.as_str().or(as_obj)
+            });
+            if let Some(strip) = strip_config {
                 return Some(Cow::Borrowed(strip));
             }
         }
@@ -82,3 +90,18 @@ impl CargoConfig {
     }
 }
 
+#[test]
+fn parse_strip() {
+    let c = CargoConfig::from_str(r#"
+[target.i686-unknown-dragonfly]
+linker = "magic-ld"
+strip = "magic-strip"
+
+[target.'foo']
+strip = { path = "strip2" }
+"#, ".".into()).unwrap();
+
+    assert_eq!("magic-strip", c.strip_command("i686-unknown-dragonfly").unwrap());
+    assert_eq!("strip2", c.strip_command("foo").unwrap());
+    assert_eq!(None, c.strip_command("bar"));
+}
