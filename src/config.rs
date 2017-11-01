@@ -55,7 +55,7 @@ impl CargoConfig {
 
     pub fn strip_command(&self, target_triple: &str) -> Option<Cow<str>> {
         if let Some(target) = self.target_conf(target_triple) {
-            if let Some(strip) = target.get("strip").and_then(|s|s.as_str()) {
+            if let Some(strip) = target.get("strip").and_then(|s|s.get("path")).and_then(|s|s.as_str()) {
                 return Some(Cow::Borrowed(strip));
             }
         }

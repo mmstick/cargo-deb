@@ -41,4 +41,3 @@ pub fn xz_or_gz(data: &[u8], base_path: &Path) -> CDResult<PathBuf> {
 pub fn xz_or_gz(data: &[u8], base_path: &Path) -> CDResult<PathBuf> {
     gz(data, base_path)
 }
-
