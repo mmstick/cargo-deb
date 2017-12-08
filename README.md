@@ -1,6 +1,6 @@
 # Debian packages from Cargo projects [![Build Status](https://travis-ci.org/mmstick/cargo-deb.svg?branch=master)](https://travis-ci.org/mmstick/cargo-deb)
 
-This is a [Cargo](http://doc.crates.io/) helper command which automatically creates [Debian packages](https://www.debian.org/doc/debian-policy/ch-binary.html) (`.deb`) from Cargo projects.
+This is a [Cargo](http://doc.crates.io/) helper command which automatically creates [Debian packages](https://www.debian.org/doc/debian-policy/#binary-packages) (`.deb`) from Cargo projects.
 
 ## Installation
 
@@ -33,7 +33,7 @@ This command obtains basic information it needs from [the `Cargo.toml` file](htt
 - **maintainer**: The person maintaining the Debian packaging. If not present, the first author is used.
 - **copyright**: To whom and when the copyright of the software is granted. If not present, the list of authors is used.
 - **license-file**: The location of the license and the amount of lines to skip at the top. If not present, package-level `license-file` is used.
-- **depends**: The runtime [dependencies](https://www.debian.org/doc/debian-policy/ch-relationships.html) of the project, which are automatically generated with the `$auto` keyword.
+- **depends**: The runtime [dependencies](https://www.debian.org/doc/debian-policy/#document-ch-relationships) of the project, which are automatically generated with the `$auto` keyword.
 - **extended-description**: An extended description of the project — the more detailed the better. Package's `readme` file is used as a fallback.
 - **revision**: Version of the Debian package (when the package is updated more often than the project).
 - **section**: The [application category](https://packages.debian.org/stretch/) that the software belongs to.
@@ -44,7 +44,7 @@ This command obtains basic information it needs from [the `Cargo.toml` file](htt
         - If is argument ends with `/` it will be inferred that the target is the directory where the file will be copied.
         - Otherwise, it will be inferred that the source argument will be renamed when copied.
     - The third argument is the permissions (octal string) to assign that file.
- - **maintainer-scripts** - directory containing `preinst`, `postinst`, `prerm`, or `postrm` [scripts](https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html).
+ - **maintainer-scripts** - directory containing `preinst`, `postinst`, `prerm`, or `postrm` [scripts](https://www.debian.org/doc/debian-policy/#document-ch-maintainerscripts).
  - **conf-files** - [List of configuration files](https://www.debian.org/doc/manuals/maint-guide/dother.en.html#conffiles) that the package management system will not overwrite when the package is upgraded.
  - **features**: List of [Cargo features](http://doc.crates.io/manifest.html#the-features-section) to use when building the package.
  - **default-features**: whether to use default crate features in addition to the `features` list (default `true`).
