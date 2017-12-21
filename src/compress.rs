@@ -1,7 +1,8 @@
 use std::path::{Path, PathBuf};
 use std::ffi::OsStr;
 use zopfli::{self, Options, Format};
-#[cfg(feature = "lzma")]
+/// Rust LZMA library is buggy on 32-bit
+#[cfg(all(feature = "lzma", target_pointer_width = "64"))]
 use lzma;
 use file;
 use error::*;
@@ -26,7 +27,7 @@ pub fn gz(data: &[u8], base_path: &Path) -> CDResult<PathBuf> {
 }
 
 /// Compresses data using the system's xz library, which requires `liblzma-dev` to be installed
-#[cfg(feature = "lzma")]
+#[cfg(all(feature = "lzma", target_pointer_width = "64"))]
 pub fn xz_or_gz(data: &[u8], base_path: &Path) -> CDResult<PathBuf> {
     let compressed = lzma::compress(data, 9)?;
 
@@ -37,7 +38,7 @@ pub fn xz_or_gz(data: &[u8], base_path: &Path) -> CDResult<PathBuf> {
     Ok(full_path)
 }
 
-#[cfg(not(feature = "lzma"))]
+#[cfg(not(all(feature = "lzma", target_pointer_width = "64")))]
 pub fn xz_or_gz(data: &[u8], base_path: &Path) -> CDResult<PathBuf> {
     gz(data, base_path)
 }
