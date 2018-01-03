@@ -1,9 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::ffi::OsStr;
 use zopfli::{self, Options, Format};
-/// Rust LZMA library is buggy on 32-bit
-#[cfg(all(feature = "lzma", target_pointer_width = "64"))]
-use lzma;
+
 use file;
 use error::*;
 
@@ -26,11 +24,16 @@ pub fn gz(data: &[u8], base_path: &Path) -> CDResult<PathBuf> {
     Ok(full_path)
 }
 
-/// Compresses data using the system's xz library, which requires `liblzma-dev` to be installed
-#[cfg(all(feature = "lzma", target_pointer_width = "64"))]
+/// Compresses data using the xz2 library
+#[cfg(feature = "lzma")]
 pub fn xz_or_gz(data: &[u8], base_path: &Path) -> CDResult<PathBuf> {
-    let compressed = lzma::compress(data, 9)?;
+    use std::io::prelude::*;
+    use xz2::read::XzEncoder;
 
+    // Compressed data is typically half to a third the original size
+    let mut compressed = Vec::with_capacity(data.len() >> 1);
+    let mut compressor = XzEncoder::new(data, 9);
+    compressor.read_to_end(&mut compressed)?;
     let full_path = append(base_path, ".xz");
     file::put(&full_path, &compressed)
         .map_err(|why| CargoDebError::IoFile("unable to save compressed archive", why, full_path.clone()))?;
@@ -38,7 +41,7 @@ pub fn xz_or_gz(data: &[u8], base_path: &Path) -> CDResult<PathBuf> {
     Ok(full_path)
 }
 
-#[cfg(not(all(feature = "lzma", target_pointer_width = "64")))]
+#[cfg(not(feature = "lzma"))]
 pub fn xz_or_gz(data: &[u8], base_path: &Path) -> CDResult<PathBuf> {
     gz(data, base_path)
 }

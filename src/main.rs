@@ -1,7 +1,7 @@
 extern crate toml;
 extern crate tar;
 #[cfg(feature = "lzma")]
-extern crate lzma;
+extern crate xz2;
 extern crate zopfli;
 extern crate md5;
 extern crate file;
