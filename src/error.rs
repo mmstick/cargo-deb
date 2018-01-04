@@ -4,6 +4,7 @@ use std::time;
 use std::path::PathBuf;
 use toml;
 use serde_json;
+use glob;
 
 quick_error! {
     #[derive(Debug)]
@@ -70,6 +71,18 @@ quick_error! {
         GetVersionError(package: String) {
             description("unable to get version of a package via dpkg -s")
             display("unable to get version of '{}' via dpkg -s", package)
+        }
+        GlobPatternError(err: glob::PatternError) {
+            from()
+            description(err.description())
+            display("unable to parse glob pattern")
+            cause(err)
+        }
+        AssetGlobError(err: glob::GlobError) {
+            from()
+            description(err.description())
+            display("unable to iterate asset glob result")
+            cause(err)
         }
     }
 }
