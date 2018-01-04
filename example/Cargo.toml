@@ -1,0 +1,21 @@
+[package]
+name = "example"
+version = "0.1.0"
+
+[dependencies]
+
+[package.metadata.deb]
+maintainer = "cargo-deb developers"
+copyright = "2017, cargo-deb developers."
+license-file = ["LICENSE", "2"]
+extended-description = "cargo-deb example project"
+depends = "$auto"
+section = "utility"
+priority = "optional"
+assets = [
+    # binary
+    ["target/release/example", "usr/bin/", "755"],
+    # assets
+    ["assets/*", "var/lib/example", "644"],
+    ["3.txt", "var/lib/example/3.txt", "644"],
+]

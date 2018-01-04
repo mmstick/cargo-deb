@@ -4,11 +4,16 @@ use std::process::Command;
 use std::collections::HashSet;
 use toml;
 use file;
+use glob;
 use dependencies::resolve;
 use serde_json;
 use error::*;
 use try::Try;
 use config::CargoConfig;
+
+fn is_glob_pattern(s: &str) -> bool {
+    s.contains('*') || s.contains('[') || s.contains(']') || s.contains('!')
+}
 
 #[derive(Debug)]
 pub struct Asset {
@@ -289,19 +294,39 @@ impl Cargo {
 
     fn take_assets(&self, options: &Config, assets: Option<Vec<Vec<String>>>, targets: &[CargoMetadataTarget], readme: Option<&String>) -> CDResult<Vec<Asset>> {
         Ok(if let Some(assets) = assets {
-            assets.into_iter().map(|mut v| {
+            let mut all_assets = Vec::with_capacity(assets.len());
+            for mut v in assets.into_iter() {
                 let mut v = v.drain(..);
-                let mut source_file = PathBuf::from(v.next().ok_or("missing path for asset")?);
-                if source_file.starts_with("target/release") {
-                    source_file = options.path_in_build(source_file.strip_prefix("target/release").unwrap());
+                let mut source_path = PathBuf::from(v.next().ok_or("missing path for asset")?);
+                if source_path.starts_with("target/release") {
+                    source_path = options.path_in_build(source_path.strip_prefix("target/release").unwrap());
                 }
-                Ok(Asset::new(
-                    source_file,
-                    PathBuf::from(v.next().ok_or("missing target for asset")?),
-                    u32::from_str_radix(&v.next().ok_or("missing chmod for asset")?, 8)
-                        .map_err(|e| CargoDebError::NumParse("unable to parse chmod argument",e))?,
-                ))
-            }).collect::<Result<Vec<_>, CargoDebError>>()?
+                let source_path_str = source_path.to_str().unwrap();
+                let target_path = PathBuf::from(v.next().ok_or("missing target for asset")?);
+                let mode = u32::from_str_radix(&v.next().ok_or("missing chmod for asset")?, 8)
+                    .map_err(|e| CargoDebError::NumParse("unable to parse chmod argument", e))?;
+                let source_prefix: PathBuf = source_path.iter()
+                    .take_while(|part| !is_glob_pattern(part.to_str().unwrap()))
+                    .collect();
+                for entry in glob::glob(source_path_str)? {
+                    let source_file = entry?;
+                    if source_file.is_dir() {
+                        continue;
+                    }
+                    // XXX: how do we handle duplicated assets?
+                    let target_file = if is_glob_pattern(source_path_str) {
+                        target_path.join(source_file.strip_prefix(&source_prefix).unwrap())
+                    } else {
+                        target_path.clone()
+                    };
+                    all_assets.push(Asset::new(
+                        source_file,
+                        target_file,
+                        mode
+                    ));
+                }
+            }
+            all_assets
         } else {
             let mut implied_assets: Vec<_> = targets
                 .iter()

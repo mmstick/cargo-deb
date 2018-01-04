@@ -1,3 +1,5 @@
+#![recursion_limit="128"]
+
 extern crate toml;
 extern crate tar;
 #[cfg(feature = "lzma")]
@@ -11,6 +13,7 @@ extern crate quick_error;
 extern crate serde_derive;
 extern crate serde_json;
 extern crate getopts;
+extern crate glob;
 
 mod compress;
 mod manifest;
