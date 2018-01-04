@@ -39,7 +39,7 @@ This command obtains basic information it needs from [the `Cargo.toml` file](htt
 - **section**: The [application category](https://packages.debian.org/stretch/) that the software belongs to.
 - **priority**: Defines if the package is `required` or `optional`.
 - **assets**: Files to be included in the package and the permissions to assign them. If assets are not specified, then defaults are taken from binaries explicitly listed in `[[bin]]` (copied to `/usr/bin/`) and package `readme` (copied to `usr/share/doc/…`).
-    - The first argument of each asset is the location of that asset in the Rust project.
+    - The first argument of each asset is the location of that asset in the Rust project. Glob patterns are allowed.
     - The second argument is where the file will be copied.
         - If is argument ends with `/` it will be inferred that the target is the directory where the file will be copied.
         - Otherwise, it will be inferred that the source argument will be renamed when copied.
