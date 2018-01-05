@@ -132,6 +132,16 @@ impl Config {
         ));
     }
 
+    fn add_changelog_asset(&mut self, changelog: Option<String>) {
+        if let Some(log_file) = changelog {
+            self.assets.push(Asset::new(
+                PathBuf::from(log_file),
+                PathBuf::from("usr/share/doc").join(&self.name).join("changelog"),
+                0o644,
+            ));
+        }
+    }
+
     pub fn binaries(&self) -> Vec<&Path> {
         let release_dir_prefix = self.path_in_build("");
         self.assets.iter().filter_map(|asset| {
@@ -241,6 +251,7 @@ impl Cargo {
         }
         config.assets.extend(assets);
         config.add_copyright_asset();
+        config.add_changelog_asset(deb.changelog.take());
 
         Ok((config, warnings))
     }
@@ -414,6 +425,7 @@ struct CargoDeb {
     pub maintainer_scripts: Option<String>,
     pub features: Option<Vec<String>>,
     pub default_features: Option<bool>,
+    pub changelog: Option<String>,
 }
 
 #[derive(Deserialize)]
