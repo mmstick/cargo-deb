@@ -37,8 +37,11 @@ impl Asset {
             chmod,
         }
     }
-    pub fn is_binary_executable(&self, release_dir_prefix: &Path) -> bool {
-        self.source_file.starts_with(release_dir_prefix) && 0 != (self.chmod & 0o111)
+    pub fn is_binary_executable(&self, target_dir: &Path) -> bool {
+        let release_dir_prefix = target_dir.join("release");
+        let workspace_root = target_dir.parent().expect("no workspace root");
+        let source_file_abspath = workspace_root.join(&self.source_file);
+        source_file_abspath.starts_with(release_dir_prefix) && 0 != (self.chmod & 0o111)
     }
 }
 
@@ -143,10 +146,9 @@ impl Config {
     }
 
     pub fn binaries(&self) -> Vec<&Path> {
-        let release_dir_prefix = self.path_in_build("");
         self.assets.iter().filter_map(|asset| {
             // Assumes files in build dir which have executable flag set are binaries
-            if asset.is_binary_executable(&release_dir_prefix) {
+            if asset.is_binary_executable(&self.target_dir) {
                 Some(asset.source_file.as_path())
             } else {
                 None
