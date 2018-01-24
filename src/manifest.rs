@@ -46,6 +46,7 @@ impl Asset {
 #[derive(Debug)]
 pub struct Config {
     pub workspace_root: PathBuf,
+    pub target: Option<String>,
     pub target_dir: PathBuf,
     /// The name of the project to build
     pub name: String,
@@ -146,7 +147,13 @@ impl Config {
     }
 
     pub fn binaries(&self) -> Vec<&Path> {
-        let release_dir_prefix = self.path_in_build("");
+        let target_dir = if self.target.is_some() {
+            // Strip target triple
+            self.target_dir.parent().expect("no target dir")
+        } else {
+            &self.target_dir
+        };
+        let release_dir_prefix = target_dir.join("release");
         self.assets.iter().filter_map(|asset| {
             // Assumes files in build dir which have executable flag set are binaries
             if asset.is_binary_executable(&self.workspace_root, &release_dir_prefix) {
@@ -220,6 +227,7 @@ impl Cargo {
         let warnings = self.check_config(readme, &deb);
         let mut config = Config {
             workspace_root: workspace_root.to_owned(),
+            target: target.map(|t| t.to_string()),
             target_dir,
             name: self.package.name.clone(),
             license: self.package.license.take(),
