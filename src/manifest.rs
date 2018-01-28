@@ -99,8 +99,12 @@ impl Config {
             .filter(|p|p.id == root_id).next()
             .ok_or("Unable to find root package in cargo metadata")?;
         let target_dir = Path::new(&metadata.target_directory);
-        let workspace_root = Path::new(&metadata.workspace_root);
         let manifest_path = Path::new(&root_package.manifest_path);
+        let workspace_root = if let Some(ref workspace_root) = metadata.workspace_root {
+            Path::new(workspace_root)
+        } else {
+            manifest_path.parent().expect("no workspace_root")
+        };
         let content = file::get_text(&manifest_path)
             .map_err(|e| CargoDebError::IoFile("unable to read Cargo.toml", e, manifest_path.to_owned()))?;
         toml::from_str::<Cargo>(&content)?.to_config(root_package, &workspace_root, &target_dir, target)
@@ -447,7 +451,7 @@ struct CargoMetadata {
     packages: Vec<CargoMetadataPackage>,
     resolve: CargoMetadataResolve,
     target_directory: String,
-    workspace_root: String,
+    workspace_root: Option<String>,
 }
 
 #[derive(Deserialize)]
