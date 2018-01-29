@@ -9,7 +9,7 @@ homepage = "https://github.com/mmstick/cargo-deb"
 keywords = ["cargo", "subcommand", "deb", "debian", "package"]
 repository = "https://github.com/mmstick/cargo-deb"
 readme = "README.md"
-version = "1.3.0"
+version = "1.4.0"
 
 [badges]
 travis-ci = { repository = "mmstick/cargo-deb" }
