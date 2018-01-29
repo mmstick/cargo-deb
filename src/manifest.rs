@@ -37,13 +37,16 @@ impl Asset {
             chmod,
         }
     }
-    pub fn is_binary_executable(&self, release_dir_prefix: &Path) -> bool {
-        self.source_file.starts_with(release_dir_prefix) && 0 != (self.chmod & 0o111)
+    pub fn is_binary_executable(&self, workspace_root: &Path, release_dir_prefix: &Path) -> bool {
+        let source_file_abspath = workspace_root.join(&self.source_file);
+        source_file_abspath.starts_with(release_dir_prefix) && 0 != (self.chmod & 0o111)
     }
 }
 
 #[derive(Debug)]
 pub struct Config {
+    pub workspace_root: PathBuf,
+    pub target: Option<String>,
     pub target_dir: PathBuf,
     /// The name of the project to build
     pub name: String,
@@ -97,9 +100,14 @@ impl Config {
             .ok_or("Unable to find root package in cargo metadata")?;
         let target_dir = Path::new(&metadata.target_directory);
         let manifest_path = Path::new(&root_package.manifest_path);
+        let workspace_root = if let Some(ref workspace_root) = metadata.workspace_root {
+            Path::new(workspace_root)
+        } else {
+            manifest_path.parent().expect("no workspace_root")
+        };
         let content = file::get_text(&manifest_path)
             .map_err(|e| CargoDebError::IoFile("unable to read Cargo.toml", e, manifest_path.to_owned()))?;
-        toml::from_str::<Cargo>(&content)?.to_config(root_package, &target_dir, target)
+        toml::from_str::<Cargo>(&content)?.to_config(root_package, &workspace_root, &target_dir, target)
     }
 
     pub fn get_dependencies(&self) -> CDResult<String> {
@@ -143,10 +151,16 @@ impl Config {
     }
 
     pub fn binaries(&self) -> Vec<&Path> {
-        let release_dir_prefix = self.path_in_build("");
+        let target_dir = if self.target.is_some() {
+            // Strip target triple
+            self.target_dir.parent().expect("no target dir")
+        } else {
+            &self.target_dir
+        };
+        let release_dir_prefix = target_dir.join("release");
         self.assets.iter().filter_map(|asset| {
             // Assumes files in build dir which have executable flag set are binaries
-            if asset.is_binary_executable(&release_dir_prefix) {
+            if asset.is_binary_executable(&self.workspace_root, &release_dir_prefix) {
                 Some(asset.source_file.as_path())
             } else {
                 None
@@ -200,7 +214,9 @@ struct Cargo {
 }
 
 impl Cargo {
-    fn to_config(mut self, root_package: &CargoMetadataPackage, target_dir: &Path, target: Option<&str>) -> CDResult<(Config, Vec<String>)> {
+    fn to_config(mut self, root_package: &CargoMetadataPackage, workspace_root: &Path, target_dir: &Path, target: Option<&str>)
+        -> CDResult<(Config, Vec<String>)>
+    {
         // Cargo cross-compiles to a dir
         let target_dir = if let Some(target) = target {
             target_dir.join(target)
@@ -214,6 +230,8 @@ impl Cargo {
         let readme = self.package.readme.as_ref();
         let warnings = self.check_config(readme, &deb);
         let mut config = Config {
+            workspace_root: workspace_root.to_owned(),
+            target: target.map(|t| t.to_string()),
             target_dir,
             name: self.package.name.clone(),
             license: self.package.license.take(),
@@ -433,6 +451,7 @@ struct CargoMetadata {
     packages: Vec<CargoMetadataPackage>,
     resolve: CargoMetadataResolve,
     target_directory: String,
+    workspace_root: Option<String>,
 }
 
 #[derive(Deserialize)]
