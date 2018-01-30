@@ -67,33 +67,11 @@ fn get_package_name(path: &str) -> CDResult<String> {
 
 /// Uses apt-cache policy to determine the version of the package that this project was built against.
 fn get_version(package: &str) -> CDResult<String> {
-    let output = Command::new("dpkg").arg("-s").arg(&package)
-        .output().map_err(|e| CargoDebError::CommandFailed(e, "dpkg -s"))?;
+    let output = Command::new("dpkg-query").arg("--showformat=${Version}").arg("--show").arg(package)
+        .output().map_err(|e|CargoDebError::CommandFailed(e, "dpkg-query (get package version)"))?;
     if !output.status.success() {
-        return Err(CargoDebError::CommandError("dpkg -s", package.to_owned(), output.stderr));
+        return Err(CargoDebError::CommandError("dpkg-query (get package version)", package.to_owned(), output.stderr));
     }
-    parse_version(package, ::std::str::from_utf8(&output.stdout).unwrap())
-}
-
-fn parse_version(package: &str, apt_cache_out: &str) -> CDResult<String> {
-    let version_lines = apt_cache_out.lines().filter(|l| l.starts_with("Version:"));
-    let mut version = version_lines.filter_map(|line| line.splitn(2,':').skip(1).next()).map(|v|v.trim());
-
-    if let Some(version) = version.next() {
-        Ok(version.splitn(2, '-').next().unwrap().to_owned())
-    } else {
-        Err(CargoDebError::GetVersionError(package.to_owned()))
-    }
-}
-
-#[test]
-fn parse_version_test() {
-    assert_eq!(parse_version("foopackage", r"Package: libc6
-Status: install ok installed
-Priority: required
-Architecture: amd64
-Version: 2.23-0ubuntu9
-Multi-Arch: same
-Source: glibc"
-).unwrap(), "2.23");
+    let version = ::std::str::from_utf8(&output.stdout).unwrap();
+    return Ok(version.splitn(2, '-').next().unwrap().to_owned());
 }
