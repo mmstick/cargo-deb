@@ -15,17 +15,23 @@ pub fn resolve(path: &Path, architecture: &str) -> CDResult<Vec<String>> {
     };
 
     // Create an iterator of unique dependencies
-    let dependencies: Result<HashSet<_>,_> = dependencies.lines()
+    let dependencies: HashSet<_> = dependencies.lines()
         // We only want the third field on each line, which contains the filepath of the library.
         .map(|line| line.split_whitespace().nth(2))
         // If the field exists and starts with '/', we have found a filepath.
         .filter(|x| x.is_some() && x.unwrap().chars().next().unwrap() == '/')
         // Obtain the names of the packages.
-        .map(|path| get_package_name_with_fallback(path.unwrap()))
+        .filter_map(|path_str_opt|
+            get_package_name_with_fallback(path_str_opt.unwrap())
+                .map_err(|err|{
+                    eprintln!("warning: {} (skip this auto dep for {})", err, path.display());
+                    err
+                }).ok()
+        )
         // only collect unique packages.
         .collect();
 
-    Ok(dependencies?.iter().map(|package| {
+    Ok(dependencies.iter().map(|package| {
         // There can be multiple arch-specific versions of a package
         let version = get_version(&format!("{}:{}", package, architecture)).unwrap();   /* If we got here, package exists. */
         format!("{} (>= {})", package, version)
