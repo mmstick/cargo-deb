@@ -68,7 +68,7 @@ fn get_package_name(path: &str) -> CDResult<String> {
 /// Uses apt-cache policy to determine the version of the package that this project was built against.
 fn get_version(package: &str) -> CDResult<String> {
     let output = Command::new("dpkg-query").arg("--showformat=${Version}").arg("--show").arg(package)
-        .output().map_err(|e|CargoDebError::CommandFailed(e, "dpkg -s"))?;
+        .output().map_err(|e|CargoDebError::CommandFailed(e, "dpkg-query (get package version)"))?;
     if !output.status.success() {
         return Err(CargoDebError::CommandError("dpkg -s", package.to_owned(), output.stderr));
     }
