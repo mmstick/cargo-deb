@@ -33,7 +33,7 @@ pub fn resolve(path: &Path, architecture: &str) -> CDResult<Vec<String>> {
 
     Ok(dependencies.iter().map(|package| {
         // There can be multiple arch-specific versions of a package
-        let version = get_version(&format!("{}:{}", package, architecture)).unwrap();   /* If we got here, package exists. */
+        let version = get_version_new(&format!("{}:{}", package, architecture)).unwrap();   /* If we got here, package exists. */
         format!("{} (>= {})", package, version)
     }).collect())
 }
@@ -66,34 +66,12 @@ fn get_package_name(path: &str) -> CDResult<String> {
 }
 
 /// Uses apt-cache policy to determine the version of the package that this project was built against.
-fn get_version(package: &str) -> CDResult<String> {
-    let output = Command::new("dpkg").arg("-s").arg(&package)
-        .output().map_err(|e| CargoDebError::CommandFailed(e, "dpkg -s"))?;
+fn get_version_new(package: &str) -> CDResult<String> {
+    let output = Command::new("dpkg-query").arg("--showformat=${Version}").arg("--show").arg(package)
+        .output().map_err(|e|CargoDebError::CommandFailed(e, "dpkg -s"))?;
     if !output.status.success() {
         return Err(CargoDebError::CommandError("dpkg -s", package.to_owned(), output.stderr));
     }
-    parse_version(package, ::std::str::from_utf8(&output.stdout).unwrap())
-}
-
-fn parse_version(package: &str, apt_cache_out: &str) -> CDResult<String> {
-    let version_lines = apt_cache_out.lines().filter(|l| l.starts_with("Version:"));
-    let mut version = version_lines.filter_map(|line| line.splitn(2,':').skip(1).next()).map(|v|v.trim());
-
-    if let Some(version) = version.next() {
-        Ok(version.splitn(2, '-').next().unwrap().to_owned())
-    } else {
-        Err(CargoDebError::GetVersionError(package.to_owned()))
-    }
-}
-
-#[test]
-fn parse_version_test() {
-    assert_eq!(parse_version("foopackage", r"Package: libc6
-Status: install ok installed
-Priority: required
-Architecture: amd64
-Version: 2.23-0ubuntu9
-Multi-Arch: same
-Source: glibc"
-).unwrap(), "2.23");
+    let version = ::std::str::from_utf8(&output.stdout).unwrap();
+    return Ok(version.splitn(2, '-').next().unwrap().to_owned());
 }
