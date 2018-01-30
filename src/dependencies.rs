@@ -33,7 +33,7 @@ pub fn resolve(path: &Path, architecture: &str) -> CDResult<Vec<String>> {
 
     Ok(dependencies.iter().map(|package| {
         // There can be multiple arch-specific versions of a package
-        let version = get_version_new(&format!("{}:{}", package, architecture)).unwrap();   /* If we got here, package exists. */
+        let version = get_version(&format!("{}:{}", package, architecture)).unwrap();   /* If we got here, package exists. */
         format!("{} (>= {})", package, version)
     }).collect())
 }
@@ -66,7 +66,7 @@ fn get_package_name(path: &str) -> CDResult<String> {
 }
 
 /// Uses apt-cache policy to determine the version of the package that this project was built against.
-fn get_version_new(package: &str) -> CDResult<String> {
+fn get_version(package: &str) -> CDResult<String> {
     let output = Command::new("dpkg-query").arg("--showformat=${Version}").arg("--show").arg(package)
         .output().map_err(|e|CargoDebError::CommandFailed(e, "dpkg -s"))?;
     if !output.status.success() {
