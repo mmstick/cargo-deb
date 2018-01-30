@@ -70,7 +70,7 @@ fn get_version(package: &str) -> CDResult<String> {
     let output = Command::new("dpkg-query").arg("--showformat=${Version}").arg("--show").arg(package)
         .output().map_err(|e|CargoDebError::CommandFailed(e, "dpkg-query (get package version)"))?;
     if !output.status.success() {
-        return Err(CargoDebError::CommandError("dpkg -s", package.to_owned(), output.stderr));
+        return Err(CargoDebError::CommandError("dpkg-query (get package version)", package.to_owned(), output.stderr));
     }
     let version = ::std::str::from_utf8(&output.stdout).unwrap();
     return Ok(version.splitn(2, '-').next().unwrap().to_owned());
