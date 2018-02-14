@@ -49,6 +49,8 @@ This command obtains basic information it needs from [the `Cargo.toml` file](htt
  - **features**: List of [Cargo features](http://doc.crates.io/manifest.html#the-features-section) to use when building the package.
  - **default-features**: whether to use default crate features in addition to the `features` list (default `true`).
 
+ You can use `target/release` in asset paths, even if Cargo is configured to cross-compile or use custom `CARGO_TARGET_DIR`. The target dir paths will be automatically corrected.
+
 ### Example `Cargo.toml` additions
 
 ```toml
@@ -100,6 +102,6 @@ The target has to be [installed for Rust](https://github.com/rust-lang-nursery/r
 cargo deb --target=i686-unknown-linux-gnu
 ```
 
-Cross compiled archives are saved in `target/<target triple>/debian/*.deb`.
+Cross compiled archives are saved in `target/<target triple>/debian/*.deb`. The actual archive path is printed on success.
 
-In `.cargo/config` you can add `[target.<target triple>] strip = { path = "…" }` to specify path to the architecture-specific `strip` command.
+In `.cargo/config` you can add `[target.<target triple>] strip = { path = "…" }` to specify a path to the architecture-specific `strip` command.
