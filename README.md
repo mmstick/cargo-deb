@@ -30,6 +30,8 @@ This command obtains basic information it needs from [the `Cargo.toml` file](htt
 
 ## `[package.metadata.deb]` options
 
+Everything is optional:
+
 - **maintainer**: The person maintaining the Debian packaging. If not present, the first author is used.
 - **copyright**: To whom and when the copyright of the software is granted. If not present, the list of authors is used.
 - **license-file**: The location of the license and the amount of lines to skip at the top. If not present, package-level `license-file` is used.
@@ -46,9 +48,9 @@ This command obtains basic information it needs from [the `Cargo.toml` file](htt
     3. The third argument is the permissions (octal string) to assign that file.
  - **maintainer-scripts** - directory containing `preinst`, `postinst`, `prerm`, or `postrm` [scripts](https://www.debian.org/doc/debian-policy/#document-ch-maintainerscripts).
  - **conf-files** - [List of configuration files](https://www.debian.org/doc/manuals/maint-guide/dother.en.html#conffiles) that the package management system will not overwrite when the package is upgraded.
- - **features**: List of [Cargo features](http://doc.crates.io/manifest.html#the-features-section) to use when building the package.
- - **default-features**: whether to use default crate features in addition to the `features` list (default `true`).
  - **changelog**: Path to Debian-formatted [changelog file](https://www.debian.org/doc/manuals/maint-guide/dreq.en.html#changelog).
+ - **features**: List of [Cargo features](https://doc.rust-lang.org/cargo/reference/manifest.html#the-features-section) to use when building the package.
+ - **default-features**: whether to use default crate features in addition to the `features` list (default `true`).
 
 ### Example `Cargo.toml` additions
 
