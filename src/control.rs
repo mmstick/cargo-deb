@@ -89,6 +89,20 @@ fn generate_control(archive: &mut Archive, options: &Config) -> CDResult<()> {
     write!(&mut control, "Installed-Size: {}\n", installed_size)?;
 
     write!(&mut control, "Depends: {}\n", options.get_dependencies()?)?;
+
+    if let Some(ref conflicts) = options.conflicts {
+        write!(&mut control, "Conflicts: {}\n", conflicts)?;
+    }
+    if let Some(ref breaks) = options.breaks {
+        write!(&mut control, "Breaks: {}\n", breaks)?;
+    }
+    if let Some(ref replaces) = options.replaces {
+        write!(&mut control, "Replaces: {}\n", replaces)?;
+    }
+    if let Some(ref provides) = options.provides {
+        write!(&mut control, "Provides: {}\n", provides)?;
+    }
+
     write!(&mut control, "Description:")?;
     for line in options.description.split_by_chars(79) {
         write!(&mut control, " {}\n", line)?;

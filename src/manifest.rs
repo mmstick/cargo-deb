@@ -76,6 +76,16 @@ pub struct Config {
     pub section: Option<String>,
     /// The priority of the project. Typically 'optional'.
     pub priority: String,
+
+    /// https://wiki.debian.org/PackageTransition
+    pub conflicts: Option<String>,
+    /// https://wiki.debian.org/PackageTransition
+    pub breaks: Option<String>,
+    /// https://wiki.debian.org/PackageTransition
+    pub replaces: Option<String>,
+    /// https://wiki.debian.org/PackageTransition
+    pub provides: Option<String>,
+
     /// The architecture of the running system.
     pub architecture: String,
     /// A list of configuration files installed by the package.
@@ -251,6 +261,10 @@ impl Cargo {
                     .ok_or("Package must have a maintainer or authors")?.to_owned())
             })?,
             depends: deb.depends.take().unwrap_or("$auto".to_owned()),
+            conflicts: deb.conflicts.take(),
+            breaks: deb.breaks.take(),
+            replaces: deb.replaces.take(),
+            provides: deb.provides.take(),
             section: deb.section.take(),
             priority: deb.priority.take().unwrap_or("optional".to_owned()),
             architecture: get_arch(target.unwrap_or(ARCH)).to_owned(),
@@ -433,7 +447,12 @@ struct CargoDeb {
     pub maintainer: Option<String>,
     pub copyright: Option<String>,
     pub license_file: Option<Vec<String>>,
+    pub changelog: Option<String>,
     pub depends: Option<String>,
+    pub conflicts: Option<String>,
+    pub breaks: Option<String>,
+    pub replaces: Option<String>,
+    pub provides: Option<String>,
     pub extended_description: Option<String>,
     pub section: Option<String>,
     pub priority: Option<String>,
@@ -443,7 +462,6 @@ struct CargoDeb {
     pub maintainer_scripts: Option<String>,
     pub features: Option<Vec<String>>,
     pub default_features: Option<bool>,
-    pub changelog: Option<String>,
 }
 
 #[derive(Deserialize)]

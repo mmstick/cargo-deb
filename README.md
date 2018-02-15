@@ -26,7 +26,7 @@ Debug symbols are stripped from the main binary by default. To keep debug symbol
 
 ## Configuration
 
-This command obtains basic information it needs from [the `Cargo.toml` file](http://doc.crates.io/manifest.html). It uses Cargo fields: `name`, `version`, `license`, `license-file`, `description`, `readme`, `homepage`, and `repository`. However, as these fields are not enough for a complete Debian package, you may also define a new table, `[package.metadata.deb]` that contains `maintainer`, `copyright`, `license-file`, `depends`, `extended-description`, `section`, `priority`, and `assets`.
+This command obtains basic information it needs from [the `Cargo.toml` file](http://doc.crates.io/manifest.html). It uses Cargo fields: `name`, `version`, `license`, `license-file`, `description`, `readme`, `homepage`, and `repository`. However, as these fields are not enough for a complete Debian package, you may also define a new table, `[package.metadata.deb]` that contains `maintainer`, `copyright`, `license-file`, `changelog`, `depends`, `conflicts`, `breaks`, `replaces`, `provides`, `extended-description`, `section`, `priority`, and `assets`.
 
 ## `[package.metadata.deb]` options
 
@@ -36,6 +36,7 @@ Everything is optional:
 - **copyright**: To whom and when the copyright of the software is granted. If not present, the list of authors is used.
 - **license-file**: The location of the license and the amount of lines to skip at the top. If not present, package-level `license-file` is used.
 - **depends**: The runtime [dependencies](https://www.debian.org/doc/debian-policy/#document-ch-relationships) of the project, which are automatically generated with the `$auto` keyword.
+- **conflicts**, **breaks**, **replaces**, **provides** — [package transition](https://wiki.debian.org/PackageTransition) control.
 - **extended-description**: An extended description of the project — the more detailed the better. Package's `readme` file is used as a fallback.
 - **revision**: Version of the Debian package (when the package is updated more often than the project).
 - **section**: The [application category](https://packages.debian.org/stretch/) that the software belongs to.
