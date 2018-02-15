@@ -70,7 +70,8 @@ fn err_exit(err: &std::error::Error) -> ! {
 }
 
 fn process(CliOptions {target, install, no_build, no_strip, quiet, verbose}: CliOptions) -> CDResult<()> {
-    let (options, warnings) = Config::from_manifest(target.as_ref().map(|s|s.as_ref()))?;
+    let target = target.as_ref().map(|s|s.as_str());
+    let (options, warnings) = Config::from_manifest(target)?;
     if !quiet {
         for warning in warnings {
             println!("warning: {}", warning);
@@ -79,10 +80,10 @@ fn process(CliOptions {target, install, no_build, no_strip, quiet, verbose}: Cli
     reset_deb_directory(&options)?;
 
     if !no_build {
-        cargo_build(&options, &target, verbose)?;
+        cargo_build(&options, target, verbose)?;
     }
     if options.strip && !no_strip {
-        strip_binaries(&options, &target)?;
+        strip_binaries(&options, target)?;
     }
 
     // Obtain the current time which will be used to stamp the generated files in the archives.

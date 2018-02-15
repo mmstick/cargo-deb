@@ -11,7 +11,7 @@ use archive::Archive;
 use wordsplit::WordSplit;
 use std::fs::metadata;
 
-/// Generates the uncompressed control.tar archive
+/// Generates an uncompressed tar archive with `control`, `md5sums`, and others
 pub fn generate_archive(options: &Config, time: u64, asset_hashes: HashMap<PathBuf, Digest>) -> CDResult<Vec<u8>> {
     let mut archive = Archive::new(time);
     generate_md5sums(&mut archive, options, asset_hashes)?;

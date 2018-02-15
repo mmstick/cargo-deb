@@ -8,7 +8,7 @@ use std::collections::HashMap;
 use error::*;
 use archive::Archive;
 
-/// Generates the uncompressed control.tar archive
+/// Generates an uncompressed tar archive and hashes of its files
 pub fn generate_archive(options: &Config, time: u64) -> CDResult<(Vec<u8>, HashMap<PathBuf, Digest>)> {
     let mut archive = Archive::new(time);
     generate_copyright_asset(options)?;

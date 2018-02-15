@@ -1,5 +1,50 @@
 #![recursion_limit="128"]
 
+/*!
+
+## Making deb packages
+
+If you only want to make some `*.deb` files, and you're not a developer of tools
+for Debian packaging, **[see `cargo deb` command usage described in the
+README instead](https://github.com/mmstick/cargo-deb#readme)**.
+
+```sh
+cargo install cargo-deb
+cargo deb # run this in your Cargo project directory
+```
+
+## Making tools for making deb packages
+
+The library interface is experimental. See `main.rs` for usage.
+
+```rust,ignore
+let (options, warnings) = Config::from_manifest(target)?;
+
+reset_deb_directory(&options)?;
+cargo_build(&options, target, verbose)?;
+strip_binaries(&options, target)?;
+
+let bin_path = generate_debian_binary_file(&options)?;
+let mut deb_contents = vec![];
+deb_contents.push(bin_path);
+
+let system_time = time::SystemTime::now().duration_since(time::UNIX_EPOCH)?.as_secs();
+// Initailize the contents of the data archive (files that go into the filesystem).
+let (data_archive, asset_hashes) = data::generate_archive(&options, system_time)?;
+let data_base_path = options.path_in_deb("data.tar");
+
+// Initialize the contents of the control archive (metadata for the package manager).
+let control_archive = control::generate_archive(&options, system_time, asset_hashes)?;
+let control_base_path = options.path_in_deb("control.tar");
+
+// Order is important for Debian
+deb_contents.push(compress::gz(&control_archive, &control_base_path)?);
+deb_contents.push(compress::xz_or_gz(&data_archive, &data_base_path)?);
+
+let generated = generate_deb(&options, &deb_contents)?;
+```
+*/
+
 extern crate toml;
 extern crate tar;
 #[cfg(feature = "lzma")]
@@ -37,6 +82,7 @@ pub use manifest::Config;
 
 const TAR_REJECTS_CUR_DIR: bool = true;
 
+/// Run `dpkg` to install `deb` archive at the given path
 pub fn install_deb(path: &Path) -> CDResult<()> {
     let status = Command::new("sudo").arg("dpkg").arg("-i").arg(path)
         .status()?;
@@ -69,7 +115,7 @@ pub fn generate_deb(config: &Config, contents: &[PathBuf]) -> CDResult<PathBuf> 
     Ok(out_abspath)
 }
 
-// Creates the debian-binary file that will be added to the final ar archive.
+/// Creates the debian-binary file that will be added to the final ar archive.
 pub fn generate_debian_binary_file(options: &Config) -> io::Result<PathBuf> {
     let bin_path = options.path_in_deb("debian-binary");
     let mut file = fs::OpenOptions::new()
@@ -90,14 +136,14 @@ pub fn reset_deb_directory(options: &Config) -> io::Result<()> {
 }
 
 /// Builds a release binary with `cargo build --release`
-pub fn cargo_build(options: &Config, target: &Option<String>, verbose: bool) -> CDResult<()> {
+pub fn cargo_build(options: &Config, target: Option<&str>, verbose: bool) -> CDResult<()> {
     let mut cmd = Command::new("cargo");
     cmd.arg("build").args(&["--release", "--all"]);
 
     if verbose {
         cmd.arg("--verbose");
     }
-    if let Some(ref target) = *target {
+    if let Some(target) = target {
         cmd.arg(format!("--target={}", target));
     }
     if !options.default_features {
@@ -115,13 +161,13 @@ pub fn cargo_build(options: &Config, target: &Option<String>, verbose: bool) -> 
     Ok(())
 }
 
-// Strips the binary that was created with cargo
-pub fn strip_binaries(options: &Config, target: &Option<String>) -> CDResult<()> {
+/// Strips the binary that was created with cargo
+pub fn strip_binaries(options: &Config, target: Option<&str>) -> CDResult<()> {
     let mut cargo_config = None;
     let strip_tmp;
     let mut strip_cmd = "strip";
 
-    if let Some(ref target) = *target {
+    if let Some(target) = target {
         cargo_config = options.cargo_config()?;
         if let Some(ref conf) = cargo_config {
             if let Some(cmd) = conf.strip_command(target) {
@@ -142,7 +188,7 @@ pub fn strip_binaries(options: &Config, target: &Option<String>) -> CDResult<()>
                 Err(io::Error::new(io::ErrorKind::Other, format!("{}",s)))
             })
             .map_err(|err| {
-                if let Some(ref target) = *target {
+                if let Some(target) = target {
                     let conf_path = cargo_config.as_ref().map(|c|c.path()).unwrap_or(Path::new(".cargo/config"));
                     CargoDebError::StripFailed(name.to_owned(), format!("{}: {}.\nhint: Target-specific strip commands are configured in [target.{}] strip = \"{}\" in {}", strip_cmd, err, target, strip_cmd, conf_path.display()))
                 } else {
