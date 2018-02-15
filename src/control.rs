@@ -42,10 +42,10 @@ fn generate_md5sums(archive: &mut Archive, options: &Config, asset_hashes: HashM
     // Collect md5sums from each asset in the archive.
     for asset in &options.assets {
         write!(md5sums, "{:x}", asset_hashes[&asset.source_file])?;
-        md5sums.write(b"  ")?;
+        md5sums.write_all(b"  ")?;
 
-        md5sums.write(asset.target_path.as_os_str().as_bytes())?;
-        md5sums.write(&[b'\n'])?;
+        md5sums.write_all(asset.target_path.as_os_str().as_bytes())?;
+        md5sums.write_all(&[b'\n'])?;
     }
 
     // Write the data to the archive
@@ -70,14 +70,14 @@ fn generate_control(archive: &mut Archive, options: &Config) -> CDResult<()> {
             write!(&mut control, "Vcs-{}: {}\n", kind, repo)?;
         }
     }
-    if let Some(ref homepage) = options.homepage.as_ref().or(options.documentation.as_ref()) {
+    if let Some(homepage) = options.homepage.as_ref().or(options.documentation.as_ref()) {
         write!(&mut control, "Homepage: {}\n", homepage)?;
     }
     if let Some(ref section) = options.section {
         write!(&mut control, "Section: {}\n", section)?;
     }
     write!(&mut control, "Priority: {}\n", options.priority)?;
-    control.write(b"Standards-Version: 3.9.4\n")?;
+    control.write_all(b"Standards-Version: 3.9.4\n")?;
     write!(&mut control, "Maintainer: {}\n", options.maintainer)?;
 
     let installed_size = options.assets
@@ -123,7 +123,7 @@ fn generate_control(archive: &mut Archive, options: &Config) -> CDResult<()> {
 /// If configuration files are required, the conffiles file will be created.
 fn generate_conf_files(archive: &mut Archive, files: &str) -> CDResult<()> {
     let mut data = Vec::new();
-    data.write(files.as_bytes())?;
+    data.write_all(files.as_bytes())?;
     data.push(b'\n');
     archive.file("./conffiles", &data, 0o644)?;
     Ok(())

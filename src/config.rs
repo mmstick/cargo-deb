@@ -17,7 +17,7 @@ impl CargoConfig {
             if let Some(conf) = Self::try_parse(project_path)? {
                 return Ok(Some(conf));
             }
-            if let Some(ref parent) = project_path.parent() {
+            if let Some(parent) = project_path.parent() {
                 project_path = parent;
             } else {
                 break;
@@ -79,7 +79,7 @@ impl CargoConfig {
     }
 
     pub fn path(&self) -> &Path {
-        return &self.path;
+        &self.path
     }
 
     fn linker_command(&self, target_triple: &str) -> Option<&str> {

@@ -34,10 +34,10 @@ fn generate_copyright_asset(options: &Config) -> CDResult<()> {
         for line in license_string.lines().skip(options.license_file_skip_lines) {
             // If the line is empty, write a dot, else write the line.
             if line.is_empty() {
-                copyright.write(b".\n")?;
+                copyright.write_all(b".\n")?;
             } else {
-                copyright.write(line.trim().as_bytes())?;
-                copyright.write(b"\n")?;
+                copyright.write_all(line.trim().as_bytes())?;
+                copyright.write_all(b"\n")?;
             }
         }
     }

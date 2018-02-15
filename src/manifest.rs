@@ -28,9 +28,9 @@ impl Asset {
             target_path = target_path.strip_prefix("/").expect("no root dir").to_owned();
         }
         // is_dir() is only for paths that exist
-        if target_path.to_string_lossy().ends_with("/") {
+        if target_path.to_string_lossy().ends_with('/') {
             target_path = target_path.join(source_file.file_name().expect("source must be a file"));
-    }
+        }
         Self {
             source_file,
             target_path,
@@ -46,7 +46,7 @@ impl Asset {
 #[derive(Debug)]
 /// Cargo deb configuration read from the manifest and cargo metadata
 pub struct Config {
-    /// Cargo's `workspace_root` path from metadata 
+    /// Cargo's `workspace_root` path from metadata
     /// (for simple crates it's the same as the dir with `Cargo.toml`)
     pub workspace_root: PathBuf,
     /// Triple. `None` means current machine architecture.
@@ -61,7 +61,7 @@ pub struct Config {
     pub license_file: Option<PathBuf>,
     /// number of lines to skip when reading `license_file`
     pub license_file_skip_lines: usize,
-    /// The copyright of the project 
+    /// The copyright of the project
     /// (Debian's `copyright` file contents).
     pub copyright: String,
     /// The version number of the project.
@@ -87,19 +87,19 @@ pub struct Config {
     pub priority: String,
 
     /// `Conflicts` Debian control field.
-    /// 
+    ///
     /// See [PackageTransition](https://wiki.debian.org/PackageTransition).
     pub conflicts: Option<String>,
     /// `Breaks` Debian control field.
-    /// 
+    ///
     /// See [PackageTransition](https://wiki.debian.org/PackageTransition).
     pub breaks: Option<String>,
     /// `Replaces` Debian control field.
-    /// 
+    ///
     /// See [PackageTransition](https://wiki.debian.org/PackageTransition).
     pub replaces: Option<String>,
     /// `Provides` Debian control field.
-    /// 
+    ///
     /// See [PackageTransition](https://wiki.debian.org/PackageTransition).
     pub provides: Option<String>,
 
@@ -127,7 +127,7 @@ impl Config {
         let metadata = cargo_metadata()?;
         let root_id = metadata.resolve.root;
         let root_package = metadata.packages.iter()
-            .filter(|p|p.id == root_id).next()
+            .find(|p| p.id == root_id)
             .ok_or("Unable to find root package in cargo metadata")?;
         let target_dir = Path::new(&metadata.target_directory);
         let manifest_path = Path::new(&root_package.manifest_path);
@@ -138,7 +138,7 @@ impl Config {
         };
         let content = file::get_text(&manifest_path)
             .map_err(|e| CargoDebError::IoFile("unable to read Cargo.toml", e, manifest_path.to_owned()))?;
-        toml::from_str::<Cargo>(&content)?.to_config(root_package, &workspace_root, &target_dir, target)
+        toml::from_str::<Cargo>(&content)?.into_config(root_package, workspace_root, target_dir, target)
     }
 
     pub(crate) fn get_dependencies(&self) -> CDResult<String> {
@@ -146,7 +146,7 @@ impl Config {
         for word in self.depends.split(',') {
             let word = word.trim();
             if word == "$auto" {
-                for bname in self.binaries().iter() {
+                for bname in &self.binaries() {
                     match resolve(bname, &self.architecture) {
                         Ok(bindeps) => for dep in bindeps {
                             deps.insert(dep);
@@ -245,7 +245,7 @@ struct Cargo {
 }
 
 impl Cargo {
-    fn to_config(mut self, root_package: &CargoMetadataPackage, workspace_root: &Path, target_dir: &Path, target: Option<&str>)
+    fn into_config(mut self, root_package: &CargoMetadataPackage, workspace_root: &Path, target_dir: &Path, target: Option<&str>)
         -> CDResult<(Config, Vec<String>)>
     {
         // Cargo cross-compiles to a dir
@@ -256,7 +256,7 @@ impl Cargo {
         };
 
         let mut deb = self.package.metadata.take().and_then(|m|m.deb)
-            .unwrap_or_else(|| CargoDeb::default());
+            .unwrap_or_else(CargoDeb::default);
         let (license_file, license_file_skip_lines) = self.license_file(deb.license_file.as_ref())?;
         let readme = self.package.readme.as_ref();
         let warnings = self.check_config(readme, &deb);
@@ -291,7 +291,7 @@ impl Cargo {
             architecture: get_arch(target.unwrap_or(ARCH)).to_owned(),
             conf_files: deb.conf_files.map(|x| x.iter().fold(String::new(), |a, b| a + b + "\n")),
             assets: vec![],
-            maintainer_scripts: deb.maintainer_scripts.map(|s| PathBuf::from(s)),
+            maintainer_scripts: deb.maintainer_scripts.map(PathBuf::from),
             features: deb.features.take().unwrap_or(vec![]),
             default_features: deb.default_features.unwrap_or(true),
             strip: self.profile.as_ref().and_then(|p|p.release.as_ref())
@@ -360,7 +360,7 @@ impl Cargo {
     fn take_assets(&self, options: &Config, assets: Option<Vec<Vec<String>>>, targets: &[CargoMetadataTarget], readme: Option<&String>) -> CDResult<Vec<Asset>> {
         Ok(if let Some(assets) = assets {
             let mut all_assets = Vec::with_capacity(assets.len());
-            for mut v in assets.into_iter() {
+            for mut v in assets {
                 let mut v = v.drain(..);
                 let mut source_path = PathBuf::from(v.next().ok_or("missing path for asset")?);
                 if source_path.starts_with("target/release") {
@@ -547,8 +547,8 @@ fn get_arch(target: &str) -> &str {
         ("powerpc", "gnuspe") => "powerpcspe",
         ("powerpc64", _)   => "ppc64",
         ("powerpc64le", _) => "ppc64el",
-        ("i586", _)  => "i386",
-        ("i686", _)  => "i386",
+        ("i586", _) |
+        ("i686", _) |
         ("x86", _)   => "i386",
         ("x86_64", "gnux32") => "x32",
         ("x86_64", _) => "amd64",

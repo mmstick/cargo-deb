@@ -19,7 +19,7 @@ pub fn resolve(path: &Path, architecture: &str) -> CDResult<Vec<String>> {
         // We only want the third field on each line, which contains the filepath of the library.
         .map(|line| line.split_whitespace().nth(2))
         // If the field exists and starts with '/', we have found a filepath.
-        .filter(|x| x.is_some() && x.unwrap().chars().next().unwrap() == '/')
+        .filter(|x| x.is_some() && x.unwrap().starts_with('/'))
         // Obtain the names of the packages.
         .filter_map(|path_str_opt|
             get_package_name_with_fallback(path_str_opt.unwrap())
@@ -73,5 +73,5 @@ fn get_version(package: &str) -> CDResult<String> {
         return Err(CargoDebError::CommandError("dpkg-query (get package version)", package.to_owned(), output.stderr));
     }
     let version = ::std::str::from_utf8(&output.stdout).unwrap();
-    return Ok(version.splitn(2, '-').next().unwrap().to_owned());
+    Ok(version.splitn(2, '-').next().unwrap().to_owned())
 }

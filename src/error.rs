@@ -27,7 +27,7 @@ quick_error! {
         }
         CommandError(msg: &'static str, arg: String, reason: Vec<u8>) {
             description(msg)
-            display("{} ({}): {}", msg, arg, String::from_utf8_lossy(&reason))
+            display("{} ({}): {}", msg, arg, String::from_utf8_lossy(reason))
         }
         Str(msg: &'static str) {
             from()
@@ -66,7 +66,7 @@ quick_error! {
         }
         PackageNotFound(path: String, reason: Vec<u8>) {
             description("unable to find package for the library")
-            display("path '{}' does not belong to a package: {}", path, String::from_utf8_lossy(&reason))
+            display("path '{}' does not belong to a package: {}", path, String::from_utf8_lossy(reason))
         }
         GlobPatternError(err: glob::PatternError) {
             from()

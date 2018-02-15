@@ -124,7 +124,7 @@ pub fn generate_debian_binary_file(options: &Config) -> io::Result<PathBuf> {
         .truncate(true)
         .mode(0o644)
         .open(&bin_path)?;
-    file.write(b"2.0\n")?;
+    file.write_all(b"2.0\n")?;
     Ok(bin_path)
 }
 

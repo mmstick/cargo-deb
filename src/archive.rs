@@ -28,7 +28,7 @@ impl Archive {
         header.set_mode(0o755);
         // Lintian insists on dir paths ending with /, which Rust doesn't
         let mut path_str = path.to_string_lossy().to_string();
-        if !path_str.ends_with("/") {
+        if !path_str.ends_with('/') {
             path_str += "/";
         }
         header.set_path(&path_str)?;
