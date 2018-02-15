@@ -1,4 +1,4 @@
-use std::env::consts::ARCH;
+use std::env::consts::{ARCH, DLL_PREFIX, DLL_SUFFIX};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::collections::HashSet;
@@ -301,7 +301,7 @@ impl Cargo {
 
         let assets = self.take_assets(&config, deb.assets.take(), &root_package.targets, readme)?;
         if assets.is_empty() {
-            Err("No binaries found. The package is empty. Please specify some assets to package in Cargo.toml")?;
+            Err("No binaries or cdylibs found. The package is empty. Please specify some assets to package in Cargo.toml")?;
         }
         config.assets.extend(assets);
         config.add_copyright_asset();
@@ -395,14 +395,26 @@ impl Cargo {
         } else {
             let mut implied_assets: Vec<_> = targets
                 .iter()
-                .filter(|t| t.crate_types.iter().any(|ty|ty=="bin") && t.kind.iter().any(|k|k=="bin"))
-                .map(|bin| {
-                Asset::new(
-                    options.path_in_build(&bin.name),
-                    PathBuf::from("usr/bin").join(&bin.name),
-                    0o755,
-                )
-            }).collect();
+                .filter_map(|t| {
+                    if t.crate_types.iter().any(|ty|ty=="bin") && t.kind.iter().any(|k|k=="bin") {
+                        Some(Asset::new(
+                            options.path_in_build(&t.name),
+                            PathBuf::from("usr/bin").join(&t.name),
+                            0o755,
+                        ))
+                    } else if t.crate_types.iter().any(|ty|ty=="cdylib") && t.kind.iter().any(|k|k=="cdylib") {
+                        // FIXME: std has constants for the host arch, but not for cross-compilation
+                        let lib_name = format!("{}{}{}", DLL_PREFIX, t.name, DLL_SUFFIX);
+                        Some(Asset::new(
+                            options.path_in_build(&lib_name),
+                            PathBuf::from("usr/lib").join(lib_name),
+                            0o644,
+                        ))
+                    } else {
+                        None
+                    }
+                })
+                .collect();
             if let Some(readme) = readme {
                 let target_path = PathBuf::from("usr/share/doc").join(&self.package.name).join(readme);
                 implied_assets.push(Asset::new(
