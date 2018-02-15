@@ -108,10 +108,10 @@ fn process(CliOptions {target, install, no_build, no_strip, quiet, verbose}: Cli
             println!("warning: {}", warning);
         }
     }
-    remove_leftover_files(&options.deb_dir())?;
+    reset_deb_directory(&options)?;
 
     if !no_build {
-        cargo_build(&target, &options.features, options.default_features, verbose)?;
+        cargo_build(&options, &target, verbose)?;
     }
     if options.strip && !no_strip {
         strip_binaries(&options, &target)?;
@@ -121,8 +121,7 @@ fn process(CliOptions {target, install, no_build, no_strip, quiet, verbose}: Cli
     let system_time = time::SystemTime::now().duration_since(time::UNIX_EPOCH)?.as_secs();
     let mut deb_contents = vec![];
 
-    let bin_path = options.path_in_deb("debian-binary");
-    generate_debian_binary_file(&bin_path)?;
+    let bin_path = generate_debian_binary_file(&options)?;
     deb_contents.push(bin_path);
 
     // The block frees the large data_archive var early
@@ -184,21 +183,27 @@ fn generate_deb(config: &Config, contents: &[PathBuf]) -> CDResult<PathBuf> {
 }
 
 // Creates the debian-binary file that will be added to the final ar archive.
-fn generate_debian_binary_file(path: &Path) -> io::Result<()> {
-    let mut file = fs::OpenOptions::new().create(true).write(true)
-        .truncate(true).mode(0o644).open(path)?;
+fn generate_debian_binary_file(options: &Config) -> io::Result<PathBuf> {
+    let bin_path = options.path_in_deb("debian-binary");
+    let mut file = fs::OpenOptions::new()
+        .create(true)
+        .write(true)
+        .truncate(true)
+        .mode(0o644)
+        .open(&bin_path)?;
     file.write(b"2.0\n")?;
-    Ok(())
+    Ok(bin_path)
 }
 
 /// Removes the target/debian directory so that we can start fresh.
-fn remove_leftover_files(deb_dir: &Path) -> io::Result<()> {
-    let _ = fs::remove_dir_all(deb_dir);
+fn reset_deb_directory(options: &Config) -> io::Result<()> {
+    let deb_dir = options.deb_dir();
+    let _ = fs::remove_dir_all(&deb_dir);
     fs::create_dir_all(deb_dir)
 }
 
 /// Builds a release binary with `cargo build --release`
-fn cargo_build(target: &Option<String>, features: &[String], default_features: bool, verbose: bool) -> CDResult<()> {
+fn cargo_build(options: &Config, target: &Option<String>, verbose: bool) -> CDResult<()> {
     let mut cmd = Command::new("cargo");
     cmd.arg("build").args(&["--release", "--all"]);
 
@@ -208,9 +213,10 @@ fn cargo_build(target: &Option<String>, features: &[String], default_features: b
     if let Some(ref target) = *target {
         cmd.arg(format!("--target={}", target));
     }
-    if !default_features {
+    if !options.default_features {
         cmd.arg("--no-default-features");
     }
+    let features = &options.features;
     if !features.is_empty() {
         cmd.arg(format!("--features={}", features.join(",")));
     }
