@@ -11,6 +11,16 @@ repository = "https://github.com/mmstick/cargo-deb"
 readme = "README.md"
 version = "1.5.0"
 
+[lib]
+name = "cargo_deb"
+path = "src/lib.rs"
+doc = true
+
+[[bin]]
+name = "cargo-deb"
+path = "src/main.rs"
+doc = false
+
 [badges]
 travis-ci = { repository = "mmstick/cargo-deb" }
 
