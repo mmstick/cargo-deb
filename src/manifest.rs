@@ -37,9 +37,20 @@ impl Asset {
             chmod,
         }
     }
-    pub fn is_binary_executable(&self, workspace_root: &Path, release_dir_prefix: &Path) -> bool {
+
+    fn is_built(&self, workspace_root: &Path, release_dir_prefix: &Path) -> bool {
         let source_file_abspath = workspace_root.join(&self.source_file);
-        source_file_abspath.starts_with(release_dir_prefix) && 0 != (self.chmod & 0o111)
+        source_file_abspath.starts_with(release_dir_prefix)
+    }
+
+    fn is_executable(&self) -> bool {
+        0 != (self.chmod & 0o111)
+    }
+
+    fn is_dynamic_library(&self) -> bool {
+        self.source_file.file_name()
+            .and_then(|f| f.to_str())
+            .map_or(false, |f| f.ends_with(DLL_SUFFIX))
     }
 }
 
@@ -181,6 +192,7 @@ impl Config {
         }
     }
 
+    /// Executables AND dynamic libraries
     pub(crate) fn binaries(&self) -> Vec<&Path> {
         let target_dir = if self.target.is_some() {
             // Strip target triple
@@ -191,7 +203,8 @@ impl Config {
         let release_dir_prefix = target_dir.join("release");
         self.assets.iter().filter_map(|asset| {
             // Assumes files in build dir which have executable flag set are binaries
-            if asset.is_binary_executable(&self.workspace_root, &release_dir_prefix) {
+            if asset.is_built(&self.workspace_root, &release_dir_prefix) &&
+                (asset.is_dynamic_library() || asset.is_executable()) {
                 Some(asset.source_file.as_path())
             } else {
                 None
