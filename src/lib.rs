@@ -177,7 +177,7 @@ pub fn strip_binaries(options: &Config, target: Option<&str>) -> CDResult<()> {
         }
     }
 
-    for name in options.binaries() {
+    for name in options.built_binaries() {
         Command::new(strip_cmd)
             .arg("--strip-unneeded")
             .arg(name)

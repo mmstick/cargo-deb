@@ -20,10 +20,16 @@ pub struct Asset {
     pub source_file: PathBuf,
     pub target_path: PathBuf,
     pub chmod: u32,
+    is_built: bool,
 }
 
 impl Asset {
     pub fn new(source_file: PathBuf, mut target_path: PathBuf, chmod: u32) -> Self {
+        // target/release is treated as a magic alias for the actual target dir
+        // (which may be slightly different in practice)
+        // and assume everything in there is built by Cargo
+        let is_built = source_file.starts_with("target/release");
+
         if target_path.is_absolute() {
             target_path = target_path.strip_prefix("/").expect("no root dir").to_owned();
         }
@@ -35,12 +41,8 @@ impl Asset {
             source_file,
             target_path,
             chmod,
+            is_built,
         }
-    }
-
-    fn is_built(&self, workspace_root: &Path, release_dir_prefix: &Path) -> bool {
-        let source_file_abspath = workspace_root.join(&self.source_file);
-        source_file_abspath.starts_with(release_dir_prefix)
     }
 
     fn is_executable(&self) -> bool {
@@ -158,7 +160,7 @@ impl Config {
         for word in self.depends.split(',') {
             let word = word.trim();
             if word == "$auto" {
-                for bname in &self.binaries() {
+                for bname in &self.all_binaries() {
                     match resolve(bname, &self.architecture) {
                         Ok(bindeps) => for dep in bindeps {
                             deps.insert(dep);
@@ -196,17 +198,19 @@ impl Config {
     }
 
     /// Executables AND dynamic libraries
-    pub(crate) fn binaries(&self) -> Vec<&Path> {
-        let target_dir = if self.target.is_some() {
-            // Strip target triple
-            self.target_dir.parent().expect("no target dir")
-        } else {
-            &self.target_dir
-        };
-        let release_dir_prefix = target_dir.join("release");
+    fn all_binaries(&self) -> Vec<&Path> {
+        self.binaries(false)
+    }
+
+    /// Executables AND dynamic libraries, but only in `target/release`
+    pub(crate) fn built_binaries(&self) -> Vec<&Path> {
+        self.binaries(true)
+    }
+
+    fn binaries(&self, built_only: bool) -> Vec<&Path> {
         self.assets.iter().filter_map(|asset| {
             // Assumes files in build dir which have executable flag set are binaries
-            if asset.is_built(&self.workspace_root, &release_dir_prefix) &&
+            if (!built_only || asset.is_built) &&
                 (asset.is_dynamic_library() || asset.is_executable()) {
                 Some(asset.source_file.as_path())
             } else {
