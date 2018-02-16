@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use md5::Digest;
 use md5;
 use file;
+use compress;
 use manifest::Config;
 use std::collections::HashMap;
 use error::*;
@@ -12,8 +13,19 @@ use archive::Archive;
 pub fn generate_archive(options: &Config, time: u64) -> CDResult<(Vec<u8>, HashMap<PathBuf, Digest>)> {
     let mut archive = Archive::new(time);
     generate_copyright_asset(options)?;
+    generate_changelog_asset(options)?;
     let copy_hashes = archive_files(&mut archive, options)?;
     Ok((archive.into_inner()?, copy_hashes))
+}
+
+/// Generates compressed changelog file
+fn generate_changelog_asset(options: &Config) -> CDResult<()> {
+    if let Some(ref path) = options.changelog {
+        let changelog = file::get(path)
+            .map_err(|e| CargoDebError::IoFile("unable to read changelog file", e, path.into()))?;
+        compress::gz(&changelog, &options.path_in_deb("changelog"))?;
+    }
+    Ok(())
 }
 
 /// Generates the copyright file from the license file and adds that to the tar archive.
