@@ -5,12 +5,12 @@ version = "0.1.0"
 [dependencies]
 
 [package.metadata.deb]
-maintainer = "cargo-deb developers"
+maintainer = "cargo-deb developers <cargo-deb@example.invalid>"
 copyright = "2017, cargo-deb developers."
 license-file = ["LICENSE", "2"]
-extended-description = "cargo-deb example project"
+extended-description = "example project for cargo-deb"
 depends = "$auto"
-section = "utility"
+section = "utils"
 priority = "optional"
 assets = [
     # binary
