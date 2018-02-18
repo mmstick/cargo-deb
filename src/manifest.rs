@@ -138,8 +138,8 @@ impl Config {
     /// Makes a new config from `Cargo.toml` in the current working directory.
     ///
     /// `None` target means the host machine's architecture.
-    pub fn from_manifest(target: Option<&str>, listener: &mut Listener) -> CDResult<Config> {
-        let metadata = cargo_metadata()?;
+    pub fn from_manifest(manifest_path: &Path, target: Option<&str>, listener: &mut Listener) -> CDResult<Config> {
+        let metadata = cargo_metadata(manifest_path)?;
         let root_id = metadata.resolve.root;
         let root_package = metadata.packages.iter()
             .find(|p| p.id == root_id)
@@ -248,6 +248,10 @@ impl Config {
         self.target_dir.join("release").join(rel_path)
     }
 
+    pub(crate) fn path_in_workspace<P: AsRef<Path>>(&self, rel_path: P) -> PathBuf {
+        self.workspace_root.join(rel_path)
+    }
+
     pub(crate) fn deb_dir(&self) -> PathBuf {
         self.target_dir.join("debian")
     }
@@ -287,7 +291,7 @@ impl Cargo {
             .unwrap_or_else(CargoDeb::default);
         let (license_file, license_file_skip_lines) = self.license_file(deb.license_file.as_ref())?;
         let readme = self.package.readme.as_ref();
-        self.check_config(readme, &deb, listener);
+        self.check_config(workspace_root, readme, &deb, listener);
         let mut config = Config {
             workspace_root: workspace_root.to_owned(),
             target: target.map(|t| t.to_string()),
@@ -339,7 +343,7 @@ impl Cargo {
         Ok(config)
     }
 
-    fn check_config(&self, readme: Option<&String>, deb: &CargoDeb, listener: &mut Listener) {
+    fn check_config(&self, workspace_root: &Path, readme: Option<&String>, deb: &CargoDeb, listener: &mut Listener) {
         if self.package.description.is_none() {
             listener.warning("description field is missing in Cargo.toml".to_owned());
         }
@@ -351,8 +355,8 @@ impl Cargo {
                 listener.warning(format!("extended-description field missing. Using {}, but markdown may not render well.",readme));
             }
         } else {
-            for p in &["README.md", "README.txt", "README"] {
-                if Path::new(p).exists() {
+            for p in &["README.md", "README.markdown", "README.txt", "README"] {
+                if workspace_root.join(p).exists() {
                     listener.warning(format!("{} file exists, but is not specified in `readme` Cargo.toml field", p));
                     break;
                 }
@@ -390,9 +394,11 @@ impl Cargo {
             for mut v in assets {
                 let mut v = v.drain(..);
                 let mut source_path = PathBuf::from(v.next().ok_or("missing path for asset")?);
-                if source_path.starts_with("target/release") {
-                    source_path = options.path_in_build(source_path.strip_prefix("target/release").unwrap());
-                }
+                let source_path = if source_path.starts_with("target/release") {
+                    options.path_in_build(source_path.strip_prefix("target/release").unwrap())
+                } else {
+                    options.path_in_workspace(source_path)
+                };
                 let target_path = PathBuf::from(v.next().ok_or("missing target for asset")?);
                 let mode = u32::from_str_radix(&v.next().ok_or("missing chmod for asset")?, 8)
                     .map_err(|e| CargoDebError::NumParse("unable to parse chmod argument", e))?;
@@ -570,9 +576,14 @@ struct CargoMetadataTarget {
 }
 
 /// Returns the path of the `Cargo.toml` that we want to build.
-fn cargo_metadata() -> CDResult<CargoMetadata> {
-    let output = Command::new("cargo").arg("metadata").arg("--format-version=1")
-        .output().map_err(|e| CargoDebError::CommandFailed(e, "cargo (is it in your PATH?)"))?;
+fn cargo_metadata(manifest_path: &Path) -> CDResult<CargoMetadata> {
+    let mut cmd = Command::new("cargo");
+    cmd.arg("metadata");
+    cmd.arg("--format-version=1");
+    cmd.arg(format!("--manifest-path={}", manifest_path.display()));
+
+    let output = cmd.output()
+        .map_err(|e| CargoDebError::CommandFailed(e, "cargo (is it in your PATH?)"))?;
     if !output.status.success() {
         return Err(CargoDebError::CommandError("cargo", "metadata".to_owned(), output.stderr));
     }

@@ -19,7 +19,7 @@ The library interface is experimental. See `main.rs` for usage.
 
 ```rust,ignore
 let listener = &mut listener::StdErrListener {verbose}; // prints warnings
-let options = Config::from_manifest(target, listener)?;
+let options = Config::from_manifest(Path::new("Cargo.toml"), target, listener)?;
 
 reset_deb_directory(&options)?;
 cargo_build(&options, target, verbose)?;
@@ -141,6 +141,7 @@ pub fn reset_deb_directory(options: &Config) -> io::Result<()> {
 /// Builds a release binary with `cargo build --release`
 pub fn cargo_build(options: &Config, target: Option<&str>, verbose: bool) -> CDResult<()> {
     let mut cmd = Command::new("cargo");
+    cmd.current_dir(&options.workspace_root);
     cmd.arg("build").args(&["--release", "--all"]);
 
     if verbose {

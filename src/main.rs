@@ -4,6 +4,7 @@ use cargo_deb::*;
 extern crate getopts;
 
 use std::env;
+use std::path::Path;
 use std::process;
 use std::time;
 
@@ -14,6 +15,7 @@ struct CliOptions {
     quiet: bool,
     install: bool,
     target: Option<String>,
+    manifest_path: Option<String>,
 }
 
 fn main() {
@@ -24,6 +26,7 @@ fn main() {
     cli_opts.optflag("", "no-strip", "Do not strip debug symbols from the binary");
     cli_opts.optflag("", "install", "Immediately install created package");
     cli_opts.optopt("", "target", "triple", "Target for cross-compilation");
+    cli_opts.optopt("", "manifest-path", "Cargo.toml", "Project location (default = current dir)");
     cli_opts.optflag("q", "quiet", "Don't print warnings");
     cli_opts.optflag("v", "verbose", "Print progress");
     cli_opts.optflag("h", "help", "Print this help menu");
@@ -46,6 +49,7 @@ fn main() {
         verbose: matches.opt_present("verbose"),
         install: matches.opt_present("install"),
         target: matches.opt_str("target"),
+        manifest_path: matches.opt_str("manifest-path"),
     }) {
         Ok(()) => {},
         Err(err) => {
@@ -69,7 +73,7 @@ fn err_exit(err: &std::error::Error) -> ! {
     process::exit(1);
 }
 
-fn process(CliOptions {target, install, no_build, no_strip, quiet, verbose}: CliOptions) -> CDResult<()> {
+fn process(CliOptions {manifest_path, target, install, no_build, no_strip, quiet, verbose}: CliOptions) -> CDResult<()> {
     let target = target.as_ref().map(|s|s.as_str());
 
     // Listener conditionally prints warnings
@@ -83,7 +87,8 @@ fn process(CliOptions {target, install, no_build, no_strip, quiet, verbose}: Cli
         &mut listener_tmp2
     };
 
-    let options = Config::from_manifest(target, listener)?;
+    let manifest_path = manifest_path.as_ref().map(|s|s.as_str()).unwrap_or("Cargo.toml");
+    let options = Config::from_manifest(Path::new(manifest_path), target, listener)?;
     reset_deb_directory(&options)?;
 
     if !no_build {

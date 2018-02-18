@@ -22,7 +22,7 @@ pub fn generate_archive(options: &Config, time: u64, listener: &mut Listener) ->
 /// Generates compressed changelog file
 fn generate_changelog_asset(options: &Config) -> CDResult<()> {
     if let Some(ref path) = options.changelog {
-        let changelog = file::get(path)
+        let changelog = file::get(options.workspace_root.join(path))
             .map_err(|e| CargoDebError::IoFile("unable to read changelog file", e, path.into()))?;
         compress::gz(&changelog, &options.path_in_deb("changelog"))?;
     }
