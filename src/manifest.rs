@@ -268,6 +268,11 @@ struct Cargo {
 }
 
 impl Cargo {
+    /// Convert Cargo.toml/metadata information into internal configu structure
+    ///
+    /// **IMPORTANT**: This function must not create or expect to see any files on disk!
+    /// It's run before destination directory is cleaned up, and before the build start!
+    ///
     fn into_config(mut self, root_package: &CargoMetadataPackage, workspace_root: &Path, target_dir: &Path, target: Option<&str>, listener: &mut Listener)
         -> CDResult<Config>
     {
@@ -388,20 +393,37 @@ impl Cargo {
                 if source_path.starts_with("target/release") {
                     source_path = options.path_in_build(source_path.strip_prefix("target/release").unwrap());
                 }
-                let source_path_str = source_path.to_str().unwrap();
                 let target_path = PathBuf::from(v.next().ok_or("missing target for asset")?);
                 let mode = u32::from_str_radix(&v.next().ok_or("missing chmod for asset")?, 8)
                     .map_err(|e| CargoDebError::NumParse("unable to parse chmod argument", e))?;
                 let source_prefix: PathBuf = source_path.iter()
                     .take_while(|part| !is_glob_pattern(part.to_str().unwrap()))
                     .collect();
-                for entry in glob::glob(source_path_str)? {
-                    let source_file = entry?;
-                    if source_file.is_dir() {
-                        continue;
-                    }
+                let source_is_glob = is_glob_pattern(source_path.to_str().unwrap());
+                let mut file_matches = glob::glob(source_path.to_str().unwrap())?
+                    // Remove dirs from globs without throwing away errors
+                    .map(|entry| {
+                        let source_file = entry?;
+                        Ok(if source_file.is_dir() {
+                            None
+                        } else {
+                            Some(source_file)
+                        })
+                    })
+                    .filter_map(|res| match res {
+                        Ok(None) => None,
+                        Ok(Some(x)) => Some(Ok(x)),
+                        Err(x) => Some(Err(x)),
+                    })
+                    .collect::<CDResult<Vec<_>>>()?;
+                // If glob didn't match anything, it's probably a regular path
+                // to a file that hasn't been built yet
+                if file_matches.is_empty() {
+                    file_matches.push(source_path);
+                }
+                for source_file in file_matches {
                     // XXX: how do we handle duplicated assets?
-                    let target_file = if is_glob_pattern(source_path_str) {
+                    let target_file = if source_is_glob {
                         target_path.join(source_file.strip_prefix(&source_prefix).unwrap())
                     } else {
                         target_path.clone()
