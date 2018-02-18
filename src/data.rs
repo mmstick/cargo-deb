@@ -8,13 +8,14 @@ use manifest::Config;
 use std::collections::HashMap;
 use error::*;
 use archive::Archive;
+use listener::Listener;
 
 /// Generates an uncompressed tar archive and hashes of its files
-pub fn generate_archive(options: &Config, time: u64) -> CDResult<(Vec<u8>, HashMap<PathBuf, Digest>)> {
+pub fn generate_archive(options: &Config, time: u64, listener: &mut Listener) -> CDResult<(Vec<u8>, HashMap<PathBuf, Digest>)> {
     let mut archive = Archive::new(time);
     generate_copyright_asset(options)?;
     generate_changelog_asset(options)?;
-    let copy_hashes = archive_files(&mut archive, options)?;
+    let copy_hashes = archive_files(&mut archive, options, listener)?;
     Ok((archive.into_inner()?, copy_hashes))
 }
 
@@ -61,11 +62,13 @@ fn generate_copyright_asset(options: &Config) -> CDResult<()> {
 
 /// Copies all the files to be packaged into the tar archive.
 /// Returns MD5 hashes of files copied
-fn archive_files(archive: &mut Archive, options: &Config) -> CDResult<HashMap<PathBuf, Digest>> {
+fn archive_files(archive: &mut Archive, options: &Config, listener: &mut Listener) -> CDResult<HashMap<PathBuf, Digest>> {
     let mut hashes = HashMap::new();
     for asset in &options.assets {
         let out_data = file::get(&asset.source_file)
             .map_err(|e| CargoDebError::IoFile("unable to read asset to add to archive", e, asset.source_file.clone()))?;
+
+        listener.info(format!("{} -> {}", asset.source_file.display(), asset.target_path.display()));
 
         hashes.insert(asset.source_file.clone(), md5::compute(&out_data));
         archive.file(&asset.target_path, &out_data, asset.chmod)?;

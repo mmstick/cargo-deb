@@ -18,12 +18,12 @@ cargo deb # run this in your Cargo project directory
 The library interface is experimental. See `main.rs` for usage.
 
 ```rust,ignore
-let listener = &mut listener::StdErrListener; // prints warnings
+let listener = &mut listener::StdErrListener {verbose}; // prints warnings
 let options = Config::from_manifest(target, listener)?;
 
 reset_deb_directory(&options)?;
 cargo_build(&options, target, verbose)?;
-strip_binaries(&options, target)?;
+strip_binaries(&options, target, listener)?;
 
 let bin_path = generate_debian_binary_file(&options)?;
 let mut deb_contents = vec![];
@@ -31,7 +31,7 @@ deb_contents.push(bin_path);
 
 let system_time = time::SystemTime::now().duration_since(time::UNIX_EPOCH)?.as_secs();
 // Initailize the contents of the data archive (files that go into the filesystem).
-let (data_archive, asset_hashes) = data::generate_archive(&options, system_time)?;
+let (data_archive, asset_hashes) = data::generate_archive(&options, system_time, listener)?;
 let data_base_path = options.path_in_deb("data.tar");
 
 // Initialize the contents of the control archive (metadata for the package manager).
@@ -72,6 +72,7 @@ mod error;
 mod archive;
 mod config;
 pub mod listener;
+use listener::Listener;
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -164,7 +165,7 @@ pub fn cargo_build(options: &Config, target: Option<&str>, verbose: bool) -> CDR
 }
 
 /// Strips the binary that was created with cargo
-pub fn strip_binaries(options: &Config, target: Option<&str>) -> CDResult<()> {
+pub fn strip_binaries(options: &Config, target: Option<&str>, listener: &mut Listener) -> CDResult<()> {
     let mut cargo_config = None;
     let strip_tmp;
     let mut strip_cmd = "strip";
@@ -173,6 +174,7 @@ pub fn strip_binaries(options: &Config, target: Option<&str>) -> CDResult<()> {
         cargo_config = options.cargo_config()?;
         if let Some(ref conf) = cargo_config {
             if let Some(cmd) = conf.strip_command(target) {
+                listener.info(format!("Using '{}' for '{}'", cmd, target));
                 strip_tmp = cmd;
                 strip_cmd = &strip_tmp;
             }
@@ -197,6 +199,7 @@ pub fn strip_binaries(options: &Config, target: Option<&str>) -> CDResult<()> {
                     CargoDebError::CommandFailed(err, "strip")
                 }
             })?;
+        listener.info(format!("Stripped '{}'", name.display()));
     }
     Ok(())
 }

@@ -79,7 +79,7 @@ fn process(CliOptions {target, install, no_build, no_strip, quiet, verbose}: Cli
         listener_tmp1 = listener::NoOpListener;
         &mut listener_tmp1
     } else {
-        listener_tmp2 = listener::StdErrListener;
+        listener_tmp2 = listener::StdErrListener {verbose};
         &mut listener_tmp2
     };
 
@@ -90,7 +90,7 @@ fn process(CliOptions {target, install, no_build, no_strip, quiet, verbose}: Cli
         cargo_build(&options, target, verbose)?;
     }
     if options.strip && !no_strip {
-        strip_binaries(&options, target)?;
+        strip_binaries(&options, target, listener)?;
     }
 
     // Obtain the current time which will be used to stamp the generated files in the archives.
@@ -103,7 +103,7 @@ fn process(CliOptions {target, install, no_build, no_strip, quiet, verbose}: Cli
     // The block frees the large data_archive var early
     {
         // Initailize the contents of the data archive (files that go into the filesystem).
-        let (data_archive, asset_hashes) = data::generate_archive(&options, system_time)?;
+        let (data_archive, asset_hashes) = data::generate_archive(&options, system_time, listener)?;
         let data_base_path = options.path_in_deb("data.tar");
 
         // Initialize the contents of the control archive (metadata for the package manager).
