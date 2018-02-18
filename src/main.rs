@@ -71,12 +71,19 @@ fn err_exit(err: &std::error::Error) -> ! {
 
 fn process(CliOptions {target, install, no_build, no_strip, quiet, verbose}: CliOptions) -> CDResult<()> {
     let target = target.as_ref().map(|s|s.as_str());
-    let (options, warnings) = Config::from_manifest(target)?;
-    if !quiet {
-        for warning in warnings {
-            println!("warning: {}", warning);
-        }
-    }
+
+    // Listener conditionally prints warnings
+    let mut listener_tmp1;
+    let mut listener_tmp2;
+    let listener: &mut listener::Listener = if quiet {
+        listener_tmp1 = listener::NoOpListener;
+        &mut listener_tmp1
+    } else {
+        listener_tmp2 = listener::StdErrListener;
+        &mut listener_tmp2
+    };
+
+    let options = Config::from_manifest(target, listener)?;
     reset_deb_directory(&options)?;
 
     if !no_build {
@@ -100,7 +107,7 @@ fn process(CliOptions {target, install, no_build, no_strip, quiet, verbose}: Cli
         let data_base_path = options.path_in_deb("data.tar");
 
         // Initialize the contents of the control archive (metadata for the package manager).
-        let control_archive = control::generate_archive(&options, system_time, asset_hashes)?;
+        let control_archive = control::generate_archive(&options, system_time, asset_hashes, listener)?;
         let control_base_path = options.path_in_deb("control.tar");
 
         // Order is important for Debian

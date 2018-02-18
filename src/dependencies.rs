@@ -2,9 +2,10 @@ use std::process::Command;
 use std::path::Path;
 use std::collections::HashSet;
 use error::*;
+use listener::Listener;
 
 /// Resolves the dependencies based on the output of ldd on the binary.
-pub fn resolve(path: &Path, architecture: &str) -> CDResult<Vec<String>> {
+pub fn resolve(path: &Path, architecture: &str, listener: &mut Listener) -> CDResult<Vec<String>> {
     let dependencies = {
         let output = Command::new("ldd").arg(path)
             .output().map_err(|e| CargoDebError::CommandFailed(e, "ldd"))?;
@@ -24,7 +25,7 @@ pub fn resolve(path: &Path, architecture: &str) -> CDResult<Vec<String>> {
         .filter_map(|path_str_opt|
             get_package_name_with_fallback(path_str_opt.unwrap())
                 .map_err(|err|{
-                    eprintln!("warning: {} (skip this auto dep for {})", err, path.display());
+                    listener.warning(format!("{} (skip this auto dep for {})", err, path.display()));
                     err
                 }).ok()
         )

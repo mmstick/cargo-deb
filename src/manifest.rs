@@ -2,6 +2,7 @@ use std::env::consts::{ARCH, DLL_PREFIX, DLL_SUFFIX};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::collections::HashSet;
+use listener::Listener;
 use toml;
 use file;
 use glob;
@@ -137,7 +138,7 @@ impl Config {
     /// Makes a new config from `Cargo.toml` in the current working directory.
     ///
     /// `None` target means the host machine's architecture.
-    pub fn from_manifest(target: Option<&str>) -> CDResult<(Config, Vec<String>)> {
+    pub fn from_manifest(target: Option<&str>, listener: &mut Listener) -> CDResult<Config> {
         let metadata = cargo_metadata()?;
         let root_id = metadata.resolve.root;
         let root_package = metadata.packages.iter()
@@ -152,20 +153,22 @@ impl Config {
         };
         let content = file::get_text(&manifest_path)
             .map_err(|e| CargoDebError::IoFile("unable to read Cargo.toml", e, manifest_path.to_owned()))?;
-        toml::from_str::<Cargo>(&content)?.into_config(root_package, workspace_root, target_dir, target)
+        toml::from_str::<Cargo>(&content)?.into_config(root_package, workspace_root, target_dir, target, listener)
     }
 
-    pub(crate) fn get_dependencies(&self) -> CDResult<String> {
+    pub(crate) fn get_dependencies(&self, listener: &mut Listener) -> CDResult<String> {
         let mut deps = HashSet::new();
         for word in self.depends.split(',') {
             let word = word.trim();
             if word == "$auto" {
                 for bname in &self.all_binaries() {
-                    match resolve(bname, &self.architecture) {
+                    match resolve(bname, &self.architecture, listener) {
                         Ok(bindeps) => for dep in bindeps {
                             deps.insert(dep);
                         },
-                        Err(err) => eprintln!("warning: {} (no auto deps for {})", err, bname.display()),
+                        Err(err) => {
+                            listener.warning(format!("{} (no auto deps for {})", err, bname.display()));
+                        },
                     };
                 }
             } else {
@@ -265,8 +268,8 @@ struct Cargo {
 }
 
 impl Cargo {
-    fn into_config(mut self, root_package: &CargoMetadataPackage, workspace_root: &Path, target_dir: &Path, target: Option<&str>)
-        -> CDResult<(Config, Vec<String>)>
+    fn into_config(mut self, root_package: &CargoMetadataPackage, workspace_root: &Path, target_dir: &Path, target: Option<&str>, listener: &mut Listener)
+        -> CDResult<Config>
     {
         // Cargo cross-compiles to a dir
         let target_dir = if let Some(target) = target {
@@ -279,7 +282,7 @@ impl Cargo {
             .unwrap_or_else(CargoDeb::default);
         let (license_file, license_file_skip_lines) = self.license_file(deb.license_file.as_ref())?;
         let readme = self.package.readme.as_ref();
-        let warnings = self.check_config(readme, &deb);
+        self.check_config(readme, &deb, listener);
         let mut config = Config {
             workspace_root: workspace_root.to_owned(),
             target: target.map(|t| t.to_string()),
@@ -328,30 +331,28 @@ impl Cargo {
         config.add_copyright_asset();
         config.add_changelog_asset();
 
-        Ok((config, warnings))
+        Ok(config)
     }
 
-    fn check_config(&self, readme: Option<&String>, deb: &CargoDeb) -> Vec<String> {
-        let mut warnings = vec![];
+    fn check_config(&self, readme: Option<&String>, deb: &CargoDeb, listener: &mut Listener) {
         if self.package.description.is_none() {
-            warnings.push("description field is missing in Cargo.toml".to_owned());
+            listener.warning("description field is missing in Cargo.toml".to_owned());
         }
         if self.package.license.is_none() {
-            warnings.push("license field is missing in Cargo.toml".to_owned());
+            listener.warning("license field is missing in Cargo.toml".to_owned());
         }
         if let Some(readme) = readme {
             if deb.extended_description.is_none() && (readme.ends_with(".md") || readme.ends_with(".markdown")) {
-                warnings.push(format!("extended-description field missing. Using {}, but markdown may not render well.",readme));
+                listener.warning(format!("extended-description field missing. Using {}, but markdown may not render well.",readme));
             }
         } else {
             for p in &["README.md", "README.txt", "README"] {
                 if Path::new(p).exists() {
-                    warnings.push(format!("{} file exists, but is not specified in `readme` Cargo.toml field", p));
+                    listener.warning(format!("{} file exists, but is not specified in `readme` Cargo.toml field", p));
                     break;
                 }
             }
         }
-        warnings
     }
 
     fn extended_description(&self, desc: Option<String>, readme: Option<&String>) -> CDResult<Option<String>> {

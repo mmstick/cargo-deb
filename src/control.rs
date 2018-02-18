@@ -1,6 +1,7 @@
 use std::io::Write;
 use std::path::PathBuf;
 use manifest::Config;
+use listener::Listener;
 use md5::Digest;
 use md5;
 use file;
@@ -12,10 +13,10 @@ use wordsplit::WordSplit;
 use std::fs::metadata;
 
 /// Generates an uncompressed tar archive with `control`, `md5sums`, and others
-pub fn generate_archive(options: &Config, time: u64, asset_hashes: HashMap<PathBuf, Digest>) -> CDResult<Vec<u8>> {
+pub fn generate_archive(options: &Config, time: u64, asset_hashes: HashMap<PathBuf, Digest>, listener: &mut Listener) -> CDResult<Vec<u8>> {
     let mut archive = Archive::new(time);
     generate_md5sums(&mut archive, options, asset_hashes)?;
-    generate_control(&mut archive, options)?;
+    generate_control(&mut archive, options, listener)?;
     if let Some(ref files) = options.conf_files {
         generate_conf_files(&mut archive, files)?;
     }
@@ -54,7 +55,7 @@ fn generate_md5sums(archive: &mut Archive, options: &Config, asset_hashes: HashM
 }
 
 /// Generates the control file that obtains all the important information about the package.
-fn generate_control(archive: &mut Archive, options: &Config) -> CDResult<()> {
+fn generate_control(archive: &mut Archive, options: &Config, listener: &mut Listener) -> CDResult<()> {
     // Create and return the handle to the control file with write access.
     let mut control: Vec<u8> = Vec::with_capacity(1024);
 
@@ -88,7 +89,7 @@ fn generate_control(archive: &mut Archive, options: &Config) -> CDResult<()> {
 
     write!(&mut control, "Installed-Size: {}\n", installed_size)?;
 
-    write!(&mut control, "Depends: {}\n", options.get_dependencies()?)?;
+    write!(&mut control, "Depends: {}\n", options.get_dependencies(listener)?)?;
 
     if let Some(ref conflicts) = options.conflicts {
         write!(&mut control, "Conflicts: {}\n", conflicts)?;

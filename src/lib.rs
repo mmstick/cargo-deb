@@ -18,7 +18,8 @@ cargo deb # run this in your Cargo project directory
 The library interface is experimental. See `main.rs` for usage.
 
 ```rust,ignore
-let (options, warnings) = Config::from_manifest(target)?;
+let listener = &mut listener::StdErrListener; // prints warnings
+let options = Config::from_manifest(target, listener)?;
 
 reset_deb_directory(&options)?;
 cargo_build(&options, target, verbose)?;
@@ -34,7 +35,7 @@ let (data_archive, asset_hashes) = data::generate_archive(&options, system_time)
 let data_base_path = options.path_in_deb("data.tar");
 
 // Initialize the contents of the control archive (metadata for the package manager).
-let control_archive = control::generate_archive(&options, system_time, asset_hashes)?;
+let control_archive = control::generate_archive(&options, system_time, asset_hashes, listener)?;
 let control_base_path = options.path_in_deb("control.tar");
 
 // Order is important for Debian
@@ -70,6 +71,7 @@ mod wordsplit;
 mod error;
 mod archive;
 mod config;
+pub mod listener;
 
 use std::fs;
 use std::path::{Path, PathBuf};
