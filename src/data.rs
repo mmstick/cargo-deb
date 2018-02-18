@@ -1,5 +1,5 @@
 use std::io::Write;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use md5::Digest;
 use md5;
 use file;
@@ -65,10 +65,9 @@ fn generate_copyright_asset(options: &Config) -> CDResult<()> {
 fn archive_files(archive: &mut Archive, options: &Config, listener: &mut Listener) -> CDResult<HashMap<PathBuf, Digest>> {
     let mut hashes = HashMap::new();
     for asset in &options.assets {
-        let out_data = file::get(&asset.source_file)
-            .map_err(|e| CargoDebError::IoFile("unable to read asset to add to archive", e, asset.source_file.clone()))?;
+        let out_data = asset.source.data()?;
 
-        listener.info(format!("{} -> {}", asset.source_file.display(), asset.target_path.display()));
+        listener.info(format!("{} -> {}", asset.source.path().unwrap_or_else(|| Path::new("-")).display(), asset.target_path.display()));
 
         hashes.insert(asset.target_path.clone(), md5::compute(&out_data));
         archive.file(&asset.target_path, &out_data, asset.chmod)?;

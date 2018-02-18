@@ -186,10 +186,10 @@ pub fn strip_binaries(options: &Config, target: Option<&str>, listener: &mut Lis
         }
     }
 
-    for name in options.built_binaries() {
+    for path in options.built_binaries().into_iter().filter_map(|a| a.path()) {
         Command::new(strip_cmd)
             .arg("--strip-unneeded")
-            .arg(name)
+            .arg(path)
             .status()
             .and_then(|s| if s.success() {
                 Ok(())
@@ -199,12 +199,12 @@ pub fn strip_binaries(options: &Config, target: Option<&str>, listener: &mut Lis
             .map_err(|err| {
                 if let Some(target) = target {
                     let conf_path = cargo_config.as_ref().map(|c|c.path()).unwrap_or(Path::new(".cargo/config"));
-                    CargoDebError::StripFailed(name.to_owned(), format!("{}: {}.\nhint: Target-specific strip commands are configured in [target.{}] strip = \"{}\" in {}", strip_cmd, err, target, strip_cmd, conf_path.display()))
+                    CargoDebError::StripFailed(path.to_owned(), format!("{}: {}.\nhint: Target-specific strip commands are configured in [target.{}] strip = \"{}\" in {}", strip_cmd, err, target, strip_cmd, conf_path.display()))
                 } else {
                     CargoDebError::CommandFailed(err, "strip")
                 }
             })?;
-        listener.info(format!("Stripped '{}'", name.display()));
+        listener.info(format!("Stripped '{}'", path.display()));
     }
     Ok(())
 }

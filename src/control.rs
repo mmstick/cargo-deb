@@ -10,7 +10,6 @@ use error::*;
 use std::os::unix::ffi::OsStrExt;
 use archive::Archive;
 use wordsplit::WordSplit;
-use std::fs::metadata;
 
 /// Generates an uncompressed tar archive with `control`, `md5sums`, and others
 pub fn generate_archive(options: &Config, time: u64, asset_hashes: HashMap<PathBuf, Digest>, listener: &mut Listener) -> CDResult<Vec<u8>> {
@@ -83,8 +82,7 @@ fn generate_control(archive: &mut Archive, options: &Config, listener: &mut List
 
     let installed_size = options.assets
         .iter()
-        .filter_map(|asset| metadata(&asset.source_file).ok())
-        .map(|m| m.len())
+        .filter_map(|m| m.source.len())
         .sum::<u64>() / 1024;
 
     write!(&mut control, "Installed-Size: {}\n", installed_size)?;
