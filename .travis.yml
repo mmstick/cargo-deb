@@ -4,5 +4,6 @@ addons:
     packages:
       - liblzma-dev
 script:
+  - cargo test --all
   - cargo install --path .
   - cd example && cargo deb
