@@ -58,7 +58,7 @@ fn run_cargo_deb_command_on_example_dir() {
 
     let ddir = TempDir::new("cargo-data-test").unwrap();
     assert!(Command::new("tar")
-        .arg("xzf")
+        .arg("xJf")
         .current_dir(ddir.path())
         .arg(ardir.path().join("data.tar.xz"))
         .status().unwrap().success());
