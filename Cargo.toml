@@ -61,3 +61,5 @@ lzma = ["xz2"]
 lto = true
 opt-level = 3
 
+[dev-dependencies]
+tempdir = "0.3.6"
