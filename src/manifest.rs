@@ -626,6 +626,11 @@ fn get_arch(target: &str) -> &str {
 }
 
 #[test]
+fn match_arm_arch() {
+    assert_eq!("armhf", get_arch("arm-unknown-linux-gnueabihf"));
+}
+
+#[test]
 fn assets() {
     let a = Asset::new(
         PathBuf::from("foo/bar"),
