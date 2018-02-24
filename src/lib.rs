@@ -22,7 +22,7 @@ let listener = &mut listener::StdErrListener {verbose}; // prints warnings
 let options = Config::from_manifest(Path::new("Cargo.toml"), target, listener)?;
 
 reset_deb_directory(&options)?;
-cargo_build(&options, target, verbose)?;
+cargo_build(&options, target, &[], verbose)?;
 strip_binaries(&options, target, listener)?;
 
 let bin_path = generate_debian_binary_file(&options)?;
@@ -139,10 +139,14 @@ pub fn reset_deb_directory(options: &Config) -> io::Result<()> {
 }
 
 /// Builds a release binary with `cargo build --release`
-pub fn cargo_build(options: &Config, target: Option<&str>, verbose: bool) -> CDResult<()> {
+pub fn cargo_build(options: &Config, target: Option<&str>, other_flags: &[String], verbose: bool) -> CDResult<()> {
     let mut cmd = Command::new("cargo");
     cmd.current_dir(&options.workspace_root);
     cmd.arg("build").args(&["--release", "--all"]);
+
+    for flag in other_flags {
+        cmd.arg(flag);
+    }
 
     if verbose {
         cmd.arg("--verbose");

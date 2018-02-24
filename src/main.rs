@@ -16,6 +16,7 @@ struct CliOptions {
     install: bool,
     target: Option<String>,
     manifest_path: Option<String>,
+    cargo_build_flags: Vec<String>,
 }
 
 fn main() {
@@ -38,7 +39,7 @@ fn main() {
         },
     };
     if matches.opt_present("h") {
-        print!("{}", cli_opts.usage("Usage: cargo deb [options]"));
+        print!("{}", cli_opts.usage("Usage: cargo deb [options] [-- <cargo build flags>]"));
         return;
     }
 
@@ -50,6 +51,7 @@ fn main() {
         install: matches.opt_present("install"),
         target: matches.opt_str("target"),
         manifest_path: matches.opt_str("manifest-path"),
+        cargo_build_flags: matches.free,
     }) {
         Ok(()) => {},
         Err(err) => {
@@ -73,7 +75,7 @@ fn err_exit(err: &std::error::Error) -> ! {
     process::exit(1);
 }
 
-fn process(CliOptions {manifest_path, target, install, no_build, no_strip, quiet, verbose}: CliOptions) -> CDResult<()> {
+fn process(CliOptions {manifest_path, target, install, no_build, no_strip, quiet, verbose, cargo_build_flags}: CliOptions) -> CDResult<()> {
     let target = target.as_ref().map(|s|s.as_str());
 
     // Listener conditionally prints warnings
@@ -92,7 +94,7 @@ fn process(CliOptions {manifest_path, target, install, no_build, no_strip, quiet
     reset_deb_directory(&options)?;
 
     if !no_build {
-        cargo_build(&options, target, verbose)?;
+        cargo_build(&options, target, &cargo_build_flags, verbose)?;
     }
     if options.strip && !no_strip {
         strip_binaries(&options, target, listener)?;
