@@ -75,8 +75,13 @@ fn err_exit(err: &std::error::Error) -> ! {
     process::exit(1);
 }
 
-fn process(CliOptions {manifest_path, target, install, no_build, no_strip, quiet, verbose, cargo_build_flags}: CliOptions) -> CDResult<()> {
+fn process(CliOptions {manifest_path, target, install, no_build, no_strip, quiet, verbose, mut cargo_build_flags}: CliOptions) -> CDResult<()> {
     let target = target.as_ref().map(|s|s.as_str());
+
+    // `cargo deb` invocation passes the `deb` arg through.
+    if cargo_build_flags.first().map_or(false, |arg| arg == "deb") {
+        cargo_build_flags.remove(0);
+    }
 
     // Listener conditionally prints warnings
     let mut listener_tmp1;
