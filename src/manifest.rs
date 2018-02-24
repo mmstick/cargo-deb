@@ -593,6 +593,28 @@ fn cargo_metadata(manifest_path: &Path) -> CDResult<CargoMetadata> {
     Ok(metadata)
 }
 
+// readelf -A /proc/self/exe | grep Tag_ABI_VFP_args
+fn has_vfp_registers() -> CDResult<()> {
+    let readelf_output = Command::new("readelf").arg("-A").arg("/proc/self/exe").output()?;
+
+    if !readelf_output.status.success() {
+        //bail!("Command executed with failing error code");
+        return Err("command failed".into());
+        //return Err("command failed".into())
+    }
+
+    let s = String::from_utf8(readelf_output.stdout)?;
+    println!("s: {:?}", s);
+
+    for line in s.lines() {
+        let split_vec : Vec<&str> = line.split(":").map(|x| x.trim()).collect();
+        if split_vec.len() == 2 && split_vec[0] == "Tag_ABI_VFP_args" && split_vec[1] == "VFP registers" {
+                return Ok(())
+        }
+    }
+    Err("No VFP Registers".into())
+}
+
 /// Debianizes the architecture name
 fn get_arch(target: &str) -> &str {
     let mut parts = target.split('-');
@@ -620,6 +642,7 @@ fn get_arch(target: &str) -> &str {
         ("x86_64", "gnux32") => "x32",
         ("x86_64", _) => "amd64",
         (arm, gnueabi) if arm.starts_with("arm") && gnueabi.ends_with("hf") => "armhf",
+        (arm, _) if arm.starts_with("arm") && has_vfp_registers().is_ok() => "armhf",
         (arm, _) if arm.starts_with("arm") => "armel",
         (other_arch, _) => other_arch,
     }

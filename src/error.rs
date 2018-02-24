@@ -1,6 +1,7 @@
 use std::io;
 use std::num;
 use std::time;
+use std::string;
 use std::path::PathBuf;
 use toml;
 use serde_json;
@@ -78,6 +79,12 @@ quick_error! {
             from()
             description(err.description())
             display("unable to iterate asset glob result")
+            cause(err)
+        }
+        Utf8Error(err: string::FromUtf8Error) {
+            from()
+            description(err.description())
+            display("unable to convert utf8 into string")
             cause(err)
         }
     }
