@@ -1,3 +1,4 @@
+#![allow(unused_imports)]
 extern crate tempdir;
 extern crate file;
 use std::env;
@@ -6,7 +7,7 @@ use std::path::{PathBuf, Path};
 use tempdir::TempDir;
 
 #[test]
-#[cfg(feature = "lzma")]
+#[cfg(all(feature = "lzma", target_os = "linux"))]
 fn run_cargo_deb_command_on_example_dir() {
     let root = PathBuf::from(env::var_os("CARGO_MANIFEST_DIR").unwrap());
     let cmd_path = root.join("target/debug/cargo-deb");
