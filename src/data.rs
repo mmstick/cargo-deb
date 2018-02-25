@@ -3,7 +3,6 @@ use std::path::{Path, PathBuf};
 use md5::Digest;
 use md5;
 use file;
-use compress;
 use manifest::Config;
 use std::collections::HashMap;
 use error::*;
@@ -13,24 +12,23 @@ use listener::Listener;
 /// Generates an uncompressed tar archive and hashes of its files
 pub fn generate_archive(options: &Config, time: u64, listener: &mut Listener) -> CDResult<(Vec<u8>, HashMap<PathBuf, Digest>)> {
     let mut archive = Archive::new(time);
-    generate_copyright_asset(options)?;
-    generate_changelog_asset(options)?;
     let copy_hashes = archive_files(&mut archive, options, listener)?;
     Ok((archive.into_inner()?, copy_hashes))
 }
 
 /// Generates compressed changelog file
-fn generate_changelog_asset(options: &Config) -> CDResult<()> {
+pub(crate) fn generate_changelog_asset(options: &Config) -> CDResult<Option<Vec<u8>>> {
     if let Some(ref path) = options.changelog {
         let changelog = file::get(options.workspace_root.join(path))
             .map_err(|e| CargoDebError::IoFile("unable to read changelog file", e, path.into()))?;
-        compress::gz(&changelog, &options.path_in_deb("changelog"))?;
+        Ok(Some(changelog))
+    } else {
+        Ok(None)
     }
-    Ok(())
 }
 
 /// Generates the copyright file from the license file and adds that to the tar archive.
-fn generate_copyright_asset(options: &Config) -> CDResult<()> {
+pub(crate) fn generate_copyright_asset(options: &Config) -> CDResult<Vec<u8>> {
     let mut copyright: Vec<u8> = Vec::new();
     write!(&mut copyright, "Upstream Name: {}\n", options.name)?;
     if let Some(source) = options.repository.as_ref().or(options.homepage.as_ref()) {
@@ -56,8 +54,7 @@ fn generate_copyright_asset(options: &Config) -> CDResult<()> {
     }
 
     // Write a copy to the disk for the sake of obtaining a md5sum for the control archive.
-    file::put(options.path_in_deb("copyright"), &copyright)?;
-    Ok(())
+    Ok(copyright)
 }
 
 /// Copies all the files to be packaged into the tar archive.
