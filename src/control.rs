@@ -42,7 +42,7 @@ fn generate_md5sums(archive: &mut Archive, options: &Config, asset_hashes: HashM
 
     // Collect md5sums from each asset in the archive.
     for asset in &options.assets {
-        write!(md5sums, "{:x}", asset_hashes[&asset.source_file])?;
+        write!(md5sums, "{:x}", asset_hashes[&asset.target_path])?;
         md5sums.write_all(b"  ")?;
 
         md5sums.write_all(asset.target_path.as_os_str().as_bytes())?;

@@ -70,7 +70,7 @@ fn archive_files(archive: &mut Archive, options: &Config, listener: &mut Listene
 
         listener.info(format!("{} -> {}", asset.source_file.display(), asset.target_path.display()));
 
-        hashes.insert(asset.source_file.clone(), md5::compute(&out_data));
+        hashes.insert(asset.target_path.clone(), md5::compute(&out_data));
         archive.file(&asset.target_path, &out_data, asset.chmod)?;
     }
     Ok(hashes)
