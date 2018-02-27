@@ -1,4 +1,4 @@
-use std::env::consts::{ARCH, DLL_PREFIX, DLL_SUFFIX};
+use std::env::consts::{DLL_PREFIX, DLL_SUFFIX};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::fs;
@@ -367,7 +367,7 @@ impl Cargo {
             provides: deb.provides.take(),
             section: deb.section.take(),
             priority: deb.priority.take().unwrap_or("optional".to_owned()),
-            architecture: get_arch(target.unwrap_or(ARCH)).to_owned(),
+            architecture: get_arch(target.unwrap_or(::DEFAULT_TARGET)).to_owned(),
             conf_files: deb.conf_files.map(|x| x.iter().fold(String::new(), |a, b| a + b + "\n")),
             assets: vec![],
             changelog: deb.changelog.take(),

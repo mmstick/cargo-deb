@@ -39,6 +39,9 @@ assets = [
     ["README.md", "usr/share/doc/cargo-deb/README", "644"],
 ]
 
+[build-dependencies]
+file = "1.1.1"
+
 [dependencies]
 file = "1.1.1"
 getopts = "0.2.14"

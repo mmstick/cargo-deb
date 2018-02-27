@@ -85,6 +85,9 @@ pub use manifest::Config;
 
 const TAR_REJECTS_CUR_DIR: bool = true;
 
+/// created by `build.rs`
+const DEFAULT_TARGET: &str = include_str!(concat!(env!("OUT_DIR"), "/default_target.rs"));
+
 /// Run `dpkg` to install `deb` archive at the given path
 pub fn install_deb(path: &Path) -> CDResult<()> {
     let status = Command::new("sudo").arg("dpkg").arg("-i").arg(path)
