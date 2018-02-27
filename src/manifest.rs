@@ -441,10 +441,10 @@ impl Cargo {
             for mut v in assets {
                 let mut v = v.drain(..);
                 let mut source_path = PathBuf::from(v.next().ok_or("missing path for asset")?);
-                let source_path = if source_path.starts_with("target/release") {
-                    options.path_in_build(source_path.strip_prefix("target/release").unwrap())
+                let source_path = if let Ok(relative_path) = source_path.strip_prefix("target/release") {
+                    options.path_in_build(relative_path)
                 } else {
-                    options.path_in_workspace(source_path)
+                    options.path_in_workspace(&source_path)
                 };
                 let target_path = PathBuf::from(v.next().ok_or("missing target for asset")?);
                 let mode = u32::from_str_radix(&v.next().ok_or("missing chmod for asset")?, 8)
