@@ -19,7 +19,7 @@ pub fn generate_archive(options: &Config, time: u64, listener: &mut Listener) ->
 /// Generates compressed changelog file
 pub(crate) fn generate_changelog_asset(options: &Config) -> CDResult<Option<Vec<u8>>> {
     if let Some(ref path) = options.changelog {
-        let changelog = file::get(options.workspace_root.join(path))
+        let changelog = file::get(options.path_in_workspace(path))
             .map_err(|e| CargoDebError::IoFile("unable to read changelog file", e, path.into()))?;
         Ok(Some(changelog))
     } else {

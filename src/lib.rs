@@ -144,7 +144,7 @@ pub fn reset_deb_directory(options: &Config) -> io::Result<()> {
 /// Builds a release binary with `cargo build --release`
 pub fn cargo_build(options: &Config, target: Option<&str>, other_flags: &[String], verbose: bool) -> CDResult<()> {
     let mut cmd = Command::new("cargo");
-    cmd.current_dir(&options.workspace_root);
+    cmd.current_dir(&options.manifest_dir);
     cmd.arg("build").args(&["--release", "--all"]);
 
     for flag in other_flags {

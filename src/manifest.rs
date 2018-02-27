@@ -105,9 +105,8 @@ impl Asset {
 #[derive(Debug)]
 /// Cargo deb configuration read from the manifest and cargo metadata
 pub struct Config {
-    /// Cargo's `workspace_root` path from metadata
-    /// (for simple crates it's the same as the dir with `Cargo.toml`)
-    pub workspace_root: PathBuf,
+    /// Root directory where `Cargo.toml` is located. It's a subdirectory in workspaces.
+    pub manifest_dir: PathBuf,
     /// Triple. `None` means current machine architecture.
     pub target: Option<String>,
     /// `CARGO_TARGET_DIR`
@@ -191,14 +190,10 @@ impl Config {
             .ok_or("Unable to find root package in cargo metadata")?;
         let target_dir = Path::new(&metadata.target_directory);
         let manifest_path = Path::new(&root_package.manifest_path);
-        let workspace_root = if let Some(ref workspace_root) = metadata.workspace_root {
-            Path::new(workspace_root)
-        } else {
-            manifest_path.parent().expect("no workspace_root")
-        };
+        let manifest_dir = manifest_path.parent().unwrap();
         let content = file::get_text(&manifest_path)
             .map_err(|e| CargoDebError::IoFile("unable to read Cargo.toml", e, manifest_path.to_owned()))?;
-        toml::from_str::<Cargo>(&content)?.into_config(root_package, workspace_root, target_dir, target, listener)
+        toml::from_str::<Cargo>(&content)?.into_config(root_package, manifest_dir, target_dir, target, listener)
     }
 
     pub(crate) fn get_dependencies(&self, listener: &mut Listener) -> CDResult<String> {
@@ -296,7 +291,7 @@ impl Config {
     }
 
     pub(crate) fn path_in_workspace<P: AsRef<Path>>(&self, rel_path: P) -> PathBuf {
-        self.workspace_root.join(rel_path)
+        self.manifest_dir.join(rel_path)
     }
 
     pub(crate) fn deb_dir(&self) -> PathBuf {
@@ -324,7 +319,7 @@ impl Cargo {
     /// **IMPORTANT**: This function must not create or expect to see any files on disk!
     /// It's run before destination directory is cleaned up, and before the build start!
     ///
-    fn into_config(mut self, root_package: &CargoMetadataPackage, workspace_root: &Path, target_dir: &Path, target: Option<&str>, listener: &mut Listener)
+    fn into_config(mut self, root_package: &CargoMetadataPackage, manifest_dir: &Path, target_dir: &Path, target: Option<&str>, listener: &mut Listener)
         -> CDResult<Config>
     {
         // Cargo cross-compiles to a dir
@@ -338,9 +333,9 @@ impl Cargo {
             .unwrap_or_else(CargoDeb::default);
         let (license_file, license_file_skip_lines) = self.license_file(deb.license_file.as_ref())?;
         let readme = self.package.readme.as_ref();
-        self.check_config(workspace_root, readme, &deb, listener);
+        self.check_config(manifest_dir, readme, &deb, listener);
         let mut config = Config {
-            workspace_root: workspace_root.to_owned(),
+            manifest_dir: manifest_dir.to_owned(),
             target: target.map(|t| t.to_string()),
             target_dir,
             name: self.package.name.clone(),
@@ -390,7 +385,7 @@ impl Cargo {
         Ok(config)
     }
 
-    fn check_config(&self, workspace_root: &Path, readme: Option<&String>, deb: &CargoDeb, listener: &mut Listener) {
+    fn check_config(&self, manifest_dir: &Path, readme: Option<&String>, deb: &CargoDeb, listener: &mut Listener) {
         if self.package.description.is_none() {
             listener.warning("description field is missing in Cargo.toml".to_owned());
         }
@@ -403,7 +398,7 @@ impl Cargo {
             }
         } else {
             for p in &["README.md", "README.markdown", "README.txt", "README"] {
-                if workspace_root.join(p).exists() {
+                if manifest_dir.join(p).exists() {
                     listener.warning(format!("{} file exists, but is not specified in `readme` Cargo.toml field", p));
                     break;
                 }
@@ -600,7 +595,6 @@ struct CargoMetadata {
     packages: Vec<CargoMetadataPackage>,
     resolve: CargoMetadataResolve,
     target_directory: String,
-    workspace_root: Option<String>,
 }
 
 #[derive(Deserialize)]
