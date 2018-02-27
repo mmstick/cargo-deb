@@ -119,3 +119,5 @@ Flags after `--` are passed to `cargo build`, so you can use options such as `-Z
 ### Workspaces
 
 Workspaces are not fully supported yet. [Please leave feedback if you're interested in workspace support](https://github.com/mmstick/cargo-deb/issues/49).
+
+It's possible to build a project in another directory with `cargo deb --manifest-path=<path/to/Cargo.toml>`.
