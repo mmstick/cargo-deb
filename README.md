@@ -8,7 +8,7 @@ This is a [Cargo](http://doc.crates.io/) helper command which automatically crea
 cargo install cargo-deb
 ```
 
-Requires Rust 1.19+, Debian/Ubuntu, `dpkg`, `ldd`, and optionally `liblzma-dev`.
+Requires Rust 1.19+, and optionally `dpkg`, `ldd` and `liblzma-dev`.
 
 ## Usage
 
@@ -28,7 +28,7 @@ Debug symbols are stripped from the main binary by default. To keep debug symbol
 
 This command obtains basic information it needs from [the `Cargo.toml` file](http://doc.crates.io/manifest.html). It uses Cargo fields: `name`, `version`, `license`, `license-file`, `description`, `readme`, `homepage`, and `repository`. However, as these fields are not enough for a complete Debian package, you may also define a new table, `[package.metadata.deb]` that contains `maintainer`, `copyright`, `license-file`, `changelog`, `depends`, `conflicts`, `breaks`, `replaces`, `provides`, `extended-description`, `section`, `priority`, and `assets`.
 
-## `[package.metadata.deb]` options
+### `[package.metadata.deb]` options
 
 Everything is optional:
 
@@ -94,7 +94,9 @@ assets = [
 ]
 ```
 
-## Cross-compilation
+## Advanced usage
+
+### Cross-compilation
 
 `cargo deb` supports a `--target` flag, which takes [Rust target triple](https://forge.rust-lang.org/platform-support.html). See `rustc --print target-list` for the list of supported values.
 
@@ -107,3 +109,13 @@ cargo deb --target=i686-unknown-linux-gnu
 Cross compiled archives are saved in `target/<target triple>/debian/*.deb`. The actual archive path is printed on success.
 
 In `.cargo/config` you can add `[target.<target triple>] strip = { path = "…" }` to specify a path to the architecture-specific `strip` command.
+
+### Custom build flags
+
+    cargo deb -- <cargo build flags>
+
+Flags after `--` are passed to `cargo build`, so you can use options such as `-Z`, `--frozen`, and `--locked`. Please use that only for features that `cargo-deb` doesn't support natively.
+
+### Workspaces
+
+Workspaces are not fully supported yet. [Please leave feedback if you're interested in workspace support](https://github.com/mmstick/cargo-deb/issues/49).
