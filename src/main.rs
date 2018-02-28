@@ -31,6 +31,7 @@ fn main() {
     cli_opts.optflag("q", "quiet", "Don't print warnings");
     cli_opts.optflag("v", "verbose", "Print progress");
     cli_opts.optflag("h", "help", "Print this help menu");
+    cli_opts.optflag("", "version", "Show the version of cargo-deb");
 
     let matches = match cli_opts.parse(&args[1..]) {
         Ok(m) => m,
@@ -40,6 +41,11 @@ fn main() {
     };
     if matches.opt_present("h") {
         print!("{}", cli_opts.usage("Usage: cargo deb [options] [-- <cargo build flags>]"));
+        return;
+    }
+
+    if matches.opt_present("version") {
+        println!("{}", env!("CARGO_PKG_VERSION"));
         return;
     }
 
