@@ -69,12 +69,7 @@ pub struct Asset {
 }
 
 impl Asset {
-    pub fn new(source: AssetSource, mut target_path: PathBuf, chmod: u32) -> Self {
-        // target/release is treated as a magic alias for the actual target dir
-        // (which may be slightly different in practice)
-        // and assume everything in there is built by Cargo
-        let is_built = source.path().map_or(false, |p| p.starts_with("target/release"));
-
+    pub fn new(source: AssetSource, mut target_path: PathBuf, chmod: u32, is_built: bool) -> Self {
         if target_path.is_absolute() {
             target_path = target_path.strip_prefix("/").expect("no root dir").to_owned();
         }
@@ -223,7 +218,7 @@ impl Config {
         self.assets.push(Asset::new(
             AssetSource::Data(copyright_file),
             Path::new("usr/share/doc").join(&self.name).join("copyright"),
-            0o644,
+            0o644, false
         ));
         Ok(())
     }
@@ -235,7 +230,7 @@ impl Config {
                 self.assets.push(Asset::new(
                     AssetSource::Data(changelog_file),
                     Path::new("usr/share/doc").join(&self.name).join("changelog.gz"),
-                    0o644,
+                    0o644, false
                 ));
             }
         }
@@ -436,10 +431,10 @@ impl Cargo {
             for mut v in assets {
                 let mut v = v.drain(..);
                 let mut source_path = PathBuf::from(v.next().ok_or("missing path for asset")?);
-                let source_path = if let Ok(relative_path) = source_path.strip_prefix("target/release") {
-                    options.path_in_build(relative_path)
+                let (is_built, source_path) = if let Ok(rel_path) = source_path.strip_prefix("target/release") {
+                    (true, options.path_in_build(rel_path))
                 } else {
-                    options.path_in_workspace(&source_path)
+                    (false, options.path_in_workspace(&source_path))
                 };
                 let target_path = PathBuf::from(v.next().ok_or("missing target for asset")?);
                 let mode = u32::from_str_radix(&v.next().ok_or("missing chmod for asset")?, 8)
@@ -479,7 +474,8 @@ impl Cargo {
                     all_assets.push(Asset::new(
                         AssetSource::Path(source_file),
                         target_file,
-                        mode
+                        mode,
+                        is_built
                     ));
                 }
             }
@@ -492,7 +488,7 @@ impl Cargo {
                         Some(Asset::new(
                             AssetSource::Path(options.path_in_build(&t.name)),
                             Path::new("usr/bin").join(&t.name),
-                            0o755,
+                            0o755, true
                         ))
                     } else if t.crate_types.iter().any(|ty|ty=="cdylib") && t.kind.iter().any(|k|k=="cdylib") {
                         // FIXME: std has constants for the host arch, but not for cross-compilation
@@ -500,7 +496,7 @@ impl Cargo {
                         Some(Asset::new(
                             AssetSource::Path(options.path_in_build(&lib_name)),
                             Path::new("usr/lib").join(lib_name),
-                            0o644,
+                            0o644, true
                         ))
                     } else {
                         None
@@ -512,7 +508,7 @@ impl Cargo {
                 implied_assets.push(Asset::new(
                     AssetSource::Path(PathBuf::from(readme)),
                     target_path,
-                    0o644,
+                    0o644, false
                 ));
             }
             implied_assets
@@ -674,16 +670,18 @@ fn match_arm_arch() {
 #[test]
 fn assets() {
     let a = Asset::new(
-        AssetSource::Path(PathBuf::from("foo/bar")),
+        AssetSource::Path(PathBuf::from("target/release/bar")),
         PathBuf::from("baz/"),
-        0o644,
+        0o644, true
     );
     assert_eq!("baz/bar", a.target_path.to_str().unwrap());
+    assert!(a.is_built);
 
     let a = Asset::new(
         AssetSource::Path(PathBuf::from("foo/bar")),
         PathBuf::from("/baz/quz"),
-        0o644,
+        0o644, false
     );
     assert_eq!("baz/quz", a.target_path.to_str().unwrap());
+    assert!(!a.is_built);
 }
