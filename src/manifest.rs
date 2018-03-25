@@ -430,14 +430,14 @@ impl Cargo {
             let mut all_assets = Vec::with_capacity(assets.len());
             for mut v in assets {
                 let mut v = v.drain(..);
-                let mut source_path = PathBuf::from(v.next().ok_or("missing path for asset")?);
+                let mut source_path = PathBuf::from(v.next().ok_or("missing path (first array entry) for asset in Cargo.toml")?);
                 let (is_built, source_path) = if let Ok(rel_path) = source_path.strip_prefix("target/release") {
                     (true, options.path_in_build(rel_path))
                 } else {
                     (false, options.path_in_workspace(&source_path))
                 };
-                let target_path = PathBuf::from(v.next().ok_or("missing target for asset")?);
-                let mode = u32::from_str_radix(&v.next().ok_or("missing chmod for asset")?, 8)
+                let target_path = PathBuf::from(v.next().ok_or("missing target (second array entry) for asset in Cargo.toml")?);
+                let mode = u32::from_str_radix(&v.next().ok_or("missing chmod (third array entry) for asset in Cargo.toml")?, 8)
                     .map_err(|e| CargoDebError::NumParse("unable to parse chmod argument", e))?;
                 let source_prefix: PathBuf = source_path.iter()
                     .take_while(|part| !is_glob_pattern(part.to_str().unwrap()))
