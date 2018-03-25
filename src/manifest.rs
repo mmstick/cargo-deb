@@ -222,7 +222,7 @@ impl Config {
         let copyright_file = ::data::generate_copyright_asset(self)?;
         self.assets.push(Asset::new(
             AssetSource::Data(copyright_file),
-            PathBuf::from("usr/share/doc").join(&self.name).join("copyright"),
+            Path::new("usr/share/doc").join(&self.name).join("copyright"),
             0o644,
         ));
         Ok(())
@@ -234,7 +234,7 @@ impl Config {
             if let Some(changelog_file) = ::data::generate_changelog_asset(self)? {
                 self.assets.push(Asset::new(
                     AssetSource::Data(changelog_file),
-                    PathBuf::from("usr/share/doc").join(&self.name).join("changelog.gz"),
+                    Path::new("usr/share/doc").join(&self.name).join("changelog.gz"),
                     0o644,
                 ));
             }
@@ -491,7 +491,7 @@ impl Cargo {
                     if t.crate_types.iter().any(|ty|ty=="bin") && t.kind.iter().any(|k|k=="bin") {
                         Some(Asset::new(
                             AssetSource::Path(options.path_in_build(&t.name)),
-                            PathBuf::from("usr/bin").join(&t.name),
+                            Path::new("usr/bin").join(&t.name),
                             0o755,
                         ))
                     } else if t.crate_types.iter().any(|ty|ty=="cdylib") && t.kind.iter().any(|k|k=="cdylib") {
@@ -499,7 +499,7 @@ impl Cargo {
                         let lib_name = format!("{}{}{}", DLL_PREFIX, t.name, DLL_SUFFIX);
                         Some(Asset::new(
                             AssetSource::Path(options.path_in_build(&lib_name)),
-                            PathBuf::from("usr/lib").join(lib_name),
+                            Path::new("usr/lib").join(lib_name),
                             0o644,
                         ))
                     } else {
@@ -508,7 +508,7 @@ impl Cargo {
                 })
                 .collect();
             if let Some(readme) = readme {
-                let target_path = PathBuf::from("usr/share/doc").join(&self.package.name).join(readme);
+                let target_path = Path::new("usr/share/doc").join(&self.package.name).join(readme);
                 implied_assets.push(Asset::new(
                     AssetSource::Path(PathBuf::from(readme)),
                     target_path,

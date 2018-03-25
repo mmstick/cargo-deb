@@ -40,7 +40,7 @@ impl Archive {
     fn add_parent_directories(&mut self, path: &Path) -> CDResult<()> {
         // Append each of the directories found in the file's pathname to the archive before adding the file
         // For each directory pathname found, attempt to add it to the list of directories
-        let asset_relative_dir = PathBuf::from(".").join(path.parent().ok_or("invalid asset")?);
+        let asset_relative_dir = Path::new(".").join(path.parent().ok_or("invalid asset")?);
         let mut directory = PathBuf::new();
         for comp in asset_relative_dir.components() {
             match comp {
