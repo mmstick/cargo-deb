@@ -14,6 +14,7 @@ struct CliOptions {
     verbose: bool,
     quiet: bool,
     install: bool,
+    variant: Option<String>,
     target: Option<String>,
     manifest_path: Option<String>,
     cargo_build_flags: Vec<String>,
@@ -26,6 +27,7 @@ fn main() {
     cli_opts.optflag("", "no-build", "Assume project is already built");
     cli_opts.optflag("", "no-strip", "Do not strip debug symbols from the binary");
     cli_opts.optflag("", "install", "Immediately install created package");
+    cli_opts.optopt("", "variant", "Variant", "Variant to use as package metadata");
     cli_opts.optopt("", "target", "triple", "Target for cross-compilation");
     cli_opts.optopt("", "manifest-path", "Cargo.toml", "Project location (default = current dir)");
     cli_opts.optflag("q", "quiet", "Don't print warnings");
@@ -55,6 +57,7 @@ fn main() {
         quiet: matches.opt_present("quiet"),
         verbose: matches.opt_present("verbose"),
         install: matches.opt_present("install"),
+        variant: matches.opt_str("variant"),
         target: matches.opt_str("target"),
         manifest_path: matches.opt_str("manifest-path"),
         cargo_build_flags: matches.free,
@@ -81,9 +84,10 @@ fn err_exit(err: &std::error::Error) -> ! {
     process::exit(1);
 }
 
-fn process(CliOptions {manifest_path, target, install, no_build, no_strip, quiet, verbose, mut cargo_build_flags}: CliOptions) -> CDResult<()> {
+fn process(CliOptions {manifest_path, variant, target, install, no_build, no_strip, quiet, verbose, mut cargo_build_flags}: CliOptions) -> CDResult<()> {
     let target = target.as_ref().map(|s|s.as_str());
-
+    let variant = variant.as_ref().map(|s| s.as_str());
+    
     // `cargo deb` invocation passes the `deb` arg through.
     if cargo_build_flags.first().map_or(false, |arg| arg == "deb") {
         cargo_build_flags.remove(0);
@@ -101,7 +105,7 @@ fn process(CliOptions {manifest_path, target, install, no_build, no_strip, quiet
     };
 
     let manifest_path = manifest_path.as_ref().map(|s|s.as_str()).unwrap_or("Cargo.toml");
-    let options = Config::from_manifest(Path::new(manifest_path), target, listener)?;
+    let options = Config::from_manifest(Path::new(manifest_path), target, variant, listener)?;
     reset_deb_directory(&options)?;
 
     if !no_build {
