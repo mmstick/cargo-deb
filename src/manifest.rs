@@ -332,7 +332,8 @@ impl Cargo {
 
         // If we build against a variant use that config and change the package name
         let mut deb = if let Some(variant) = variant {
-            self.package.name = format!("{}_{}", self.package.name, variant);
+            // Use dash as underscore is not allowed in package names
+            self.package.name = format!("{}-{}", self.package.name, variant);
             let mut variants = self.package.metadata.take().and_then(|m| m.deb_variant)
                 .ok_or(CargoDebError::VariantNotFound(variant.to_string()))?;
 
