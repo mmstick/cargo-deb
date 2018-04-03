@@ -70,7 +70,7 @@ quick_error! {
         }
         VariantNotFound(variant: String) {
             description("unable to find the passed metadata variant")
-            display("variant '{}' not found in package.metadata.deb.variants", variant)
+            display("[package.metadata.deb.variants.{}] not found in Cargo.toml", variant)
         }
         GlobPatternError(err: glob::PatternError) {
             from()

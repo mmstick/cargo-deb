@@ -27,7 +27,7 @@ fn main() {
     cli_opts.optflag("", "no-build", "Assume project is already built");
     cli_opts.optflag("", "no-strip", "Do not strip debug symbols from the binary");
     cli_opts.optflag("", "install", "Immediately install created package");
-    cli_opts.optopt("", "variant", "Variant", "Variant to use as package metadata");
+    cli_opts.optopt("", "variant", "name", "Alternative package metadata configuration");
     cli_opts.optopt("", "target", "triple", "Target for cross-compilation");
     cli_opts.optopt("", "manifest-path", "Cargo.toml", "Project location (default = current dir)");
     cli_opts.optflag("q", "quiet", "Don't print warnings");

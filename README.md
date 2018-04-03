@@ -96,6 +96,10 @@ assets = [
 
 ## Advanced usage
 
+### `[package.metadata.variants.$name]`
+
+There can be multiple variants of the metadata in one `Cargo.toml` file. `--variant=name` selects the variant to use. Options set in a variant override `[package.metadata.deb]` options.
+
 ### Cross-compilation
 
 `cargo deb` supports a `--target` flag, which takes [Rust target triple](https://forge.rust-lang.org/platform-support.html). See `rustc --print target-list` for the list of supported values.
