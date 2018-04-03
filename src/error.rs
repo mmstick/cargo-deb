@@ -70,7 +70,7 @@ quick_error! {
         }
         VariantNotFound(variant: String) {
             description("unable to find the passed metadata variant")
-            display("variant '{}' not found in package.metadata.deb_variant", variant)
+            display("variant '{}' not found in package.metadata.deb.variants", variant)
         }
         GlobPatternError(err: glob::PatternError) {
             from()

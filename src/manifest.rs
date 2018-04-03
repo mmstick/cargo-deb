@@ -334,10 +334,16 @@ impl Cargo {
         let mut deb = if let Some(variant) = variant {
             // Use dash as underscore is not allowed in package names
             self.package.name = format!("{}-{}", self.package.name, variant);
-            let mut variants = self.package.metadata.take().and_then(|m| m.deb_variant)
+            let mut deb = self.package
+                .metadata
+                .take()
+                .and_then(|m| m.deb)
+                .unwrap_or_else(CargoDeb::default);
+            let variant = deb
+                .variants.as_mut()
+                .and_then(|v| v.remove(variant))
                 .ok_or(CargoDebError::VariantNotFound(variant.to_string()))?;
-
-            variants.remove(variant).ok_or(CargoDebError::VariantNotFound(variant.to_string()))?
+            variant.inherit_from(deb)
         } else {
             self.package
                 .metadata
@@ -605,6 +611,33 @@ struct CargoDeb {
     pub maintainer_scripts: Option<String>,
     pub features: Option<Vec<String>>,
     pub default_features: Option<bool>,
+    pub variants: Option<HashMap<String, CargoDeb>>,
+}
+
+impl CargoDeb {
+    fn inherit_from(self, parent: CargoDeb) -> CargoDeb {
+        CargoDeb {
+            maintainer: self.maintainer.or(parent.maintainer),
+            copyright: self.copyright.or(parent.copyright),
+            license_file: self.license_file.or(parent.license_file),
+            changelog: self.changelog.or(parent.changelog),
+            depends: self.depends.or(parent.depends),
+            conflicts: self.conflicts.or(parent.conflicts),
+            breaks: self.breaks.or(parent.breaks),
+            replaces: self.replaces.or(parent.replaces),
+            provides: self.provides.or(parent.provides),
+            extended_description: self.extended_description.or(parent.extended_description),
+            section: self.section.or(parent.section),
+            priority: self.priority.or(parent.priority),
+            revision: self.revision.or(parent.revision),
+            conf_files: self.conf_files.or(parent.conf_files),
+            assets: self.assets.or(parent.assets),
+            maintainer_scripts: self.maintainer_scripts.or(parent.maintainer_scripts),
+            features: self.features.or(parent.features),
+            default_features: self.default_features.or(parent.default_features),
+            variants: self.variants.or(parent.variants),
+        }
+    }
 }
 
 #[derive(Deserialize)]
