@@ -20,3 +20,13 @@ assets = [
     ["3.txt", "var/lib/example/3.txt", "644"],
 ]
 changelog = "changelog"
+
+
+[package.metadata.deb.variants.debug]
+assets =  [
+    # binary
+    ["target/release/example", "usr/bin/", "755"],
+    # assets
+    ["assets/*", "var/lib/example", "644"],
+    ["4.txt", "var/lib/example/4.txt", "644"],
+]
