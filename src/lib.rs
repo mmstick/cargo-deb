@@ -1,4 +1,4 @@
-#![recursion_limit="128"]
+#![recursion_limit = "128"]
 
 /*!
 
@@ -46,20 +46,20 @@ let generated = generate_deb(&options, &deb_contents)?;
 ```
 */
 
-extern crate toml;
-extern crate tar;
-#[cfg(feature = "lzma")]
-extern crate xz2;
-extern crate zopfli;
-extern crate md5;
 extern crate file;
+extern crate getopts;
+extern crate glob;
+extern crate md5;
 #[macro_use]
 extern crate quick_error;
 #[macro_use]
 extern crate serde_derive;
 extern crate serde_json;
-extern crate getopts;
-extern crate glob;
+extern crate tar;
+extern crate toml;
+#[cfg(feature = "lzma")]
+extern crate xz2;
+extern crate zopfli;
 
 pub mod compress;
 pub mod control;
@@ -109,7 +109,7 @@ pub fn generate_deb(config: &Config, contents: &[PathBuf]) -> CDResult<PathBuf> 
         let mut cmd = Command::new("ar");
         cmd.current_dir(&deb_dir).arg("r").arg(out_relpath);
         for path in contents {
-            cmd.arg(&path.strip_prefix(&deb_dir).map_err(|_|"invalid path")?);
+            cmd.arg(&path.strip_prefix(&deb_dir).map_err(|_| "invalid path")?);
         }
 
         let output = cmd.output()
@@ -165,7 +165,8 @@ pub fn cargo_build(options: &Config, target: Option<&str>, other_flags: &[String
         cmd.arg(format!("--features={}", features.join(",")));
     }
 
-    let status = cmd.status().map_err(|e| CargoDebError::CommandFailed(e, "cargo"))?;
+    let status = cmd.status()
+        .map_err(|e| CargoDebError::CommandFailed(e, "cargo"))?;
     if !status.success() {
         Err(CargoDebError::BuildFailed)?;
     }

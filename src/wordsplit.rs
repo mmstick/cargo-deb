@@ -9,7 +9,7 @@ impl WordSplit for str {
         for line in self.lines() {
             if line.is_empty() {
                 lines.push(String::from("."));
-                continue
+                continue;
             }
             let words: Vec<&str> = line.split(' ').collect();
             let mut current_line = String::with_capacity(length);
@@ -49,7 +49,11 @@ fn test_split_by_chars() {
     assert_eq!(10, iter.next().unwrap().len());
     assert_eq!(15, iter.next().unwrap().len());
     let input = String::from("This is a line\n\nthis is also a line.");
-    let test = vec![String::from("This is a line"), String::from("."), String::from("this is also a line.")];
+    let test = vec![
+        String::from("This is a line"),
+        String::from("."),
+        String::from("this is also a line."),
+    ];
     assert_eq!(test, input.split_by_chars(79));
 }
 

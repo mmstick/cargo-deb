@@ -51,8 +51,8 @@ impl CargoConfig {
     }
 
     fn target_conf(&self, target_triple: &str) -> Option<&toml::value::Table> {
-        if let Some(target) = self.config.get("target").and_then(|t|t.as_table()) {
-            return target.get(target_triple).and_then(|t|t.as_table());
+        if let Some(target) = self.config.get("target").and_then(|t| t.as_table()) {
+            return target.get(target_triple).and_then(|t| t.as_table());
         }
         None
     }
@@ -60,7 +60,7 @@ impl CargoConfig {
     pub fn strip_command(&self, target_triple: &str) -> Option<Cow<str>> {
         if let Some(target) = self.target_conf(target_triple) {
             let strip_config = target.get("strip").and_then(|top| {
-                let as_obj = top.get("path").and_then(|s|s.as_str());
+                let as_obj = top.get("path").and_then(|s| s.as_str());
                 top.as_str().or(as_obj)
             });
             if let Some(strip) = strip_config {
@@ -84,7 +84,7 @@ impl CargoConfig {
 
     fn linker_command(&self, target_triple: &str) -> Option<&str> {
         if let Some(target) = self.target_conf(target_triple) {
-            return target.get("linker").and_then(|l|l.as_str());
+            return target.get("linker").and_then(|l| l.as_str());
         }
         None
     }

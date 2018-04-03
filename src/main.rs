@@ -87,7 +87,7 @@ fn err_exit(err: &std::error::Error) -> ! {
 fn process(CliOptions {manifest_path, variant, target, install, no_build, no_strip, quiet, verbose, mut cargo_build_flags}: CliOptions) -> CDResult<()> {
     let target = target.as_ref().map(|s|s.as_str());
     let variant = variant.as_ref().map(|s| s.as_str());
-    
+
     // `cargo deb` invocation passes the `deb` arg through.
     if cargo_build_flags.first().map_or(false, |arg| arg == "deb") {
         cargo_build_flags.remove(0);

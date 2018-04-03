@@ -1,5 +1,5 @@
 use std::io;
-use std::path::{Path, PathBuf, Component};
+use std::path::{Component, Path, PathBuf};
 use tar;
 use tar::Header as TarHeader;
 use tar::EntryType;
@@ -17,7 +17,7 @@ impl Archive {
         Self {
             added_directories: HashSet::new(),
             time,
-            tar: tar::Builder::new(Vec::new())
+            tar: tar::Builder::new(Vec::new()),
         }
     }
 

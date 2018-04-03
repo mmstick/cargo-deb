@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 use std::ffi::OsStr;
-use zopfli::{self, Options, Format};
+use zopfli::{self, Format, Options};
 
 use file;
 use error::*;

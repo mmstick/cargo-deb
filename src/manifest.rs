@@ -217,8 +217,11 @@ impl Config {
         let copyright_file = ::data::generate_copyright_asset(self)?;
         self.assets.push(Asset::new(
             AssetSource::Data(copyright_file),
-            Path::new("usr/share/doc").join(&self.name).join("copyright"),
-            0o644, false
+            Path::new("usr/share/doc")
+                .join(&self.name)
+                .join("copyright"),
+            0o644,
+            false,
         ));
         Ok(())
     }
@@ -229,8 +232,11 @@ impl Config {
             if let Some(changelog_file) = ::data::generate_changelog_asset(self)? {
                 self.assets.push(Asset::new(
                     AssetSource::Data(changelog_file),
-                    Path::new("usr/share/doc").join(&self.name).join("changelog.gz"),
-                    0o644, false
+                    Path::new("usr/share/doc")
+                        .join(&self.name)
+                        .join("changelog.gz"),
+                    0o644,
+                    false,
                 ));
             }
         }
@@ -339,8 +345,8 @@ impl Cargo {
                 .take()
                 .and_then(|m| m.deb)
                 .unwrap_or_else(CargoDeb::default);
-            let variant = deb
-                .variants.as_mut()
+            let variant = deb.variants
+                .as_mut()
                 .and_then(|v| v.remove(variant))
                 .ok_or(CargoDebError::VariantNotFound(variant.to_string()))?;
             variant.inherit_from(deb)
@@ -447,7 +453,7 @@ impl Cargo {
             } else {0};
             Ok((file.map(|s|s.into()), lines))
         } else {
-            Ok((self.package.license_file.as_ref().map(|s|s.into()), 0))
+            Ok((self.package.license_file.as_ref().map(|s| s.into()), 0))
         }
     }
 
@@ -456,7 +462,8 @@ impl Cargo {
             let mut all_assets = Vec::with_capacity(assets.len());
             for mut v in assets {
                 let mut v = v.drain(..);
-                let mut source_path = PathBuf::from(v.next().ok_or("missing path (first array entry) for asset in Cargo.toml")?);
+                let mut source_path = PathBuf::from(v.next()
+                    .ok_or("missing path (first array entry) for asset in Cargo.toml")?);
                 let (is_built, source_path) = if let Ok(rel_path) = source_path.strip_prefix("target/release") {
                     (true, options.path_in_build(rel_path))
                 } else {
@@ -501,7 +508,7 @@ impl Cargo {
                         AssetSource::Path(source_file),
                         target_file,
                         mode,
-                        is_built
+                        is_built,
                     ));
                 }
             }
@@ -510,19 +517,21 @@ impl Cargo {
             let mut implied_assets: Vec<_> = targets
                 .iter()
                 .filter_map(|t| {
-                    if t.crate_types.iter().any(|ty|ty=="bin") && t.kind.iter().any(|k|k=="bin") {
+                    if t.crate_types.iter().any(|ty| ty == "bin") && t.kind.iter().any(|k| k == "bin") {
                         Some(Asset::new(
                             AssetSource::Path(options.path_in_build(&t.name)),
                             Path::new("usr/bin").join(&t.name),
-                            0o755, true
+                            0o755,
+                            true,
                         ))
-                    } else if t.crate_types.iter().any(|ty|ty=="cdylib") && t.kind.iter().any(|k|k=="cdylib") {
+                    } else if t.crate_types.iter().any(|ty| ty == "cdylib") && t.kind.iter().any(|k| k == "cdylib") {
                         // FIXME: std has constants for the host arch, but not for cross-compilation
                         let lib_name = format!("{}{}{}", DLL_PREFIX, t.name, DLL_SUFFIX);
                         Some(Asset::new(
                             AssetSource::Path(options.path_in_build(&lib_name)),
                             Path::new("usr/lib").join(lib_name),
-                            0o644, true
+                            0o644,
+                            true,
                         ))
                     } else {
                         None
@@ -534,7 +543,8 @@ impl Cargo {
                 implied_assets.push(Asset::new(
                     AssetSource::Path(PathBuf::from(readme)),
                     target_path,
-                    0o644, false
+                    0o644,
+                    false,
                 ));
             }
             implied_assets
@@ -574,12 +584,12 @@ struct CargoPackageMetadata {
 
 #[derive(Clone, Debug, Deserialize)]
 struct CargoProfiles {
-    pub release: Option<CargoProfile>
+    pub release: Option<CargoProfile>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
 struct CargoProfile {
-    pub debug: Option<bool>
+    pub debug: Option<bool>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -726,7 +736,8 @@ fn assets() {
     let a = Asset::new(
         AssetSource::Path(PathBuf::from("target/release/bar")),
         PathBuf::from("baz/"),
-        0o644, true
+        0o644,
+        true,
     );
     assert_eq!("baz/bar", a.target_path.to_str().unwrap());
     assert!(a.is_built);
@@ -734,7 +745,8 @@ fn assets() {
     let a = Asset::new(
         AssetSource::Path(PathBuf::from("foo/bar")),
         PathBuf::from("/baz/quz"),
-        0o644, false
+        0o644,
+        false,
     );
     assert_eq!("baz/quz", a.target_path.to_str().unwrap());
     assert!(!a.is_built);
