@@ -68,6 +68,10 @@ quick_error! {
             description("unable to find package for the library")
             display("path '{}' does not belong to a package: {}", path, String::from_utf8_lossy(reason))
         }
+        VariantNotFound(variant: String) {
+            description("unable to find the passed metadata variant")
+            display("variant '{}' not found in package.metadata.deb.variants", variant)
+        }
         GlobPatternError(err: glob::PatternError) {
             from()
             description(err.description())
