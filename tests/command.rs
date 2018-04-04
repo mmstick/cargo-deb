@@ -77,7 +77,9 @@ fn run_cargo_deb_command_on_example_dir_with_variant() {
     let root = PathBuf::from(env::var_os("CARGO_MANIFEST_DIR").unwrap());
     let cmd_path = root.join("target/debug/cargo-deb");
     assert!(cmd_path.exists());
+    let cargo_dir = TempDir::new("cargo-deb-target").unwrap();
     let output = Command::new(cmd_path)
+        .env("CARGO_TARGET_DIR", cargo_dir.path()) // otherwise tests overwrite each other
         .arg("--variant=debug")
         .arg("--no-strip")
         .arg(format!(
