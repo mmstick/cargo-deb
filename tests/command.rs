@@ -72,13 +72,14 @@ fn run_cargo_deb_command_on_example_dir() {
 }
 
 #[test]
-#[cfg(all(feature = "lzma", target_os = "linux"))]
+#[cfg(all(feature = "lzma"))]
 fn run_cargo_deb_command_on_example_dir_with_variant() {
     let root = PathBuf::from(env::var_os("CARGO_MANIFEST_DIR").unwrap());
     let cmd_path = root.join("target/debug/cargo-deb");
     assert!(cmd_path.exists());
     let output = Command::new(cmd_path)
         .arg("--variant=debug")
+        .arg("--no-strip")
         .arg(format!(
             "--manifest-path={}",
             root.join("example/Cargo.toml").display()
@@ -92,7 +93,7 @@ fn run_cargo_deb_command_on_example_dir_with_variant() {
     let deb_path = Path::new(::std::str::from_utf8(last_line).unwrap());
     assert!(deb_path.exists());
 
-    let ardir = TempDir::new("cargo-deb-test").unwrap();
+    let ardir = TempDir::new("cargo-deb-test2").unwrap();
     assert!(ardir.path().exists());
     assert!(Command::new("ar")
         .current_dir(ardir.path())
@@ -112,7 +113,7 @@ fn run_cargo_deb_command_on_example_dir_with_variant() {
         .status().unwrap().success());
 
     let control = file::get_text(cdir.path().join("control")).unwrap();
-    assert!(control.contains("Package: example-debug\n"));
+    assert!(control.contains("Package: example-debug\n"), "Control is: {:?}", control);
     assert!(control.contains("Version: 0.1.0\n"));
     assert!(control.contains("Section: utils\n"));
     assert!(control.contains("Architecture: "));
