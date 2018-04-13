@@ -579,7 +579,6 @@ struct CargoPackage {
 #[derive(Clone, Debug, Deserialize)]
 struct CargoPackageMetadata {
     pub deb: Option<CargoDeb>,
-    pub deb_variant: Option<HashMap<String, CargoDeb>>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
