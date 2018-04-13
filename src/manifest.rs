@@ -600,7 +600,7 @@ struct CargoBin {
 }
 
 #[derive(Clone, Debug, Deserialize, Default)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "kebab-case", deny_unknown_fields)]
 struct CargoDeb {
     pub maintainer: Option<String>,
     pub copyright: Option<String>,
