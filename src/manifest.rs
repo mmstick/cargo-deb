@@ -462,7 +462,7 @@ impl Cargo {
             let mut all_assets = Vec::with_capacity(assets.len());
             for mut v in assets {
                 let mut v = v.drain(..);
-                let mut source_path = PathBuf::from(v.next()
+                let source_path = PathBuf::from(v.next()
                     .ok_or("missing path (first array entry) for asset in Cargo.toml")?);
                 let (is_built, source_path) = if let Ok(rel_path) = source_path.strip_prefix("target/release") {
                     (true, options.path_in_build(rel_path))

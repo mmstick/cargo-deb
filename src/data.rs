@@ -30,13 +30,13 @@ pub(crate) fn generate_changelog_asset(options: &Config) -> CDResult<Option<Vec<
 /// Generates the copyright file from the license file and adds that to the tar archive.
 pub(crate) fn generate_copyright_asset(options: &Config) -> CDResult<Vec<u8>> {
     let mut copyright: Vec<u8> = Vec::new();
-    write!(&mut copyright, "Upstream Name: {}\n", options.name)?;
+    writeln!(&mut copyright, "Upstream Name: {}", options.name)?;
     if let Some(source) = options.repository.as_ref().or(options.homepage.as_ref()) {
-        write!(&mut copyright, "Source: {}\n", source)?;
+        writeln!(&mut copyright, "Source: {}", source)?;
     }
-    write!(&mut copyright, "Copyright: {}\n", options.copyright)?;
+    writeln!(&mut copyright, "Copyright: {}", options.copyright)?;
     if let Some(ref license) = options.license {
-        write!(&mut copyright, "License: {}\n", license)?;
+        writeln!(&mut copyright, "License: {}", license)?;
     }
     if let Some(ref path) = options.license_file {
         let license_string = file::get_text(path)

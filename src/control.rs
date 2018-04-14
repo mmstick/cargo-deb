@@ -59,57 +59,57 @@ fn generate_control(archive: &mut Archive, options: &Config, listener: &mut List
     let mut control: Vec<u8> = Vec::with_capacity(1024);
 
     // Write all of the lines required by the control file.
-    write!(&mut control, "Package: {}\n", options.name)?;
-    write!(&mut control, "Version: {}\n", options.version)?;
-    write!(&mut control, "Architecture: {}\n", options.architecture)?;
+    writeln!(&mut control, "Package: {}", options.name)?;
+    writeln!(&mut control, "Version: {}", options.version)?;
+    writeln!(&mut control, "Architecture: {}", options.architecture)?;
     if let Some(ref repo) = options.repository {
         if repo.starts_with("http") {
-            write!(&mut control, "Vcs-Browser: {}\n", repo)?;
+            writeln!(&mut control, "Vcs-Browser: {}", repo)?;
         }
         if let Some(kind) = options.repository_type() {
-            write!(&mut control, "Vcs-{}: {}\n", kind, repo)?;
+            writeln!(&mut control, "Vcs-{}: {}", kind, repo)?;
         }
     }
     if let Some(homepage) = options.homepage.as_ref().or(options.documentation.as_ref()) {
-        write!(&mut control, "Homepage: {}\n", homepage)?;
+        writeln!(&mut control, "Homepage: {}", homepage)?;
     }
     if let Some(ref section) = options.section {
-        write!(&mut control, "Section: {}\n", section)?;
+        writeln!(&mut control, "Section: {}", section)?;
     }
-    write!(&mut control, "Priority: {}\n", options.priority)?;
+    writeln!(&mut control, "Priority: {}", options.priority)?;
     control.write_all(b"Standards-Version: 3.9.4\n")?;
-    write!(&mut control, "Maintainer: {}\n", options.maintainer)?;
+    writeln!(&mut control, "Maintainer: {}", options.maintainer)?;
 
     let installed_size = options.assets
         .iter()
         .filter_map(|m| m.source.len())
         .sum::<u64>() / 1024;
 
-    write!(&mut control, "Installed-Size: {}\n", installed_size)?;
+    writeln!(&mut control, "Installed-Size: {}", installed_size)?;
 
-    write!(&mut control, "Depends: {}\n", options.get_dependencies(listener)?)?;
+    writeln!(&mut control, "Depends: {}", options.get_dependencies(listener)?)?;
 
     if let Some(ref conflicts) = options.conflicts {
-        write!(&mut control, "Conflicts: {}\n", conflicts)?;
+        writeln!(&mut control, "Conflicts: {}", conflicts)?;
     }
     if let Some(ref breaks) = options.breaks {
-        write!(&mut control, "Breaks: {}\n", breaks)?;
+        writeln!(&mut control, "Breaks: {}", breaks)?;
     }
     if let Some(ref replaces) = options.replaces {
-        write!(&mut control, "Replaces: {}\n", replaces)?;
+        writeln!(&mut control, "Replaces: {}", replaces)?;
     }
     if let Some(ref provides) = options.provides {
-        write!(&mut control, "Provides: {}\n", provides)?;
+        writeln!(&mut control, "Provides: {}", provides)?;
     }
 
     write!(&mut control, "Description:")?;
     for line in options.description.split_by_chars(79) {
-        write!(&mut control, " {}\n", line)?;
+        writeln!(&mut control, " {}", line)?;
     }
 
     if let Some(ref desc) = options.extended_description {
         for line in desc.split_by_chars(79) {
-            write!(&mut control, " {}\n", line)?;
+            writeln!(&mut control, " {}", line)?;
         }
     }
     control.push(10);
