@@ -1,6 +1,6 @@
 # Debian packages from Cargo projects [![Build Status](https://travis-ci.org/mmstick/cargo-deb.svg?branch=master)](https://travis-ci.org/mmstick/cargo-deb)
 
-This is a [Cargo](http://doc.crates.io/) helper command which automatically creates [Debian packages](https://www.debian.org/doc/debian-policy/#binary-packages) (`.deb`) from Cargo projects.
+This is a [Cargo](https://doc.rust-lang.org/cargo/) helper command which automatically creates binary [Debian packages](https://www.debian.org/doc/debian-policy/#binary-packages) (`.deb`) from Cargo projects.
 
 ## Installation
 
@@ -18,15 +18,15 @@ cargo deb
 
 Upon running `cargo deb` from the base directory of your Rust project, the Debian package will be created in `target/debian/<project_name>_<version>_<arch>.deb`. This package can be installed with `dpkg -i target/debian/*.deb`.
 
-If you would like to handle the build process yourself, you can use `cargo deb --no-build` so that the `cargo-deb` command will not attempt to rebuild your project.
-
 Debug symbols are stripped from the main binary by default. To keep debug symbols, either set `[profile.release] debug = true` in `Cargo.toml` or run `cargo deb --no-strip`.
 
 `cargo deb --install` builds and installs the project system-wide.
 
 ## Configuration
 
-This command obtains basic information it needs from [the `Cargo.toml` file](http://doc.crates.io/manifest.html). It uses Cargo fields: `name`, `version`, `license`, `license-file`, `description`, `readme`, `homepage`, and `repository`. However, as these fields are not enough for a complete Debian package, you may also define a new table, `[package.metadata.deb]` that contains `maintainer`, `copyright`, `license-file`, `changelog`, `depends`, `conflicts`, `breaks`, `replaces`, `provides`, `extended-description`, `section`, `priority`, and `assets`.
+No configuration is necessary to make a basic package from a Cargo project with a binary. This command obtains basic information it needs from [the `Cargo.toml` file](https://doc.rust-lang.org/cargo/reference/manifest.html). It uses Cargo fields: `name`, `version`, `license`, `license-file`, `description`, `readme`, `homepage`, and `repository`.
+
+For a more complete Debian package, you may also define a new table, `[package.metadata.deb]` that contains `maintainer`, `copyright`, `license-file`, `changelog`, `depends`, `conflicts`, `breaks`, `replaces`, `provides`, `extended-description`, `section`, `priority`, and `assets`.
 
 ### `[package.metadata.deb]` options
 
@@ -53,7 +53,7 @@ Everything is optional:
  - **features**: List of [Cargo features](https://doc.rust-lang.org/cargo/reference/manifest.html#the-features-section) to use when building the package.
  - **default-features**: whether to use default crate features in addition to the `features` list (default `true`).
 
-### Example `Cargo.toml` additions
+### Example of custom `Cargo.toml` additions
 
 ```toml
 [package.metadata.deb]
@@ -115,6 +115,8 @@ Cross compiled archives are saved in `target/<target triple>/debian/*.deb`. The 
 In `.cargo/config` you can add `[target.<target triple>] strip = { path = "…" }` to specify a path to the architecture-specific `strip` command.
 
 ### Custom build flags
+
+If you would like to handle the build process yourself, you can use `cargo deb --no-build` so that the `cargo-deb` command will not attempt to rebuild your project.
 
     cargo deb -- <cargo build flags>
 
