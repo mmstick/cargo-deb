@@ -11,19 +11,6 @@ repository = "https://github.com/mmstick/cargo-deb"
 readme = "README.md"
 version = "1.10.0-beta"
 
-[lib]
-name = "cargo_deb"
-path = "src/lib.rs"
-doc = true
-
-[[bin]]
-name = "cargo-deb"
-path = "src/main.rs"
-doc = false
-
-[badges]
-travis-ci = { repository = "mmstick/cargo-deb" }
-
 [package.metadata.deb]
 maintainer = "Michael Aaron Murphy <mmstickman@gmail.com>"
 copyright = "2016-2017, Michael Aaron Murphy, Kornel Lesiński"
@@ -38,6 +25,19 @@ assets = [
     ["target/release/cargo-deb", "usr/bin/", "755"],
     ["README.md", "usr/share/doc/cargo-deb/README", "644"],
 ]
+
+[lib]
+name = "cargo_deb"
+path = "src/lib.rs"
+doc = true
+
+[[bin]]
+name = "cargo-deb"
+path = "src/main.rs"
+doc = false
+
+[badges]
+travis-ci = { repository = "mmstick/cargo-deb" }
 
 [build-dependencies]
 file = "1.1.1"
@@ -55,6 +55,7 @@ tar = "0.4.13"
 toml = "0.4.4"
 zopfli = "0.3.0"
 glob = "0.2.11"
+ar = "0.6.0"
 
 [features]
 default = ["lzma"]

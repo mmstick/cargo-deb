@@ -56,6 +56,7 @@ extern crate quick_error;
 extern crate serde_derive;
 extern crate serde_json;
 extern crate tar;
+extern crate ar;
 extern crate toml;
 #[cfg(feature = "lzma")]
 extern crate xz2;
@@ -74,7 +75,11 @@ mod config;
 pub mod listener;
 use listener::Listener;
 
+use ar::Builder;
 use std::fs;
+use std::fs::File;
+use std::ffi::OsStr;
+use std::os::unix::ffi::OsStrExt;
 use std::path::{Path, PathBuf};
 use std::io::{self, Write};
 use std::process::Command;
@@ -102,20 +107,17 @@ pub fn install_deb(path: &Path) -> CDResult<()> {
 pub fn generate_deb(config: &Config, contents: &[PathBuf]) -> CDResult<PathBuf> {
     let out_relpath = format!("{}_{}_{}.deb", config.name, config.version, config.architecture);
     let out_abspath = config.path_in_deb(&out_relpath);
+
     {
         let deb_dir = out_abspath.parent().ok_or("invalid dir")?;
 
-        let _ = fs::remove_file(&out_abspath); // Remove it if it exists
-        let mut cmd = Command::new("ar");
-        cmd.current_dir(&deb_dir).arg("r").arg(out_relpath);
-        for path in contents {
-            cmd.arg(&path.strip_prefix(&deb_dir).map_err(|_| "invalid path")?);
-        }
+        let mut ar_builder = Builder::new(File::create(&out_abspath)?);
 
-        let output = cmd.output()
-            .map_err(|e| CargoDebError::CommandFailed(e, "ar"))?;
-        if !output.status.success() {
-            return Err(CargoDebError::CommandError("ar", out_abspath.display().to_string(), output.stderr));
+        for path in contents {
+            let dest_path = &path.strip_prefix(&deb_dir).map_err(|_| "invalid path")?;
+            let dest_path: &OsStr = dest_path.as_ref();
+            let mut file = File::open(&path)?;
+            ar_builder.append_file(dest_path.as_bytes(), &mut file)?;
         }
     }
     Ok(out_abspath)
