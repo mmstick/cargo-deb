@@ -72,18 +72,19 @@ mod wordsplit;
 mod error;
 mod archive;
 mod config;
+mod pathbytes;
 pub mod listener;
 use listener::Listener;
 
 use ar::Builder;
 use std::fs;
 use std::fs::File;
-use std::ffi::OsStr;
-use std::os::unix::ffi::OsStrExt;
 use std::path::{Path, PathBuf};
 use std::io::{self, Write};
 use std::process::Command;
+#[cfg(unix)]
 use std::os::unix::fs::OpenOptionsExt;
+use pathbytes::*;
 pub use error::*;
 
 pub use manifest::Config;
@@ -114,8 +115,7 @@ pub fn generate_deb(config: &Config, contents: &[PathBuf]) -> CDResult<PathBuf> 
         let mut ar_builder = Builder::new(File::create(&out_abspath)?);
 
         for path in contents {
-            let dest_path = &path.strip_prefix(&deb_dir).map_err(|_| "invalid path")?;
-            let dest_path: &OsStr = dest_path.as_ref();
+            let dest_path = path.strip_prefix(&deb_dir).map_err(|_| "invalid path")?;
             let mut file = File::open(&path)?;
             ar_builder.append_file(dest_path.as_bytes(), &mut file)?;
         }
@@ -126,12 +126,15 @@ pub fn generate_deb(config: &Config, contents: &[PathBuf]) -> CDResult<PathBuf> 
 /// Creates the debian-binary file that will be added to the final ar archive.
 pub fn generate_debian_binary_file(options: &Config) -> io::Result<PathBuf> {
     let bin_path = options.path_in_deb("debian-binary");
-    let mut file = fs::OpenOptions::new()
-        .create(true)
+    let mut opts = fs::OpenOptions::new();
+    opts.create(true)
         .write(true)
-        .truncate(true)
-        .mode(0o644)
-        .open(&bin_path)?;
+        .truncate(true);
+    #[cfg(unix)]
+    {
+        opts.mode(0o644);
+    }
+    let mut file = opts.open(&bin_path)?;
     file.write_all(b"2.0\n")?;
     Ok(bin_path)
 }

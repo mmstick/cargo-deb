@@ -7,7 +7,7 @@ use md5;
 use file;
 use std::collections::HashMap;
 use error::*;
-use std::os::unix::ffi::OsStrExt;
+use pathbytes::*;
 use archive::Archive;
 use wordsplit::WordSplit;
 
@@ -44,7 +44,7 @@ fn generate_md5sums(archive: &mut Archive, options: &Config, asset_hashes: HashM
         write!(md5sums, "{:x}", asset_hashes[&asset.target_path])?;
         md5sums.write_all(b"  ")?;
 
-        md5sums.write_all(asset.target_path.as_os_str().as_bytes())?;
+        md5sums.write_all(asset.target_path.as_path().as_bytes())?;
         md5sums.write_all(&[b'\n'])?;
     }
 
