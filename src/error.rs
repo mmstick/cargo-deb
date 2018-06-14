@@ -1,3 +1,4 @@
+#![allow(renamed_and_removed_lints)]
 use std::io;
 use std::num;
 use std::time;

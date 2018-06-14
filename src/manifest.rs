@@ -11,6 +11,7 @@ use glob;
 use dependencies::resolve;
 use serde_json;
 use error::*;
+use cargo_toml;
 use try::Try;
 use config::CargoConfig;
 
@@ -186,9 +187,9 @@ impl Config {
         let target_dir = Path::new(&metadata.target_directory);
         let manifest_path = Path::new(&root_package.manifest_path);
         let manifest_dir = manifest_path.parent().unwrap();
-        let content = file::get_text(&manifest_path)
+        let content = file::get(&manifest_path)
             .map_err(|e| CargoDebError::IoFile("unable to read Cargo.toml", e, manifest_path.to_owned()))?;
-        toml::from_str::<Cargo>(&content)?.into_config(root_package, manifest_dir, target_dir, target, variant, listener)
+        toml::from_slice::<Cargo>(&content)?.into_config(root_package, manifest_dir, target_dir, target, variant, listener)
     }
 
     pub(crate) fn get_dependencies(&self, listener: &mut Listener) -> CDResult<String> {
@@ -310,8 +311,8 @@ impl Config {
 
 #[derive(Clone, Debug, Deserialize)]
 struct Cargo {
-    pub package: CargoPackage,
-    pub profile: Option<CargoProfiles>,
+    pub package: cargo_toml::TomlPackage<CargoPackageMetadata>,
+    pub profile: Option<cargo_toml::TomlProfiles>,
 }
 
 impl Cargo {
@@ -370,7 +371,10 @@ impl Cargo {
             license_file,
             license_file_skip_lines,
             copyright: deb.copyright.take().ok_or_then(|| {
-                Ok(self.package.authors.as_ref().ok_or("Package must have a copyright or authors")?.join(", "))
+                if self.package.authors.is_empty() {
+                    Err("Package must have a copyright or authors")?;
+                }
+                Ok(self.package.authors.join(", "))
             })?,
             version: self.version_string(deb.revision),
             homepage: self.package.homepage.clone(),
@@ -379,7 +383,7 @@ impl Cargo {
             description: self.package.description.take().unwrap_or_else(||format!("[generated from Rust crate {}]", self.package.name)),
             extended_description: self.extended_description(deb.extended_description.take(), readme)?,
             maintainer: deb.maintainer.take().ok_or_then(|| {
-                Ok(self.package.authors.as_ref().and_then(|a|a.get(0))
+                Ok(self.package.authors.get(0)
                     .ok_or("Package must have a maintainer or authors")?.to_owned())
             })?,
             depends: deb.depends.take().unwrap_or("$auto".to_owned()),
@@ -561,42 +565,8 @@ impl Cargo {
 }
 
 #[derive(Clone, Debug, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-struct CargoPackage {
-    pub name: String,
-    pub authors: Option<Vec<String>>,
-    pub license: Option<String>,
-    pub license_file: Option<String>,
-    pub homepage: Option<String>,
-    pub documentation: Option<String>,
-    pub repository: Option<String>,
-    pub version: String,
-    pub description: Option<String>,
-    pub readme: Option<String>,
-    pub metadata: Option<CargoPackageMetadata>,
-}
-
-#[derive(Clone, Debug, Deserialize)]
 struct CargoPackageMetadata {
     pub deb: Option<CargoDeb>,
-}
-
-#[derive(Clone, Debug, Deserialize)]
-struct CargoProfiles {
-    pub release: Option<CargoProfile>,
-}
-
-#[derive(Clone, Debug, Deserialize)]
-struct CargoProfile {
-    pub debug: Option<bool>,
-}
-
-#[derive(Clone, Debug, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-struct CargoBin {
-    pub name: String,
-    pub plugin: Option<bool>,
-    pub proc_macro: Option<bool>,
 }
 
 #[derive(Clone, Debug, Deserialize, Default)]

@@ -61,6 +61,7 @@ extern crate toml;
 #[cfg(feature = "lzma")]
 extern crate xz2;
 extern crate zopfli;
+extern crate cargo_toml;
 
 pub mod compress;
 pub mod control;
