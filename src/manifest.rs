@@ -401,7 +401,9 @@ impl Cargo {
             features: deb.features.take().unwrap_or(vec![]),
             default_features: deb.default_features.unwrap_or(true),
             strip: self.profile.as_ref().and_then(|p|p.release.as_ref())
-                .and_then(|r|r.debug).map(|debug|!debug).unwrap_or(true),
+                .and_then(|r| r.debug.as_ref())
+                .and_then(|debug| debug.as_bool())
+                .unwrap_or(true),
             _use_constructor_to_make_this_struct_: (),
         };
 
