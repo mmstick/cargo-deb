@@ -402,8 +402,11 @@ impl Cargo {
             default_features: deb.default_features.unwrap_or(true),
             strip: self.profile.as_ref().and_then(|p|p.release.as_ref())
                 .and_then(|r| r.debug.as_ref())
-                .and_then(|debug| debug.as_bool())
-                .unwrap_or(true),
+                .map_or(true, |debug| match debug {
+                    toml::Value::Integer(0) => false,
+                    toml::Value::Boolean(_) => debug.as_bool().unwrap(),
+                    _ => true
+                }),
             _use_constructor_to_make_this_struct_: (),
         };
 
