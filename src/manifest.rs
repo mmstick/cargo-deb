@@ -404,7 +404,7 @@ impl Cargo {
                 .and_then(|r| r.debug.as_ref())
                 .map_or(true, |debug| match debug {
                     toml::Value::Integer(0) => false,
-                    toml::Value::Boolean(_) => debug.as_bool().unwrap(),
+                    toml::Value::Boolean(value) => *value,
                     _ => true
                 }),
             _use_constructor_to_make_this_struct_: (),
