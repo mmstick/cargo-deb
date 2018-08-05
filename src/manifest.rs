@@ -71,7 +71,7 @@ pub struct Asset {
 
 impl Asset {
     pub fn new(source: AssetSource, mut target_path: PathBuf, chmod: u32, is_built: bool) -> Self {
-        if target_path.is_absolute() {
+        if target_path.is_absolute() || target_path.has_root() {
             target_path = target_path.strip_prefix("/").expect("no root dir").to_owned();
         }
         // is_dir() is only for paths that exist

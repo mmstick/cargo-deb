@@ -75,7 +75,7 @@ fn run_cargo_deb_command_on_example_dir() {
 #[cfg(all(feature = "lzma"))]
 fn run_cargo_deb_command_on_example_dir_with_variant() {
     let root = PathBuf::from(env::var_os("CARGO_MANIFEST_DIR").unwrap());
-    let cmd_path = root.join("target/debug/cargo-deb");
+    let cmd_path = root.join(format!("target/debug/cargo-deb{}", std::env::consts::EXE_SUFFIX));
     assert!(cmd_path.exists());
     let cargo_dir = TempDir::new("cargo-deb-target").unwrap();
     let output = Command::new(cmd_path)
@@ -88,7 +88,9 @@ fn run_cargo_deb_command_on_example_dir_with_variant() {
         ))
         .output()
         .unwrap();
-    assert!(output.status.success());
+    if !output.status.success() {
+        panic!("Cmd failed: {}\n{}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));
+    }
 
     // prints deb path on the last line
     let last_line = output.stdout[..output.stdout.len()-1].split(|&c| c==b'\n').last().unwrap();

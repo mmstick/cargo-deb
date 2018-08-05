@@ -3,7 +3,6 @@ use std::path::PathBuf;
 use manifest::Config;
 use listener::Listener;
 use md5::Digest;
-use md5;
 use file;
 use std::collections::HashMap;
 use error::*;
@@ -36,7 +35,7 @@ fn generate_scripts(archive: &mut Archive, option: &Config) -> CDResult<()> {
 }
 
 /// Creates the md5sums file which contains a list of all contained files and the md5sums of each.
-fn generate_md5sums(archive: &mut Archive, options: &Config, asset_hashes: HashMap<PathBuf, md5::Digest>) -> CDResult<()> {
+fn generate_md5sums(archive: &mut Archive, options: &Config, asset_hashes: HashMap<PathBuf, Digest>) -> CDResult<()> {
     let mut md5sums: Vec<u8> = Vec::new();
 
     // Collect md5sums from each asset in the archive.
