@@ -11,6 +11,7 @@ pub struct CargoConfig {
 }
 
 impl CargoConfig {
+    #[allow(deprecated)]
     pub fn new<P: AsRef<Path>>(project_path: P) -> CDResult<Option<Self>> {
         let mut project_path = project_path.as_ref();
         loop {
