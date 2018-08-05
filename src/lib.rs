@@ -118,7 +118,7 @@ pub fn generate_deb(config: &Config, contents: &[PathBuf]) -> CDResult<PathBuf> 
         for path in contents {
             let dest_path = path.strip_prefix(&deb_dir).map_err(|_| "invalid path")?;
             let mut file = File::open(&path)?;
-            ar_builder.append_file(dest_path.as_bytes(), &mut file)?;
+            ar_builder.append_file(&dest_path.as_unix_path(), &mut file)?;
         }
     }
     Ok(out_abspath)

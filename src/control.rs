@@ -43,7 +43,7 @@ fn generate_md5sums(archive: &mut Archive, options: &Config, asset_hashes: HashM
         write!(md5sums, "{:x}", asset_hashes[&asset.target_path])?;
         md5sums.write_all(b"  ")?;
 
-        md5sums.write_all(asset.target_path.as_path().as_bytes())?;
+        md5sums.write_all(&asset.target_path.as_path().as_unix_path())?;
         md5sums.write_all(&[b'\n'])?;
     }
 
