@@ -33,7 +33,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "cargo-deb"
-version = "1.10.1"
+version = "1.11.0"
 dependencies = [
  "ar 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "cargo_toml 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",

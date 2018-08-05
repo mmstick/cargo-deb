@@ -104,15 +104,15 @@ There can be multiple variants of the metadata in one `Cargo.toml` file. `--vari
 
 `cargo deb` supports a `--target` flag, which takes [Rust target triple](https://forge.rust-lang.org/platform-support.html). See `rustc --print target-list` for the list of supported values.
 
-The target has to be [installed for Rust](https://github.com/rust-lang-nursery/rustup.rs#cross-compilation) (e.g. `rustup target add i686-unknown-linux-gnu`) and has to be [installed for Debian](https://wiki.debian.org/ToolChain/Cross) (e.g. `apt-get install libc6-dev-i386`). Note that Rust's and [Debian's architecture names](https://www.debian.org/ports/) are different.
+Cross-compilation can be run from any host, including macOS and Windows, provided that Debian-compatible linker and system libraries are available to Rust. The target has to be [installed for Rust](https://github.com/rust-lang-nursery/rustup.rs#cross-compilation) (e.g. `rustup target add i686-unknown-linux-gnu`) and has to be [installed for the host system (e.g. Debian)](https://wiki.debian.org/ToolChain/Cross) (e.g. `apt-get install libc6-dev-i386`). Note that Rust's and [Debian's architecture names](https://www.debian.org/ports/) are different.
 
 ```sh
 cargo deb --target=i686-unknown-linux-gnu
 ```
 
-Cross compiled archives are saved in `target/<target triple>/debian/*.deb`. The actual archive path is printed on success.
+Cross-compiled archives are saved in `target/<target triple>/debian/*.deb`. The actual archive path is printed on success.
 
-In `.cargo/config` you can add `[target.<target triple>] strip = { path = "…" }` to specify a path to the architecture-specific `strip` command.
+In `.cargo/config` you can add `[target.<target triple>] strip = { path = "…" }` to specify a path to the architecture-specific `strip` command, or use `--no-strip`.
 
 ### Custom build flags
 
