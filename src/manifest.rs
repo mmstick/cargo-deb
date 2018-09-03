@@ -103,6 +103,8 @@ impl Asset {
 pub struct Config {
     /// Root directory where `Cargo.toml` is located. It's a subdirectory in workspaces.
     pub manifest_dir: PathBuf,
+    /// User-configured output path for *.deb
+    pub deb_output_path: Option<String>,
     /// Triple. `None` means current machine architecture.
     pub target: Option<String>,
     /// `CARGO_TARGET_DIR`
@@ -178,7 +180,7 @@ impl Config {
     /// Makes a new config from `Cargo.toml` in the current working directory.
     ///
     /// `None` target means the host machine's architecture.
-    pub fn from_manifest(manifest_path: &Path, target: Option<&str>, variant: Option<&str>, listener: &mut Listener) -> CDResult<Config> {
+    pub fn from_manifest(manifest_path: &Path, output_path: Option<String>, target: Option<&str>, variant: Option<&str>, listener: &mut Listener) -> CDResult<Config> {
         let metadata = cargo_metadata(manifest_path)?;
         let root_id = metadata.resolve.root;
         let root_package = metadata.packages.iter()
@@ -189,7 +191,7 @@ impl Config {
         let manifest_dir = manifest_path.parent().unwrap();
         let content = file::get(&manifest_path)
             .map_err(|e| CargoDebError::IoFile("unable to read Cargo.toml", e, manifest_path.to_owned()))?;
-        toml::from_slice::<Cargo>(&content)?.into_config(root_package, manifest_dir, target_dir, target, variant, listener)
+        toml::from_slice::<Cargo>(&content)?.into_config(root_package, manifest_dir, output_path, target_dir, target, variant, listener)
     }
 
     pub(crate) fn get_dependencies(&self, listener: &mut Listener) -> CDResult<String> {
@@ -296,12 +298,27 @@ impl Config {
         self.manifest_dir.join(rel_path)
     }
 
-    pub(crate) fn deb_dir(&self) -> PathBuf {
+    /// Store intermediate files here
+    pub(crate) fn deb_temp_dir(&self) -> PathBuf {
         self.target_dir.join("debian")
     }
 
-    pub fn path_in_deb<P: AsRef<Path>>(&self, rel_path: P) -> PathBuf {
-        self.deb_dir().join(rel_path)
+    /// Save final .deb here
+    pub(crate) fn deb_output_path(&self, filename: &str) -> PathBuf {
+        if let Some(ref path_str) = self.deb_output_path {
+            let path = Path::new(path_str);
+            if path_str.ends_with('/') || path.is_dir() {
+                path.join(filename)
+            } else {
+                path.to_owned()
+            }
+        } else {
+            self.target_dir.join("debian").join(filename)
+        }
+    }
+
+    pub fn temp_path_in_deb<P: AsRef<Path>>(&self, rel_path: P) -> PathBuf {
+        self.deb_temp_dir().join(rel_path)
     }
 
     pub(crate) fn cargo_config(&self) -> CDResult<Option<CargoConfig>> {
@@ -325,6 +342,7 @@ impl Cargo {
         mut self,
         root_package: &CargoMetadataPackage,
         manifest_dir: &Path,
+        deb_output_path: Option<String>,
         target_dir: &Path,
         target: Option<&str>,
         variant: Option<&str>,
@@ -364,6 +382,7 @@ impl Cargo {
         self.check_config(manifest_dir, readme, &deb, listener);
         let mut config = Config {
             manifest_dir: manifest_dir.to_owned(),
+            deb_output_path,
             target: target.map(|t| t.to_string()),
             target_dir,
             name: self.package.name.clone(),

@@ -32,11 +32,11 @@ deb_contents.push(bin_path);
 let system_time = time::SystemTime::now().duration_since(time::UNIX_EPOCH)?.as_secs();
 // Initailize the contents of the data archive (files that go into the filesystem).
 let (data_archive, asset_hashes) = data::generate_archive(&options, system_time, listener)?;
-let data_base_path = options.path_in_deb("data.tar");
+let data_base_path = options.temp_path_in_deb("data.tar");
 
 // Initialize the contents of the control archive (metadata for the package manager).
 let control_archive = control::generate_archive(&options, system_time, asset_hashes, listener)?;
-let control_base_path = options.path_in_deb("control.tar");
+let control_base_path = options.temp_path_in_deb("control.tar");
 
 // Order is important for Debian
 deb_contents.push(compress::gz(&control_archive, &control_base_path)?);
@@ -107,16 +107,17 @@ pub fn install_deb(path: &Path) -> CDResult<()> {
 
 /// Uses the ar program to create the final Debian package, at least until a native ar implementation is implemented.
 pub fn generate_deb(config: &Config, contents: &[PathBuf]) -> CDResult<PathBuf> {
-    let out_relpath = format!("{}_{}_{}.deb", config.name, config.version, config.architecture);
-    let out_abspath = config.path_in_deb(&out_relpath);
-
+    let out_filename = format!("{}_{}_{}.deb", config.name, config.version, config.architecture);
+    let out_abspath = config.deb_output_path(&out_filename);
+    let prefix = config.deb_temp_dir();
     {
         let deb_dir = out_abspath.parent().ok_or("invalid dir")?;
 
+        let _ = fs::create_dir_all(deb_dir);
         let mut ar_builder = Builder::new(File::create(&out_abspath)?);
 
         for path in contents {
-            let dest_path = path.strip_prefix(&deb_dir).map_err(|_| "invalid path")?;
+            let dest_path = path.strip_prefix(&prefix).map_err(|_| "invalid path")?;
             let mut file = File::open(&path)?;
             ar_builder.append_file(&dest_path.as_unix_path(), &mut file)?;
         }
@@ -126,7 +127,7 @@ pub fn generate_deb(config: &Config, contents: &[PathBuf]) -> CDResult<PathBuf> 
 
 /// Creates the debian-binary file that will be added to the final ar archive.
 pub fn generate_debian_binary_file(options: &Config) -> io::Result<PathBuf> {
-    let bin_path = options.path_in_deb("debian-binary");
+    let bin_path = options.temp_path_in_deb("debian-binary");
     let mut opts = fs::OpenOptions::new();
     opts.create(true)
         .write(true)
@@ -142,7 +143,7 @@ pub fn generate_debian_binary_file(options: &Config) -> io::Result<PathBuf> {
 
 /// Removes the target/debian directory so that we can start fresh.
 pub fn reset_deb_directory(options: &Config) -> io::Result<()> {
-    let deb_dir = options.deb_dir();
+    let deb_dir = options.deb_temp_dir();
     let _ = fs::remove_dir_all(&deb_dir);
     fs::create_dir_all(deb_dir)
 }

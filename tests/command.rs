@@ -78,10 +78,12 @@ fn run_cargo_deb_command_on_example_dir_with_variant() {
     let cmd_path = root.join(format!("target/debug/cargo-deb{}", std::env::consts::EXE_SUFFIX));
     assert!(cmd_path.exists());
     let cargo_dir = TempDir::new("cargo-deb-target").unwrap();
+    let deb_path = cargo_dir.path().join("test.deb");
     let output = Command::new(cmd_path)
         .env("CARGO_TARGET_DIR", cargo_dir.path()) // otherwise tests overwrite each other
         .arg("--variant=debug")
         .arg("--no-strip")
+        .arg(format!("--output={}", deb_path.display()))
         .arg(format!(
             "--manifest-path={}",
             root.join("example/Cargo.toml").display()
@@ -94,7 +96,8 @@ fn run_cargo_deb_command_on_example_dir_with_variant() {
 
     // prints deb path on the last line
     let last_line = output.stdout[..output.stdout.len()-1].split(|&c| c==b'\n').last().unwrap();
-    let deb_path = Path::new(::std::str::from_utf8(last_line).unwrap());
+    let printed_deb_path = Path::new(::std::str::from_utf8(last_line).unwrap());
+    assert_eq!(printed_deb_path, deb_path);
     assert!(deb_path.exists());
 
     let ardir = TempDir::new("cargo-deb-test2").unwrap();

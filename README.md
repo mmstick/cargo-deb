@@ -16,7 +16,7 @@ Requires Rust 1.19+, and optionally `dpkg`, `ldd` and `liblzma-dev`.
 cargo deb
 ```
 
-Upon running `cargo deb` from the base directory of your Rust project, the Debian package will be created in `target/debian/<project_name>_<version>_<arch>.deb`. This package can be installed with `dpkg -i target/debian/*.deb`.
+Upon running `cargo deb` from the base directory of your Rust project, the Debian package will be created in `target/debian/<project_name>_<version>_<arch>.deb` (or you can change the location with the `--output` option). This package can be installed with `dpkg -i target/debian/*.deb`.
 
 Debug symbols are stripped from the main binary by default. To keep debug symbols, either set `[profile.release] debug = true` in `Cargo.toml` or run `cargo deb --no-strip`.
 

@@ -14,6 +14,7 @@ struct CliOptions {
     verbose: bool,
     quiet: bool,
     install: bool,
+    output_path: Option<String>,
     variant: Option<String>,
     target: Option<String>,
     manifest_path: Option<String>,
@@ -27,9 +28,10 @@ fn main() {
     cli_opts.optflag("", "no-build", "Assume project is already built");
     cli_opts.optflag("", "no-strip", "Do not strip debug symbols from the binary");
     cli_opts.optflag("", "install", "Immediately install created package");
-    cli_opts.optopt("", "target", "Target for cross-compilation", "triple");
+    cli_opts.optopt("", "target", "Rust target for cross-compilation", "triple");
     cli_opts.optopt("", "variant", "Alternative configuration section to use", "name");
     cli_opts.optopt("", "manifest-path", "Cargo project file location", "./Cargo.toml");
+    cli_opts.optopt("o", "output", "Write .deb to this file or directory", "path");
     cli_opts.optflag("q", "quiet", "Don't print warnings");
     cli_opts.optflag("v", "verbose", "Print progress");
     cli_opts.optflag("h", "help", "Print this help menu");
@@ -59,6 +61,7 @@ fn main() {
         install: matches.opt_present("install"),
         variant: matches.opt_str("variant"),
         target: matches.opt_str("target"),
+        output_path: matches.opt_str("output"),
         manifest_path: matches.opt_str("manifest-path"),
         cargo_build_flags: matches.free,
     }) {
@@ -84,7 +87,7 @@ fn err_exit(err: &std::error::Error) -> ! {
     process::exit(1);
 }
 
-fn process(CliOptions {manifest_path, variant, target, install, no_build, no_strip, quiet, verbose, mut cargo_build_flags}: CliOptions) -> CDResult<()> {
+fn process(CliOptions {manifest_path, output_path, variant, target, install, no_build, no_strip, quiet, verbose, mut cargo_build_flags}: CliOptions) -> CDResult<()> {
     let target = target.as_ref().map(|s|s.as_str());
     let variant = variant.as_ref().map(|s| s.as_str());
 
@@ -105,7 +108,7 @@ fn process(CliOptions {manifest_path, variant, target, install, no_build, no_str
     };
 
     let manifest_path = manifest_path.as_ref().map(|s|s.as_str()).unwrap_or("Cargo.toml");
-    let options = Config::from_manifest(Path::new(manifest_path), target, variant, listener)?;
+    let options = Config::from_manifest(Path::new(manifest_path), output_path, target, variant, listener)?;
     reset_deb_directory(&options)?;
 
     if !no_build {
@@ -126,11 +129,11 @@ fn process(CliOptions {manifest_path, variant, target, install, no_build, no_str
     {
         // Initailize the contents of the data archive (files that go into the filesystem).
         let (data_archive, asset_hashes) = data::generate_archive(&options, system_time, listener)?;
-        let data_base_path = options.path_in_deb("data.tar");
+        let data_base_path = options.temp_path_in_deb("data.tar");
 
         // Initialize the contents of the control archive (metadata for the package manager).
         let control_archive = control::generate_archive(&options, system_time, asset_hashes, listener)?;
-        let control_base_path = options.path_in_deb("control.tar");
+        let control_base_path = options.temp_path_in_deb("control.tar");
 
         // Order is important for Debian
         deb_contents.push(compress::gz(&control_archive, &control_base_path)?);
