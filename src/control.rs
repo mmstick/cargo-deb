@@ -39,7 +39,7 @@ fn generate_md5sums(archive: &mut Archive, options: &Config, asset_hashes: HashM
     let mut md5sums: Vec<u8> = Vec::new();
 
     // Collect md5sums from each asset in the archive.
-    for asset in &options.assets {
+    for asset in &options.assets.resolved {
         write!(md5sums, "{:x}", asset_hashes[&asset.target_path])?;
         md5sums.write_all(b"  ")?;
 
@@ -79,7 +79,7 @@ fn generate_control(archive: &mut Archive, options: &Config, listener: &mut List
     control.write_all(b"Standards-Version: 3.9.4\n")?;
     writeln!(&mut control, "Maintainer: {}", options.maintainer)?;
 
-    let installed_size = options.assets
+    let installed_size = options.assets.resolved
         .iter()
         .filter_map(|m| m.source.len())
         .sum::<u64>() / 1024;

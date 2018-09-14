@@ -79,6 +79,10 @@ quick_error! {
             display("unable to parse glob pattern")
             cause(err)
         }
+        AssetNotResolved(path: PathBuf) {
+            description("unable to resolve asset source path")
+            display("Asset path failed to resolve to any assets: {}", path.display())
+        }
         AssetGlobError(err: glob::GlobError) {
             from()
             description(err.description())

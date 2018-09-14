@@ -19,10 +19,11 @@ The library interface is experimental. See `main.rs` for usage.
 
 ```rust,ignore
 let listener = &mut listener::StdErrListener {verbose}; // prints warnings
-let options = Config::from_manifest(Path::new("Cargo.toml"), target, listener)?;
+let mut options = Config::from_manifest(Path::new("Cargo.toml"), target, listener)?;
 
 reset_deb_directory(&options)?;
 cargo_build(&options, target, &[], verbose)?;
+options.resolve_assets()?;
 strip_binaries(&options, target, listener)?;
 
 let bin_path = generate_debian_binary_file(&options)?;
