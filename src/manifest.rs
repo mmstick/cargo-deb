@@ -287,7 +287,7 @@ impl Config {
             // If glob didn't match anything, it's likely an error
             // as all files should exist when called to resolve
             if file_matches.is_empty() {
-              Err(CargoDebError::AssetNotResolved(source_path))?
+              Err(CargoDebError::AssetFileNotFound(source_path))?
             }
 
             for source_file in file_matches {
