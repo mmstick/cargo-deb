@@ -61,7 +61,7 @@ pub(crate) fn generate_copyright_asset(options: &Config) -> CDResult<Vec<u8>> {
 /// Returns MD5 hashes of files copied
 fn archive_files(archive: &mut Archive, options: &Config, listener: &mut Listener) -> CDResult<HashMap<PathBuf, Digest>> {
     let mut hashes = HashMap::new();
-    for asset in &options.assets {
+    for asset in &options.assets.resolved {
         let out_data = asset.source.data()?;
 
         listener.info(format!("{} -> {}", asset.source.path().unwrap_or_else(|| Path::new("-")).display(), asset.target_path.display()));

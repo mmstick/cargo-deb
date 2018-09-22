@@ -108,12 +108,15 @@ fn process(CliOptions {manifest_path, output_path, variant, target, install, no_
     };
 
     let manifest_path = manifest_path.as_ref().map(|s|s.as_str()).unwrap_or("Cargo.toml");
-    let options = Config::from_manifest(Path::new(manifest_path), output_path, target, variant, listener)?;
+    let mut options = Config::from_manifest(Path::new(manifest_path), output_path, target, variant, listener)?;
     reset_deb_directory(&options)?;
 
     if !no_build {
         cargo_build(&options, target, &cargo_build_flags, verbose)?;
     }
+
+    options.resolve_assets()?;
+
     if options.strip && !no_strip {
         strip_binaries(&options, target, listener)?;
     }

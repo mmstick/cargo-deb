@@ -79,6 +79,10 @@ quick_error! {
             display("unable to parse glob pattern")
             cause(err)
         }
+        AssetFileNotFound(path: PathBuf) {
+            description("Asset file path does not exist")
+            display("Asset file path does not match any files: {}", path.display())
+        }
         AssetGlobError(err: glob::GlobError) {
             from()
             description(err.description())
