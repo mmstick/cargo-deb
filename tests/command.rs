@@ -69,6 +69,11 @@ fn run_cargo_deb_command_on_example_dir() {
     assert!(ddir.path().join("usr/share/doc/example/copyright").exists());
     assert!(ddir.path().join("usr/share/doc/example/changelog.gz").exists());
     assert!(ddir.path().join("usr/bin/example").exists());
+    // changelog.gz starts with the gzip magic
+    assert_eq!(
+        &[0x1F, 0x8B],
+        &file::get(ddir.path().join("usr/share/doc/example/changelog.gz")).unwrap()[..2]
+    );
 }
 
 #[test]
