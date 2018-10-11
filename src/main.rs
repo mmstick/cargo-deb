@@ -123,10 +123,10 @@ fn process(CliOptions {manifest_path, output_path, variant, target, install, no_
 
     // Obtain the current time which will be used to stamp the generated files in the archives.
     let system_time = time::SystemTime::now().duration_since(time::UNIX_EPOCH)?.as_secs();
-    let mut deb_contents = vec![];
+    let mut deb_contents = DebArchive::new(&options)?;
 
     let bin_path = generate_debian_binary_file(&options)?;
-    deb_contents.push(bin_path);
+    deb_contents.add_path(&bin_path)?;
 
     // The block frees the large data_archive var early
     {
@@ -139,11 +139,11 @@ fn process(CliOptions {manifest_path, output_path, variant, target, install, no_
         let control_base_path = options.temp_path_in_deb("control.tar");
 
         // Order is important for Debian
-        deb_contents.push(compress::gz(&control_archive, &control_base_path)?);
-        deb_contents.push(compress::xz_or_gz(&data_archive, &data_base_path)?);
+        deb_contents.add_path(&compress::gz(&control_archive, &control_base_path)?)?;
+        deb_contents.add_path(&compress::xz_or_gz(&data_archive, &data_base_path)?)?;
     }
 
-    let generated = generate_deb(&options, &deb_contents)?;
+    let generated = deb_contents.finish()?;
     if !quiet {
         println!("{}", generated.display());
     }

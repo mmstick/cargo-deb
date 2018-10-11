@@ -16,35 +16,6 @@ cargo deb # run this in your Cargo project directory
 ## Making tools for making deb packages
 
 The library interface is experimental. See `main.rs` for usage.
-
-```rust,ignore
-let listener = &mut listener::StdErrListener {verbose}; // prints warnings
-let mut options = Config::from_manifest(Path::new("Cargo.toml"), target, listener)?;
-
-reset_deb_directory(&options)?;
-cargo_build(&options, target, &[], verbose)?;
-options.resolve_assets()?;
-strip_binaries(&options, target, listener)?;
-
-let bin_path = generate_debian_binary_file(&options)?;
-let mut deb_contents = vec![];
-deb_contents.push(bin_path);
-
-let system_time = time::SystemTime::now().duration_since(time::UNIX_EPOCH)?.as_secs();
-// Initailize the contents of the data archive (files that go into the filesystem).
-let (data_archive, asset_hashes) = data::generate_archive(&options, system_time, listener)?;
-let data_base_path = options.temp_path_in_deb("data.tar");
-
-// Initialize the contents of the control archive (metadata for the package manager).
-let control_archive = control::generate_archive(&options, system_time, asset_hashes, listener)?;
-let control_base_path = options.temp_path_in_deb("control.tar");
-
-// Order is important for Debian
-deb_contents.push(compress::gz(&control_archive, &control_base_path)?);
-deb_contents.push(compress::xz_or_gz(&data_archive, &data_base_path)?);
-
-let generated = generate_deb(&options, &deb_contents)?;
-```
 */
 
 extern crate file;
@@ -87,7 +58,7 @@ use std::process::Command;
 use std::os::unix::fs::OpenOptionsExt;
 pub use error::*;
 
-pub use debarchive::generate_deb;
+pub use debarchive::DebArchive;
 pub use manifest::Config;
 
 const TAR_REJECTS_CUR_DIR: bool = true;
