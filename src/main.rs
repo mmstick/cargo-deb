@@ -125,8 +125,7 @@ fn process(CliOptions {manifest_path, output_path, variant, target, install, no_
     let system_time = time::SystemTime::now().duration_since(time::UNIX_EPOCH)?.as_secs();
     let mut deb_contents = DebArchive::new(&options)?;
 
-    let bin_path = generate_debian_binary_file(&options)?;
-    deb_contents.add_path(&bin_path)?;
+    deb_contents.add_data("debian-binary", system_time, b"2.0\n")?;
 
     // The block frees the large data_archive var early
     {

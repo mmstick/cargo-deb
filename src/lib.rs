@@ -51,11 +51,9 @@ pub mod listener;
 use listener::Listener;
 
 use std::fs;
-use std::path::{Path, PathBuf};
-use std::io::{self, Write};
+use std::path::Path;
+use std::io;
 use std::process::Command;
-#[cfg(unix)]
-use std::os::unix::fs::OpenOptionsExt;
 pub use error::*;
 
 pub use debarchive::DebArchive;
@@ -74,23 +72,6 @@ pub fn install_deb(path: &Path) -> CDResult<()> {
         Err(CargoDebError::InstallFailed)?;
     }
     Ok(())
-}
-
-
-/// Creates the debian-binary file that will be added to the final ar archive.
-pub fn generate_debian_binary_file(options: &Config) -> io::Result<PathBuf> {
-    let bin_path = options.temp_path_in_deb("debian-binary");
-    let mut opts = fs::OpenOptions::new();
-    opts.create(true)
-        .write(true)
-        .truncate(true);
-    #[cfg(unix)]
-    {
-        opts.mode(0o644);
-    }
-    let mut file = opts.open(&bin_path)?;
-    file.write_all(b"2.0\n")?;
-    Ok(bin_path)
 }
 
 /// Removes the target/debian directory so that we can start fresh.

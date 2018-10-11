@@ -4,7 +4,7 @@ use error::CDResult;
 use pathbytes::*;
 use std::fs;
 use std::fs::File;
-use ar::Builder;
+use ar::{Builder, Header};
 
 pub struct DebArchive {
     out_abspath: PathBuf,
@@ -34,6 +34,14 @@ impl DebArchive {
         let dest_path = path.strip_prefix(&self.prefix).map_err(|_| "invalid path")?;
         let mut file = File::open(&path)?;
         self.ar_builder.append_file(&dest_path.as_unix_path(), &mut file)?;
+        Ok(())
+    }
+
+    pub fn add_data(&mut self, dest_path: &str, mtime_timestamp: u64, data: &[u8]) -> CDResult<()> {
+        let mut header = Header::new(dest_path.as_bytes().to_owned(), data.len() as u64);
+        header.set_mode(0o644);
+        header.set_mtime(mtime_timestamp);
+        self.ar_builder.append(&header, data)?;
         Ok(())
     }
 
