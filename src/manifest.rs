@@ -409,10 +409,6 @@ impl Config {
         }
     }
 
-    pub fn temp_path_in_deb<P: AsRef<Path>>(&self, rel_path: P) -> PathBuf {
-        self.deb_temp_dir().join(rel_path)
-    }
-
     pub(crate) fn cargo_config(&self) -> CDResult<Option<CargoConfig>> {
         CargoConfig::new(&self.target_dir)
     }
