@@ -131,15 +131,16 @@ fn process(CliOptions {manifest_path, output_path, variant, target, install, no_
     {
         // Initailize the contents of the data archive (files that go into the filesystem).
         let (data_archive, asset_hashes) = data::generate_archive(&options, system_time, listener)?;
-        let data_base_path = options.temp_path_in_deb("data.tar");
 
         // Initialize the contents of the control archive (metadata for the package manager).
         let control_archive = control::generate_archive(&options, system_time, asset_hashes, listener)?;
-        let control_base_path = options.temp_path_in_deb("control.tar");
 
         // Order is important for Debian
-        deb_contents.add_path(&compress::gz(&control_archive, &control_base_path)?)?;
-        deb_contents.add_path(&compress::xz_or_gz(&data_archive, &data_base_path)?)?;
+        deb_contents.add_data("control.tar.gz", system_time, &compress::gz(&control_archive)?)?;
+        match compress::xz_or_gz(&data_archive)? {
+            compress::Compressed::Gz(data) => deb_contents.add_data("data.tar.gz", system_time, &data)?,
+            compress::Compressed::Xz(data) => deb_contents.add_data("data.tar.xz", system_time, &data)?,
+        }
     }
 
     let generated = deb_contents.finish()?;
