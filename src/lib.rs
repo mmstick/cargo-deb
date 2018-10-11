@@ -72,7 +72,7 @@ mod dependencies;
 mod try;
 mod wordsplit;
 mod error;
-mod archive;
+mod tararchive;
 mod config;
 mod pathbytes;
 pub mod listener;

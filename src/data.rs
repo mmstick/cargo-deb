@@ -6,7 +6,7 @@ use file;
 use manifest::Config;
 use std::collections::HashMap;
 use error::*;
-use archive::Archive;
+use tararchive::Archive;
 use listener::Listener;
 use zopfli::{self, Format, Options};
 

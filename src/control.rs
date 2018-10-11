@@ -7,7 +7,7 @@ use file;
 use std::collections::HashMap;
 use error::*;
 use pathbytes::*;
-use archive::Archive;
+use tararchive::Archive;
 use wordsplit::WordSplit;
 
 /// Generates an uncompressed tar archive with `control`, `md5sums`, and others
