@@ -73,22 +73,21 @@ mod try;
 mod wordsplit;
 mod error;
 mod tararchive;
+mod debarchive;
 mod config;
 mod pathbytes;
 pub mod listener;
 use listener::Listener;
 
-use ar::Builder;
 use std::fs;
-use std::fs::File;
 use std::path::{Path, PathBuf};
 use std::io::{self, Write};
 use std::process::Command;
 #[cfg(unix)]
 use std::os::unix::fs::OpenOptionsExt;
-use pathbytes::*;
 pub use error::*;
 
+pub use debarchive::generate_deb;
 pub use manifest::Config;
 
 const TAR_REJECTS_CUR_DIR: bool = true;
@@ -106,25 +105,6 @@ pub fn install_deb(path: &Path) -> CDResult<()> {
     Ok(())
 }
 
-/// Uses the ar program to create the final Debian package, at least until a native ar implementation is implemented.
-pub fn generate_deb(config: &Config, contents: &[PathBuf]) -> CDResult<PathBuf> {
-    let out_filename = format!("{}_{}_{}.deb", config.name, config.version, config.architecture);
-    let out_abspath = config.deb_output_path(&out_filename);
-    let prefix = config.deb_temp_dir();
-    {
-        let deb_dir = out_abspath.parent().ok_or("invalid dir")?;
-
-        let _ = fs::create_dir_all(deb_dir);
-        let mut ar_builder = Builder::new(File::create(&out_abspath)?);
-
-        for path in contents {
-            let dest_path = path.strip_prefix(&prefix).map_err(|_| "invalid path")?;
-            let mut file = File::open(&path)?;
-            ar_builder.append_file(&dest_path.as_unix_path(), &mut file)?;
-        }
-    }
-    Ok(out_abspath)
-}
 
 /// Creates the debian-binary file that will be added to the final ar archive.
 pub fn generate_debian_binary_file(options: &Config) -> io::Result<PathBuf> {
