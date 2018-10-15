@@ -2,5 +2,3 @@ language: rust
 cache: cargo
 script:
   - cargo test --all
-  - cargo install --path . --force
-  - cd example && cargo deb
