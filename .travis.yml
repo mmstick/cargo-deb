@@ -1,9 +1,6 @@
 language: rust
-addons:
-  apt:
-    packages:
-      - liblzma-dev
+cache: cargo
 script:
   - cargo test --all
-  - cargo install --path .
+  - cargo install --path . --force
   - cd example && cargo deb
