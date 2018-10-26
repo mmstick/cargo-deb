@@ -41,6 +41,8 @@ impl DebArchive {
         let mut header = Header::new(dest_path.as_bytes().to_owned(), data.len() as u64);
         header.set_mode(0o644);
         header.set_mtime(mtime_timestamp);
+        header.set_uid(0);
+        header.set_gid(0);
         self.ar_builder.append(&header, data)?;
         Ok(())
     }
