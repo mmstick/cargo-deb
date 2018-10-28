@@ -91,6 +91,10 @@ fn process(CliOptions {manifest_path, output_path, variant, target, install, no_
     let target = target.as_ref().map(|s|s.as_str());
     let variant = variant.as_ref().map(|s| s.as_str());
 
+    if install || target.is_none() {
+        warn_if_not_linux(); // compiling natively for non-linux = nope
+    }
+
     // `cargo deb` invocation passes the `deb` arg through.
     if cargo_build_flags.first().map_or(false, |arg| arg == "deb") {
         cargo_build_flags.remove(0);
@@ -153,3 +157,12 @@ fn process(CliOptions {manifest_path, output_path, variant, target, install, no_
     }
     Ok(())
 }
+
+#[cfg(target_os = "linux")]
+fn warn_if_not_linux() {}
+
+#[cfg(not(target_os = "linux"))]
+fn warn_if_not_linux() {
+    eprintln!("warning: This command is for Linux only, and will not make sense when run on other systems");
+}
+
