@@ -55,7 +55,7 @@ pub(crate) fn generate_copyright_asset(options: &Config) -> CDResult<Vec<u8>> {
             if line.is_empty() {
                 copyright.write_all(b".\n")?;
             } else {
-                copyright.write_all(line.trim().as_bytes())?;
+                copyright.write_all(line.as_bytes())?;
                 copyright.write_all(b"\n")?;
             }
         }
