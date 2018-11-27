@@ -51,11 +51,11 @@ pub(crate) fn generate_copyright_asset(options: &Config) -> CDResult<Vec<u8>> {
             .map_err(|e| CargoDebError::IoFile("unable to read license file", e, path.to_owned()))?;
         // Skip the first `A` number of lines and then iterate each line after that.
         for line in license_string.lines().skip(options.license_file_skip_lines) {
-            // If the line is empty, write a dot, else write the line.
-            if line.is_empty() {
-                copyright.write_all(b".\n")?;
+            // If the line is a space, add a dot, else write the line.
+            if line == " " {
+                copyright.write_all(b" .\n")?;
             } else {
-                copyright.write_all(line.trim().as_bytes())?;
+                copyright.write_all(line.as_bytes())?;
                 copyright.write_all(b"\n")?;
             }
         }
