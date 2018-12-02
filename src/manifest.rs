@@ -39,12 +39,8 @@ impl AssetSource {
     pub fn len(&self) -> Option<u64> {
         match *self {
             // FIXME: may not be accurate if the executable is not stripped yet?
-            AssetSource::Path(ref p) => {
-                fs::metadata(p).ok().map(|m| m.len())
-            },
-            AssetSource::Data(ref d) => {
-                Some(d.len() as u64)
-            },
+            AssetSource::Path(ref p) => fs::metadata(p).ok().map(|m| m.len()),
+            AssetSource::Data(ref d) => Some(d.len() as u64),
         }
     }
 
@@ -65,45 +61,43 @@ impl AssetSource {
     /// This is just `<original-file>.debug`
     pub fn debug_source(&self) -> Option<PathBuf> {
         match *self {
-            AssetSource::Path(ref p) => {
-                Some(debug_filename(p))
-            }
-            _ => None
+            AssetSource::Path(ref p) => Some(debug_filename(p)),
+            _ => None,
         }
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct Assets {
-  pub unresolved: Vec<UnresolvedAsset>,
-  pub resolved: Vec<Asset>
+    pub unresolved: Vec<UnresolvedAsset>,
+    pub resolved: Vec<Asset>,
 }
 
 impl Assets {
-  fn new() -> Assets {
-    Assets {
-      unresolved: vec![],
-      resolved: vec![]
+    fn new() -> Assets {
+        Assets {
+            unresolved: vec![],
+            resolved: vec![],
+        }
     }
-  }
 
-  fn with_resolved_assets(assets: Vec<Asset>) -> Assets {
-    Assets {
-      unresolved: vec![],
-      resolved: assets
+    fn with_resolved_assets(assets: Vec<Asset>) -> Assets {
+        Assets {
+            unresolved: vec![],
+            resolved: assets,
+        }
     }
-  }
 
-  fn with_unresolved_assets(assets: Vec<UnresolvedAsset>) -> Assets {
-    Assets {
-      unresolved: assets,
-      resolved: vec![]
+    fn with_unresolved_assets(assets: Vec<UnresolvedAsset>) -> Assets {
+        Assets {
+            unresolved: assets,
+            resolved: vec![],
+        }
     }
-  }
 
-  fn is_empty(&self) -> bool {
-    self.unresolved.is_empty() && self.resolved.is_empty()
-  }
+    fn is_empty(&self) -> bool {
+        self.unresolved.is_empty() && self.resolved.is_empty()
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -111,7 +105,7 @@ pub struct UnresolvedAsset {
     pub source_path: PathBuf,
     pub target_path: PathBuf,
     pub chmod: u32,
-    pub is_built: bool
+    pub is_built: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -160,7 +154,7 @@ impl Asset {
                 // Turn an absolute path into one relative to "/"
                 let relative = match self.target_path.strip_prefix(Path::new("/")) {
                     Ok(path) => path,
-                    Err(_) => self.target_path.as_path()
+                    Err(_) => self.target_path.as_path(),
                 };
 
                 // Prepend the debug location
@@ -168,11 +162,10 @@ impl Asset {
 
                 // Add `.debug` to the end of the filename
                 Some(debug_filename(&debug_path))
-            },
-            false => None
+            }
+            false => None,
         }
     }
-
 }
 
 /// Adds `.debug` to the end of a path to a filename
@@ -330,7 +323,7 @@ impl Config {
             // If glob didn't match anything, it's likely an error
             // as all files should exist when called to resolve
             if file_matches.is_empty() {
-              Err(CargoDebError::AssetFileNotFound(source_path))?
+                Err(CargoDebError::AssetFileNotFound(source_path))?
             }
 
             for source_file in file_matches {
@@ -374,7 +367,8 @@ impl Config {
                     AssetSource::Path(debug_source),
                     debug_target,
                     0o644,
-                    false));
+                    false,
+                ));
             }
         }
         self.assets.resolved.append(&mut assets_to_add);
@@ -408,15 +402,20 @@ impl Config {
     }
 
     fn binaries(&self, built_only: bool) -> Vec<&Asset> {
-        self.assets.resolved.iter().filter_map(|asset| {
-            // Assumes files in build dir which have executable flag set are binaries
-            if (!built_only || asset.is_built) &&
-                (asset.is_dynamic_library() || asset.is_executable()) {
+        self.assets
+            .resolved
+            .iter()
+            .filter_map(|asset| {
+                // Assumes files in build dir which have executable flag set are binaries
+                if (!built_only || asset.is_built)
+                    && (asset.is_dynamic_library() || asset.is_executable())
+                {
                     Some(asset)
-            } else {
-                None
-            }
-        }).collect()
+                } else {
+                    None
+                }
+            })
+            .collect()
     }
 
     /// Tries to guess type of source control used for the repo URL.
@@ -652,7 +651,7 @@ impl Cargo {
                     source_path,
                     target_path,
                     chmod,
-                    is_built
+                    is_built,
                 })
             }
             Assets::with_unresolved_assets(unresolved_assets)

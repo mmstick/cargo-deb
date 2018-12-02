@@ -33,7 +33,9 @@ impl WordSplit for str {
                     chars += word.len() + 1;
                 }
             }
-            if !current_line.is_empty() { lines.push(current_line); }
+            if !current_line.is_empty() {
+                lines.push(current_line);
+            }
         }
         lines
     }

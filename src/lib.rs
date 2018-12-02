@@ -193,8 +193,7 @@ pub fn strip_binaries(options: &mut Config, target: Option<&str>, listener: &mut
         }
     }
 
-    if separate_file
-    {
+    if separate_file {
         // If we want to debug symols included in a separate file, add these files to the debian assets
         options.add_debug_assets();
     }

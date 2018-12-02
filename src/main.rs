@@ -110,7 +110,7 @@ fn process(CliOptions {manifest_path, output_path, variant, target, install, no_
         listener_tmp1 = listener::NoOpListener;
         &mut listener_tmp1
     } else {
-        listener_tmp2 = listener::StdErrListener {verbose};
+        listener_tmp2 = listener::StdErrListener { verbose };
         &mut listener_tmp2
     };
 

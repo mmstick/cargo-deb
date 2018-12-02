@@ -7,8 +7,10 @@ use listener::Listener;
 /// Resolves the dependencies based on the output of ldd on the binary.
 pub fn resolve(path: &Path, architecture: &str, listener: &mut Listener) -> CDResult<Vec<String>> {
     let dependencies = {
-        let output = Command::new("ldd").arg(path)
-            .output().map_err(|e| CargoDebError::CommandFailed(e, "ldd"))?;
+        let output = Command::new("ldd")
+            .arg(path)
+            .output()
+            .map_err(|e| CargoDebError::CommandFailed(e, "ldd"))?;
         if !output.status.success() {
             return Err(CargoDebError::CommandError("ldd", path.display().to_string(), output.stderr));
         }
@@ -22,13 +24,18 @@ pub fn resolve(path: &Path, architecture: &str, listener: &mut Listener) -> CDRe
         // If the field exists and starts with '/', we have found a filepath.
         .filter(|x| x.is_some() && x.unwrap().starts_with('/'))
         // Obtain the names of the packages.
-        .filter_map(|path_str_opt|
+        .filter_map(|path_str_opt| {
             get_package_name_with_fallback(path_str_opt.unwrap())
-                .map_err(|err|{
-                    listener.warning(format!("{} (skip this auto dep for {})", err, path.display()));
+                .map_err(|err| {
+                    listener.warning(format!(
+                        "{} (skip this auto dep for {})",
+                        err,
+                        path.display()
+                    ));
                     err
-                }).ok()
-        )
+                })
+                .ok()
+        })
         // only collect unique packages.
         .collect();
 

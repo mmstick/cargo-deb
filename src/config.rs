@@ -45,10 +45,7 @@ impl CargoConfig {
 
     fn from_str(input: &str, path: PathBuf) -> CDResult<Self> {
         let config = toml::from_str(input)?;
-        Ok(CargoConfig {
-            path,
-            config,
-        })
+        Ok(CargoConfig { path, config })
     }
 
     fn target_conf(&self, target_triple: &str) -> Option<&toml::value::Table> {

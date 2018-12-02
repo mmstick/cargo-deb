@@ -12,13 +12,14 @@ impl AsUnixPathBytes for Path {
     fn as_unix_path(&self) -> Cow<[u8]> {
         use std::path::Component::*;
 
-        let parts: Vec<_> = self.components().filter_map(|c| {
-            match c {
+        let parts: Vec<_> = self
+            .components()
+            .filter_map(|c| match c {
                 Normal(c) => Some(c.to_str().expect("paths must be UTF-8").as_bytes()),
                 RootDir => Some(&b"/"[..]),
                 _ => None,
-            }
-        }).collect();
+            })
+            .collect();
         parts.join(&b'/').into()
     }
 
