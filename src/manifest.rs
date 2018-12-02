@@ -7,7 +7,6 @@ use std::collections::{HashMap, HashSet};
 use std::borrow::Cow;
 use listener::Listener;
 use toml;
-use file;
 use glob;
 use dependencies::resolve;
 use serde_json;
@@ -47,7 +46,7 @@ impl AssetSource {
     pub fn data(&self) -> CDResult<Cow<[u8]>> {
         Ok(match *self {
             AssetSource::Path(ref p) => {
-                let data = file::get(p)
+                let data = fs::read(p)
                     .map_err(|e| CargoDebError::IoFile("unable to read asset to add to archive", e, p.to_owned()))?;
                 Cow::Owned(data)
             },
@@ -267,7 +266,7 @@ impl Config {
         let target_dir = Path::new(&metadata.target_directory);
         let manifest_path = Path::new(&root_package.manifest_path);
         let manifest_dir = manifest_path.parent().unwrap();
-        let content = file::get(&manifest_path)
+        let content = fs::read(&manifest_path)
             .map_err(|e| CargoDebError::IoFile("unable to read Cargo.toml", e, manifest_path.to_owned()))?;
         toml::from_slice::<Cargo>(&content)?.into_config(root_package, manifest_dir, output_path, target_dir, target, variant, listener)
     }
@@ -610,7 +609,7 @@ impl Cargo {
         Ok(if desc.is_some() {
             desc
         } else if let Some(readme) = readme {
-            Some(file::get_text(readme)
+            Some(fs::read_to_string(readme)
                 .map_err(|err| CargoDebError::IoFile("unable to read README", err, PathBuf::from(readme)))?)
         } else {
             None

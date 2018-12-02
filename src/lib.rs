@@ -18,7 +18,6 @@ cargo deb # run this in your Cargo project directory
 The library interface is experimental. See `main.rs` for usage.
 */
 
-extern crate file;
 extern crate getopts;
 extern crate glob;
 extern crate md5;

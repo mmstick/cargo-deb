@@ -1,8 +1,8 @@
 use std::io::Write;
+use std::fs;
 use std::path::{Path, PathBuf};
 use md5::Digest;
 use md5;
-use file;
 use manifest::Config;
 use std::collections::HashMap;
 use error::*;
@@ -20,7 +20,7 @@ pub fn generate_archive(options: &Config, time: u64, listener: &mut Listener) ->
 /// Generates compressed changelog file
 pub(crate) fn generate_changelog_asset(options: &Config) -> CDResult<Option<Vec<u8>>> {
     if let Some(ref path) = options.changelog {
-        let changelog = file::get(options.path_in_workspace(path))
+        let changelog = fs::read(options.path_in_workspace(path))
             .and_then(|content| {
                 // The input is plaintext, but the debian package should contain gzipped one.
                 let mut compressed = Vec::with_capacity(content.len());
@@ -47,7 +47,7 @@ pub(crate) fn generate_copyright_asset(options: &Config) -> CDResult<Vec<u8>> {
         writeln!(&mut copyright, "License: {}", license)?;
     }
     if let Some(ref path) = options.license_file {
-        let license_string = file::get_text(path)
+        let license_string = fs::read_to_string(path)
             .map_err(|e| CargoDebError::IoFile("unable to read license file", e, path.to_owned()))?;
         // Skip the first `A` number of lines and then iterate each line after that.
         for line in license_string.lines().skip(options.license_file_skip_lines) {

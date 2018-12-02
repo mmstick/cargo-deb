@@ -1,7 +1,7 @@
 #![allow(unused_imports)]
-extern crate file;
 extern crate tempdir;
 use std::env;
+use std::fs;
 use std::process::Command;
 use std::path::{Path, PathBuf};
 use tempdir::TempDir;
@@ -113,7 +113,7 @@ fn run_cargo_deb_command_on_example_dir_with_variant() {
         .arg(deb_path)
         .status().unwrap().success());
 
-    assert_eq!("2.0\n", file::get_text(ardir.path().join("debian-binary")).unwrap());
+    assert_eq!("2.0\n", fs::read_to_string(ardir.path().join("debian-binary")).unwrap());
     assert!(ardir.path().join("data.tar.xz").exists());
     assert!(ardir.path().join("control.tar.gz").exists());
 
@@ -124,14 +124,14 @@ fn run_cargo_deb_command_on_example_dir_with_variant() {
         .arg(ardir.path().join("control.tar.gz"))
         .status().unwrap().success());
 
-    let control = file::get_text(cdir.path().join("control")).unwrap();
+    let control = fs::read_to_string(cdir.path().join("control")).unwrap();
     assert!(control.contains("Package: example-debug\n"), "Control is: {:?}", control);
     assert!(control.contains("Version: 0.1.0\n"));
     assert!(control.contains("Section: utils\n"));
     assert!(control.contains("Architecture: "));
     assert!(control.contains("Maintainer: cargo-deb developers <cargo-deb@example.invalid>\n"));
 
-    let md5sums = file::get_text(cdir.path().join("md5sums")).unwrap();
+    let md5sums = fs::read_to_string(cdir.path().join("md5sums")).unwrap();
     assert!(md5sums.contains(" usr/bin/example\n"));
     assert!(md5sums.contains(" usr/share/doc/example-debug/changelog.gz\n"));
     assert!(md5sums.contains("b1946ac92492d2347c6235b4d2611184  var/lib/example/1.txt\n"));

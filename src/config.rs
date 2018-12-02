@@ -1,8 +1,8 @@
 use error::*;
 use std::path::{Path, PathBuf};
 use std::env;
+use std::fs;
 use toml;
-use file;
 use std::borrow::Cow;
 
 pub struct CargoConfig {
@@ -40,7 +40,7 @@ impl CargoConfig {
         if !path.exists() {
             return Ok(None);
         }
-        Ok(Some(Self::from_str(&file::get_text(&path)?, path)?))
+        Ok(Some(Self::from_str(&fs::read_to_string(&path)?, path)?))
     }
 
     fn from_str(input: &str, path: PathBuf) -> CDResult<Self> {

@@ -1,9 +1,9 @@
 use std::io::Write;
 use std::path::PathBuf;
+use std::fs;
 use manifest::Config;
 use listener::Listener;
 use md5::Digest;
-use file;
 use std::collections::HashMap;
 use error::*;
 use pathbytes::*;
@@ -26,7 +26,7 @@ pub fn generate_archive(options: &Config, time: u64, asset_hashes: HashMap<PathB
 fn generate_scripts(archive: &mut Archive, option: &Config) -> CDResult<()> {
     if let Some(ref maintainer_scripts) = option.maintainer_scripts {
         for name in &["preinst", "postinst", "prerm", "postrm"] {
-            if let Ok(script) = file::get(maintainer_scripts.join(name)) {
+            if let Ok(script) = fs::read(maintainer_scripts.join(name)) {
                 archive.file(name, &script, 0o755)?;
             }
         }
