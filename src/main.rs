@@ -11,6 +11,7 @@ use std::time;
 struct CliOptions {
     no_build: bool,
     no_strip: bool,
+    separate_debug_symbols: bool,
     verbose: bool,
     quiet: bool,
     install: bool,
@@ -27,6 +28,7 @@ fn main() {
     let mut cli_opts = getopts::Options::new();
     cli_opts.optflag("", "no-build", "Assume project is already built");
     cli_opts.optflag("", "no-strip", "Do not strip debug symbols from the binary");
+    cli_opts.optflag("", "separate-debug-symbols", "Strip debug symbols into a separate .debug file");
     cli_opts.optflag("", "install", "Immediately install created package");
     cli_opts.optopt("", "target", "Rust target for cross-compilation", "triple");
     cli_opts.optopt("", "variant", "Alternative configuration section to use", "name");
@@ -56,6 +58,7 @@ fn main() {
     match process(CliOptions {
         no_build: matches.opt_present("no-build"),
         no_strip: matches.opt_present("no-strip"),
+        separate_debug_symbols: matches.opt_present("separate-debug-symbols"),
         quiet: matches.opt_present("quiet"),
         verbose: matches.opt_present("verbose"),
         install: matches.opt_present("install"),
@@ -87,7 +90,7 @@ fn err_exit(err: &std::error::Error) -> ! {
     process::exit(1);
 }
 
-fn process(CliOptions {manifest_path, output_path, variant, target, install, no_build, no_strip, quiet, verbose, mut cargo_build_flags}: CliOptions) -> CDResult<()> {
+fn process(CliOptions {manifest_path, output_path, variant, target, install, no_build, no_strip, separate_debug_symbols, quiet, verbose, mut cargo_build_flags}: CliOptions) -> CDResult<()> {
     let target = target.as_ref().map(|s|s.as_str());
     let variant = variant.as_ref().map(|s| s.as_str());
 
@@ -121,8 +124,8 @@ fn process(CliOptions {manifest_path, output_path, variant, target, install, no_
 
     options.resolve_assets()?;
 
-    if options.strip && !no_strip {
-        strip_binaries(&options, target, listener)?;
+    if (options.strip || separate_debug_symbols) && !no_strip {
+        strip_binaries(&mut options, target, listener, separate_debug_symbols)?;
     }
 
     // Obtain the current time which will be used to stamp the generated files in the archives.

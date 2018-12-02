@@ -114,7 +114,7 @@ pub fn cargo_build(options: &Config, target: Option<&str>, other_flags: &[String
 }
 
 /// Strips the binary that was created with cargo
-pub fn strip_binaries(options: &Config, target: Option<&str>, listener: &mut Listener) -> CDResult<()> {
+pub fn strip_binaries(options: &mut Config, target: Option<&str>, listener: &mut Listener, separate_file: bool) -> CDResult<()> {
     let mut cargo_config = None;
     let strip_tmp;
     let mut strip_cmd = "strip";
@@ -130,25 +130,74 @@ pub fn strip_binaries(options: &Config, target: Option<&str>, listener: &mut Lis
         }
     }
 
-    for path in options.built_binaries().into_iter().filter_map(|a| a.path()) {
-        Command::new(strip_cmd)
-            .arg("--strip-unneeded")
-            .arg(path)
-            .status()
-            .and_then(|s| if s.success() {
-                Ok(())
-            } else {
-                Err(io::Error::new(io::ErrorKind::Other, format!("{}",s)))
-            })
-            .map_err(|err| {
-                if let Some(target) = target {
-                    let conf_path = cargo_config.as_ref().map(|c|c.path()).unwrap_or(Path::new(".cargo/config"));
-                    CargoDebError::StripFailed(path.to_owned(), format!("{}: {}.\nhint: Target-specific strip commands are configured in [target.{}] strip = \"{}\" in {}", strip_cmd, err, target, strip_cmd, conf_path.display()))
-                } else {
-                    CargoDebError::CommandFailed(err, "strip")
-                }
-            })?;
-        listener.info(format!("Stripped '{}'", path.display()));
+    for asset in options.built_binaries() {
+        match asset.source.path() {
+            Some(path) => {
+                // We always strip the symbols to a separate file,  but they will only be included if specified
+
+                // The debug_path and debug_filename should never return None if we have an AssetSource::Path
+                let debug_path = asset.source.debug_source().expect("Failed to compute debug source path");
+                let debug_filename = debug_path.file_name().expect("Built binary has no filename");
+
+                Command::new("objcopy")
+                    .arg("--only-keep-debug")
+                    .arg(path)
+                    .arg(&debug_path)
+                    .status()
+                    .and_then(|s| {
+                        if s.success() {
+                            Command::new(strip_cmd)
+                                .arg("--strip-unneeded")
+                                .arg(path)
+                                .status()
+                                .and_then(|s| {
+                                    if s.success() {
+                                        Command::new("objcopy")
+                                            .current_dir(debug_path.parent().expect("Debug source file had no parent path"))
+                                            .arg(format!("--add-gnu-debuglink={}", debug_filename.to_str().expect("Debug source file had no filename")))
+                                            .arg(path)
+                                            .status()
+                                            .and_then(|s| {
+                                                if s.success() {
+                                                    Ok(())
+                                                }
+                                                else {
+                                                    Err(io::Error::new(io::ErrorKind::Other, format!("{}", s)))
+                                                }
+                                        })
+                                    } else {
+                                        Err(io::Error::new(io::ErrorKind::Other, format!("{}", s)))
+                                    }
+                                })
+                        } else {
+                            Err(io::Error::new(io::ErrorKind::Other, format!("{}", s)))
+                        }
+                    })
+                    .map_err(|err| {
+                        if let Some(target) = target {
+                            let conf_path = cargo_config
+                                .as_ref()
+                                .map(|c| c.path())
+                                .unwrap_or(Path::new(".cargo/config"));
+                            CargoDebError::StripFailed(path.to_owned(), format!("{}: {}.\nhint: Target-specific strip commands are configured in [target.{}] strip = \"{}\" in {}", strip_cmd, err, target, strip_cmd, conf_path.display()))
+                        } else {
+                            CargoDebError::CommandFailed(err, "strip")
+                        }
+                    })?;
+                listener.info(format!("Stripped '{}'", path.display()));
+            },
+            None => {
+                // This is unexpected - emit a warning if we come across it
+                listener.warning(format!("Found built asset with non-path source '{:?}'", asset));
+            }
+        }
     }
+
+    if separate_file
+    {
+        // If we want to debug symols included in a separate file, add these files to the debian assets
+        options.add_debug_assets();
+    }
+
     Ok(())
 }
