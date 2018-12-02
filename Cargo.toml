@@ -9,7 +9,7 @@ homepage = "https://github.com/mmstick/cargo-deb#readme"
 keywords = ["cargo", "subcommand", "deb", "debian", "package"]
 repository = "https://github.com/mmstick/cargo-deb"
 readme = "README.md"
-version = "1.14.1"
+version = "1.15.0"
 
 [package.metadata.deb]
 maintainer = "Michael Aaron Murphy <mmstickman@gmail.com>"
@@ -39,21 +39,17 @@ doc = false
 [badges]
 travis-ci = { repository = "mmstick/cargo-deb" }
 
-[build-dependencies]
-file = "1.1.1"
-
 [dependencies]
-file = "1.1.1"
-getopts = "0.2.14"
-md5 = "0.5.0"
-quick-error = "1.2.0"
+getopts = "0.2.18"
+md5 = "0.6.0"
+quick-error = "1.2.2"
 xz2 = { version = "0.1.4", optional = true }
-serde = "1.0.11"
+serde = "1.0.77"
 serde_derive = "1.0.11"
 serde_json = "1.0.2"
-tar = "0.4.13"
+tar = "0.4.16"
 toml = "0.4.4"
-zopfli = "0.3.0"
+zopfli = "0.3.7"
 glob = "0.2.11"
 ar = "0.6.0"
 cargo_toml = "0.3.0"
