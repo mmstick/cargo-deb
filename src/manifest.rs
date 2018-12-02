@@ -13,7 +13,7 @@ use dependencies::resolve;
 use serde_json;
 use error::*;
 use cargo_toml;
-use try::Try;
+use ok_or::OkOrThen;
 use config::CargoConfig;
 
 fn is_glob_pattern(s: &str) -> bool {

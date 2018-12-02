@@ -40,7 +40,7 @@ pub mod control;
 pub mod data;
 mod manifest;
 mod dependencies;
-mod try;
+mod ok_or;
 mod wordsplit;
 mod error;
 mod tararchive;
