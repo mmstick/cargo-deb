@@ -52,7 +52,7 @@ use listener::Listener;
 use std::fs;
 use std::path::Path;
 use std::io;
-use std::process::Command;
+use std::process::{Command, ExitStatus};
 pub use error::*;
 
 pub use debarchive::DebArchive;
@@ -112,6 +112,14 @@ pub fn cargo_build(options: &Config, target: Option<&str>, other_flags: &[String
     Ok(())
 }
 
+fn ensure_success(status: ExitStatus) -> io::Result<()> {
+    if status.success() {
+        Ok(())
+    } else {
+        Err(io::Error::new(io::ErrorKind::Other, format!("{}", status)))
+    }
+}
+
 /// Strips the binary that was created with cargo
 pub fn strip_binaries(options: &mut Config, target: Option<&str>, listener: &mut Listener, separate_file: bool) -> CDResult<()> {
     let mut cargo_config = None;
@@ -143,36 +151,14 @@ pub fn strip_binaries(options: &mut Config, target: Option<&str>, listener: &mut
                     .arg(path)
                     .arg(&debug_path)
                     .status()
-                    .and_then(|s| {
-                        if s.success() {
-                            Command::new(strip_cmd)
-                                .arg("--strip-unneeded")
-                                .arg(path)
-                                .status()
-                                .and_then(|s| {
-                                    if s.success() {
-                                        Command::new("objcopy")
-                                            .current_dir(debug_path.parent().expect("Debug source file had no parent path"))
-                                            .arg(format!("--add-gnu-debuglink={}", debug_filename.to_str().expect("Debug source file had no filename")))
-                                            .arg(path)
-                                            .status()
-                                            .and_then(|s| {
-                                                if s.success() {
-                                                    Ok(())
-                                                }
-                                                else {
-                                                    Err(io::Error::new(io::ErrorKind::Other, format!("{}", s)))
-                                                }
-                                        })
-                                    } else {
-                                        Err(io::Error::new(io::ErrorKind::Other, format!("{}", s)))
-                                    }
-                                })
-                        } else {
-                            Err(io::Error::new(io::ErrorKind::Other, format!("{}", s)))
-                        }
-                    })
-                    .map_err(|err| {
+                    .and_then(ensure_success)
+                    .map_err(|err| CargoDebError::CommandFailed(err, "objcopy"))?;
+                Command::new(strip_cmd)
+                   .arg("--strip-unneeded")
+                   .arg(path)
+                   .status()
+                   .and_then(ensure_success)
+                   .map_err(|err| {
                         if let Some(target) = target {
                             let conf_path = cargo_config
                                 .as_ref()
@@ -183,6 +169,20 @@ pub fn strip_binaries(options: &mut Config, target: Option<&str>, listener: &mut
                             CargoDebError::CommandFailed(err, "strip")
                         }
                     })?;
+                Command::new("objcopy")
+                    .current_dir(
+                        debug_path
+                            .parent()
+                            .expect("Debug source file had no parent path"),
+                    ).arg(format!(
+                        "--add-gnu-debuglink={}",
+                        debug_filename
+                            .to_str()
+                            .expect("Debug source file had no filename")
+                    )).arg(path)
+                    .status()
+                    .and_then(ensure_success)
+                    .map_err(|err| CargoDebError::CommandFailed(err, "objcopy"))?;
                 listener.info(format!("Stripped '{}'", path.display()));
             },
             None => {
