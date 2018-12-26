@@ -65,3 +65,6 @@ opt-level = 3
 
 [dev-dependencies]
 tempdir = "0.3.6"
+
+[workspace]
+exclude = ["example"]
