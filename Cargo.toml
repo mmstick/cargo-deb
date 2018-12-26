@@ -52,7 +52,7 @@ toml = "0.4.4"
 zopfli = "0.4.0"
 glob = "0.2.11"
 ar = "0.6.0"
-cargo_toml = "0.3.0"
+cargo_toml = "0.6.0"
 
 [features]
 default = ["lzma"]

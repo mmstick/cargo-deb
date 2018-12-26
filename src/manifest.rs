@@ -473,8 +473,8 @@ impl Config {
 
 #[derive(Clone, Debug, Deserialize)]
 struct Cargo {
-    pub package: cargo_toml::TomlPackage<CargoPackageMetadata>,
-    pub profile: Option<cargo_toml::TomlProfiles>,
+    pub package: cargo_toml::Package<CargoPackageMetadata>,
+    pub profile: Option<cargo_toml::Profiles>,
 }
 
 impl Cargo {

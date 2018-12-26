@@ -31,7 +31,7 @@ name = "cargo-deb"
 version = "1.15.0"
 dependencies = [
  "ar 0.6.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "cargo_toml 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "cargo_toml 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "getopts 0.2.18 (registry+https://github.com/rust-lang/crates.io-index)",
  "glob 0.2.11 (registry+https://github.com/rust-lang/crates.io-index)",
  "md5 0.6.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -48,7 +48,7 @@ dependencies = [
 
 [[package]]
 name = "cargo_toml"
-version = "0.3.0"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "serde 1.0.82 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -320,7 +320,7 @@ dependencies = [
 "checksum bitflags 1.0.4 (registry+https://github.com/rust-lang/crates.io-index)" = "228047a76f468627ca71776ecdebd732a3423081fcf5125585bcd7c49886ce12"
 "checksum build_const 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "39092a32794787acd8525ee150305ff051b0aa6cc2abaf193924f5ab05425f39"
 "checksum byteorder 1.2.7 (registry+https://github.com/rust-lang/crates.io-index)" = "94f88df23a25417badc922ab0f5716cc1330e87f71ddd9203b3a3ccd9cedf75d"
-"checksum cargo_toml 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)" = "f1226871a2d0bca986f053067d1ad8312bfd8e86dc9c9c821d0f527033762842"
+"checksum cargo_toml 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)" = "370d08c4dfecc4171d611991ddc043246dfd5392b3038f13dd1985fd3059a869"
 "checksum cc 1.0.26 (registry+https://github.com/rust-lang/crates.io-index)" = "389803e36973d242e7fecb092b2de44a3d35ac62524b3b9339e51d577d668e02"
 "checksum cfg-if 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)" = "082bb9b28e00d3c9d39cc03e64ce4cea0f1bb9b3fde493f0cbc008472d22bdf4"
 "checksum crc 1.8.1 (registry+https://github.com/rust-lang/crates.io-index)" = "d663548de7f5cca343f1e0a48d14dcfb0e9eb4e079ec58883b7251539fa10aeb"
