@@ -11,7 +11,6 @@ use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
 use std::env::consts::{DLL_PREFIX, DLL_SUFFIX};
 use std::fs;
-use std::mem;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use toml;
@@ -295,10 +294,7 @@ impl Config {
     }
 
     pub fn resolve_assets(&mut self) -> CDResult<()> {
-        let mut unresolved_assets = vec![];
-        mem::swap(&mut unresolved_assets, &mut self.assets.unresolved);
-
-        for UnresolvedAsset { source_path, target_path, chmod, is_built } in unresolved_assets.drain(..) {
+        for UnresolvedAsset { source_path, target_path, chmod, is_built } in self.assets.unresolved.drain(..) {
             let source_prefix: PathBuf = source_path.iter()
                 .take_while(|part| !is_glob_pattern(part.to_str().unwrap()))
                 .collect();
