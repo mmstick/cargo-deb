@@ -1,11 +1,11 @@
-use std::process::Command;
-use std::path::Path;
+use crate::error::*;
+use crate::listener::Listener;
 use std::collections::HashSet;
-use error::*;
-use listener::Listener;
+use std::path::Path;
+use std::process::Command;
 
 /// Resolves the dependencies based on the output of ldd on the binary.
-pub fn resolve(path: &Path, architecture: &str, listener: &mut Listener) -> CDResult<Vec<String>> {
+pub fn resolve(path: &Path, architecture: &str, listener: &mut dyn Listener) -> CDResult<Vec<String>> {
     let dependencies = {
         let output = Command::new("ldd")
             .arg(path)

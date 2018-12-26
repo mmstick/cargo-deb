@@ -1,6 +1,6 @@
 use zopfli::{self, Format, Options};
 
-use error::*;
+use crate::error::*;
 
 pub enum Compressed {
     Gz(Vec<u8>),

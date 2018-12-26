@@ -1,9 +1,9 @@
-use error::*;
-use std::path::{Path, PathBuf};
+use crate::error::*;
+use std::borrow::Cow;
 use std::env;
 use std::fs;
+use std::path::{Path, PathBuf};
 use toml;
-use std::borrow::Cow;
 
 pub struct CargoConfig {
     path: PathBuf,
@@ -55,7 +55,7 @@ impl CargoConfig {
         None
     }
 
-    pub fn strip_command(&self, target_triple: &str) -> Option<Cow<str>> {
+    pub fn strip_command(&self, target_triple: &str) -> Option<Cow<'_, str>> {
         if let Some(target) = self.target_conf(target_triple) {
             let strip_config = target.get("strip").and_then(|top| {
                 let as_obj = top.get("path").and_then(|s| s.as_str());

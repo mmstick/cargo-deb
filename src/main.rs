@@ -1,8 +1,5 @@
-extern crate cargo_deb;
 use cargo_deb::*;
-
-extern crate getopts;
-
+use getopts;
 use std::env;
 use std::path::Path;
 use std::process;
@@ -75,8 +72,8 @@ fn main() {
     }
 }
 
-fn err_cause(err: &std::error::Error, max: usize) {
-    if let Some(reason) = err.cause() {
+fn err_cause(err: &dyn std::error::Error, max: usize) {
+    if let Some(reason) = err.source() {
         eprintln!("  because: {}", reason);
         if max > 0 {
             err_cause(reason, max - 1);
@@ -84,7 +81,7 @@ fn err_cause(err: &std::error::Error, max: usize) {
     }
 }
 
-fn err_exit(err: &std::error::Error) -> ! {
+fn err_exit(err: &dyn std::error::Error) -> ! {
     eprintln!("cargo-deb: {}", err);
     err_cause(err, 3);
     process::exit(1);
@@ -106,7 +103,7 @@ fn process(CliOptions {manifest_path, output_path, variant, target, install, no_
     // Listener conditionally prints warnings
     let mut listener_tmp1;
     let mut listener_tmp2;
-    let listener: &mut listener::Listener = if quiet {
+    let listener: &mut dyn listener::Listener = if quiet {
         listener_tmp1 = listener::NoOpListener;
         &mut listener_tmp1
     } else {

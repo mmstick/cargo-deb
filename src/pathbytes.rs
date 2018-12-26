@@ -1,10 +1,10 @@
+use std::borrow::Cow;
 #[cfg(unix)]
 use std::os::unix::ffi::OsStrExt;
-use std::borrow::Cow;
 use std::path::Path;
 
 pub trait AsUnixPathBytes {
-    fn as_unix_path(&self) -> Cow<[u8]>;
+    fn as_unix_path(&self) -> Cow<'_, [u8]>;
 }
 
 impl AsUnixPathBytes for Path {
@@ -24,7 +24,7 @@ impl AsUnixPathBytes for Path {
     }
 
     #[cfg(unix)]
-    fn as_unix_path(&self) -> Cow<[u8]> {
+    fn as_unix_path(&self) -> Cow<'_, [u8]> {
         self.as_os_str().as_bytes().into()
     }
 }

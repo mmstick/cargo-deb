@@ -1,11 +1,11 @@
 #![allow(renamed_and_removed_lints)]
+use glob;
+use serde_json;
 use std::io;
 use std::num;
-use std::time;
 use std::path::PathBuf;
+use std::time;
 use toml;
-use serde_json;
-use glob;
 
 quick_error! {
     #[derive(Debug)]

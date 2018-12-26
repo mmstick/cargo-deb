@@ -1,10 +1,10 @@
-use manifest::Config;
-use std::path::{Path, PathBuf};
-use error::CDResult;
-use pathbytes::*;
+use crate::error::CDResult;
+use crate::manifest::Config;
+use crate::pathbytes::*;
+use ar::{Builder, Header};
 use std::fs;
 use std::fs::File;
-use ar::{Builder, Header};
+use std::path::{Path, PathBuf};
 
 pub struct DebArchive {
     out_abspath: PathBuf,

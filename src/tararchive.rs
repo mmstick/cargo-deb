@@ -1,10 +1,10 @@
+use crate::error::*;
+use std::collections::HashSet;
 use std::io;
 use std::path::{Component, Path, PathBuf};
 use tar;
-use tar::Header as TarHeader;
 use tar::EntryType;
-use std::collections::HashSet;
-use error::*;
+use tar::Header as TarHeader;
 
 pub struct Archive {
     added_directories: HashSet<PathBuf>,
@@ -44,7 +44,7 @@ impl Archive {
         let mut directory = PathBuf::new();
         for comp in asset_relative_dir.components() {
             match comp {
-                Component::CurDir if !::TAR_REJECTS_CUR_DIR => directory.push("."),
+                Component::CurDir if !crate::TAR_REJECTS_CUR_DIR => directory.push("."),
                 Component::Normal(c) => directory.push(c),
                 _ => continue,
             }

@@ -1,4 +1,4 @@
-use error::*;
+use crate::error::*;
 
 pub trait OkOrThen<T> {
     fn ok_or_then<F: FnOnce() -> CDResult<T>>(self, cb: F) -> CDResult<T>;

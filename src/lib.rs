@@ -18,22 +18,7 @@ cargo deb # run this in your Cargo project directory
 The library interface is experimental. See `main.rs` for usage.
 */
 
-extern crate getopts;
-extern crate glob;
-extern crate md5;
-#[macro_use]
-extern crate quick_error;
-#[macro_use]
-extern crate serde_derive;
-extern crate serde_json;
-extern crate tar;
-extern crate ar;
-extern crate toml;
-#[cfg(feature = "lzma")]
-extern crate xz2;
-extern crate zopfli;
-extern crate cargo_toml;
-
+#[macro_use] extern crate quick_error;
 pub mod compress;
 pub mod control;
 pub mod data;
@@ -47,16 +32,16 @@ mod debarchive;
 mod config;
 mod pathbytes;
 pub mod listener;
-use listener::Listener;
 
+use crate::listener::Listener;
 use std::fs;
 use std::path::Path;
 use std::io;
 use std::process::{Command, ExitStatus};
-pub use error::*;
 
-pub use debarchive::DebArchive;
-pub use manifest::Config;
+pub use crate::error::*;
+pub use crate::debarchive::DebArchive;
+pub use crate::manifest::Config;
 
 const TAR_REJECTS_CUR_DIR: bool = true;
 
@@ -121,7 +106,7 @@ fn ensure_success(status: ExitStatus) -> io::Result<()> {
 }
 
 /// Strips the binary that was created with cargo
-pub fn strip_binaries(options: &mut Config, target: Option<&str>, listener: &mut Listener, separate_file: bool) -> CDResult<()> {
+pub fn strip_binaries(options: &mut Config, target: Option<&str>, listener: &mut dyn Listener, separate_file: bool) -> CDResult<()> {
     let mut cargo_config = None;
     let strip_tmp;
     let mut strip_cmd = "strip";

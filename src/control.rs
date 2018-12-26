@@ -1,17 +1,17 @@
-use std::io::Write;
-use std::path::PathBuf;
-use std::fs;
-use manifest::Config;
-use listener::Listener;
+use crate::error::*;
+use crate::listener::Listener;
+use crate::manifest::Config;
+use crate::pathbytes::*;
+use crate::tararchive::Archive;
+use crate::wordsplit::WordSplit;
 use md5::Digest;
 use std::collections::HashMap;
-use error::*;
-use pathbytes::*;
-use tararchive::Archive;
-use wordsplit::WordSplit;
+use std::fs;
+use std::io::Write;
+use std::path::PathBuf;
 
 /// Generates an uncompressed tar archive with `control`, `md5sums`, and others
-pub fn generate_archive(options: &Config, time: u64, asset_hashes: HashMap<PathBuf, Digest>, listener: &mut Listener) -> CDResult<Vec<u8>> {
+pub fn generate_archive(options: &Config, time: u64, asset_hashes: HashMap<PathBuf, Digest>, listener: &mut dyn Listener) -> CDResult<Vec<u8>> {
     let mut archive = Archive::new(time);
     generate_md5sums(&mut archive, options, asset_hashes)?;
     generate_control(&mut archive, options, listener)?;
@@ -53,7 +53,7 @@ fn generate_md5sums(archive: &mut Archive, options: &Config, asset_hashes: HashM
 }
 
 /// Generates the control file that obtains all the important information about the package.
-fn generate_control(archive: &mut Archive, options: &Config, listener: &mut Listener) -> CDResult<()> {
+fn generate_control(archive: &mut Archive, options: &Config, listener: &mut dyn Listener) -> CDResult<()> {
     // Create and return the handle to the control file with write access.
     let mut control: Vec<u8> = Vec::with_capacity(1024);
 

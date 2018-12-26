@@ -1,9 +1,7 @@
-#![allow(unused_imports)]
-extern crate tempdir;
 use std::env;
 use std::fs;
-use std::process::Command;
 use std::path::{Path, PathBuf};
+use std::process::Command;
 use tempdir::TempDir;
 
 #[test]
