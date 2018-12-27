@@ -3,9 +3,10 @@ use crate::listener::Listener;
 use std::collections::HashSet;
 use std::path::Path;
 use std::process::Command;
+use rayon::prelude::*;
 
 /// Resolves the dependencies based on the output of ldd on the binary.
-pub fn resolve(path: &Path, architecture: &str, listener: &mut dyn Listener) -> CDResult<Vec<String>> {
+pub fn resolve(path: &Path, architecture: &str, listener: &dyn Listener) -> CDResult<Vec<String>> {
     let dependencies = {
         let output = Command::new("ldd")
             .arg(path)
@@ -39,7 +40,7 @@ pub fn resolve(path: &Path, architecture: &str, listener: &mut dyn Listener) -> 
         // only collect unique packages.
         .collect();
 
-    Ok(dependencies.iter().map(|package| {
+    Ok(dependencies.par_iter().map(|package| {
         // There can be multiple arch-specific versions of a package
         let version = get_version(&format!("{}:{}", package, architecture)).unwrap();   /* If we got here, package exists. */
         format!("{} (>= {})", package, version)

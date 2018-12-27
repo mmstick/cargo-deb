@@ -14,6 +14,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use toml;
+use rayon::prelude::*;
 
 fn is_glob_pattern(s: &str) -> bool {
     s.contains('*') || s.contains('[') || s.contains(']') || s.contains('!')
@@ -257,7 +258,7 @@ impl Config {
     /// Makes a new config from `Cargo.toml` in the current working directory.
     ///
     /// `None` target means the host machine's architecture.
-    pub fn from_manifest(manifest_path: &Path, output_path: Option<String>, target: Option<&str>, variant: Option<&str>, listener: &mut dyn Listener) -> CDResult<Config> {
+    pub fn from_manifest(manifest_path: &Path, output_path: Option<String>, target: Option<&str>, variant: Option<&str>, listener: &dyn Listener) -> CDResult<Config> {
         let metadata = cargo_metadata(manifest_path)?;
         let root_id = metadata.resolve.root;
         let root_package = metadata.packages.iter()
@@ -271,20 +272,24 @@ impl Config {
         toml::from_slice::<Cargo>(&content)?.into_config(root_package, manifest_dir, output_path, target_dir, target, variant, listener)
     }
 
-    pub(crate) fn get_dependencies(&self, listener: &mut dyn Listener) -> CDResult<String> {
+    pub(crate) fn get_dependencies(&self, listener: &dyn Listener) -> CDResult<String> {
         let mut deps = HashSet::new();
         for word in self.depends.split(',') {
             let word = word.trim();
             if word == "$auto" {
-                for bname in self.all_binaries().into_iter().filter_map(|p| p.path()) {
-                    match resolve(bname, &self.architecture, listener) {
-                        Ok(bindeps) => for dep in bindeps {
-                            deps.insert(dep);
-                        },
+                let bin = self.all_binaries();
+                let resolved = bin.par_iter()
+                    .filter_map(|p| p.path())
+                    .filter_map(|bname| match resolve(bname, &self.architecture, listener) {
+                        Ok(bindeps) => Some(bindeps),
                         Err(err) => {
                             listener.warning(format!("{} (no auto deps for {})", err, bname.display()));
+                            None
                         },
-                    };
+                    })
+                    .collect::<Vec<_>>();
+                for dep in resolved.into_iter().flat_map(|s| s.into_iter()) {
+                    deps.insert(dep);
                 }
             } else {
                 deps.insert(word.to_owned());
@@ -488,7 +493,7 @@ impl Cargo {
         target_dir: &Path,
         target: Option<&str>,
         variant: Option<&str>,
-        listener: &mut dyn Listener,
+        listener: &dyn Listener,
     ) -> CDResult<Config> {
         // Cargo cross-compiles to a dir
         let target_dir = if let Some(target) = target {
@@ -581,7 +586,7 @@ impl Cargo {
         Ok(config)
     }
 
-    fn check_config(&self, manifest_dir: &Path, readme: Option<&String>, deb: &CargoDeb, listener: &mut dyn Listener) {
+    fn check_config(&self, manifest_dir: &Path, readme: Option<&String>, deb: &CargoDeb, listener: &dyn Listener) {
         if self.package.description.is_none() {
             listener.warning("description field is missing in Cargo.toml".to_owned());
         }

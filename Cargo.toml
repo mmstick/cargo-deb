@@ -54,6 +54,7 @@ zopfli = "0.4.0"
 glob = "0.2.11"
 ar = "0.6.0"
 cargo_toml = "0.6.0"
+rayon = "1.0.3"
 
 [features]
 default = ["lzma"]

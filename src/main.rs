@@ -139,9 +139,11 @@ fn process(CliOptions {manifest_path, output_path, variant, target, install, no_
         // Initialize the contents of the control archive (metadata for the package manager).
         let control_archive = control::generate_archive(&options, system_time, asset_hashes, listener)?;
 
+        let (control_compressed, data_compressed) = rayon::join(|| compress::gz(&control_archive), || compress::xz_or_gz(&data_archive));
+
         // Order is important for Debian
-        deb_contents.add_data("control.tar.gz", system_time, &compress::gz(&control_archive)?)?;
-        match compress::xz_or_gz(&data_archive)? {
+        deb_contents.add_data("control.tar.gz", system_time, &control_compressed?)?;
+        match data_compressed? {
             compress::Compressed::Gz(data) => deb_contents.add_data("data.tar.gz", system_time, &data)?,
             compress::Compressed::Xz(data) => deb_contents.add_data("data.tar.xz", system_time, &data)?,
         }
