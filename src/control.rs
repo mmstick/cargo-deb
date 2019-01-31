@@ -25,7 +25,7 @@ pub fn generate_archive(options: &Config, time: u64, asset_hashes: HashMap<PathB
 /// Append all files that reside in the `maintainer_scripts` path to the archive
 fn generate_scripts(archive: &mut Archive, option: &Config) -> CDResult<()> {
     if let Some(ref maintainer_scripts) = option.maintainer_scripts {
-        for name in &["preinst", "postinst", "prerm", "postrm"] {
+        for name in &["config", "preinst", "postinst", "prerm", "postrm"] {
             if let Ok(script) = fs::read(maintainer_scripts.join(name)) {
                 archive.file(name, &script, 0o755)?;
             }
