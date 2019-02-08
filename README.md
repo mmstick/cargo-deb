@@ -112,7 +112,13 @@ cargo deb --target=i686-unknown-linux-gnu
 
 Cross-compiled archives are saved in `target/<target triple>/debian/*.deb`. The actual archive path is printed on success.
 
-In `.cargo/config` you can add `[target.<target triple>] strip = { path = "…" }` to specify a path to the architecture-specific `strip` command, or use `--no-strip`.
+In `.cargo/config` you can add `[target.<target triple>] strip = { path = "…" } objcopy = { path = "…" }` to specify a path to the architecture-specific `strip` and `objcopy` commands, or use `--no-strip`.
+
+### Separate debug info
+
+    cargo deb --separate-debug-symbols
+
+Removes debug symbols from executables and places them as separate files in `/usr/lib/debug`.
 
 ### Custom build flags
 
