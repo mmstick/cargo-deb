@@ -86,6 +86,27 @@ impl CargoConfig {
         }
         None
     }
+
+    pub fn objcopy_command(&self, target_triple: &str) -> Option<Cow<'_, str>> {
+        if let Some(target) = self.target_conf(target_triple) {
+            let objcopy_config = target.get("objcopy").and_then(|top| {
+                let as_obj = top.get("path").and_then(|s| s.as_str());
+                top.as_str().or(as_obj)
+            });
+            if let Some(objcopy) = objcopy_config {
+                return Some(Cow::Borrowed(objcopy));
+            }
+        }
+        if let Some(linker) = self.linker_command(target_triple) {
+            if linker.contains('/') {
+                let objcopy_path = Path::new(linker).with_file_name("objcopy");
+                if objcopy_path.exists() {
+                    return Some(Cow::Owned((*objcopy_path.to_string_lossy()).to_owned()));
+                }
+            }
+        }
+        None
+    }
 }
 
 #[test]
@@ -102,4 +123,20 @@ strip = { path = "strip2" }
     assert_eq!("magic-strip", c.strip_command("i686-unknown-dragonfly").unwrap());
     assert_eq!("strip2", c.strip_command("foo").unwrap());
     assert_eq!(None, c.strip_command("bar"));
+}
+
+#[test]
+fn parse_objcopy() {
+    let c = CargoConfig::from_str(r#"
+[target.i686-unknown-dragonfly]
+linker = "magic-ld"
+objcopy = "magic-objcopy"
+
+[target.'foo']
+objcopy = { path = "objcopy2" }
+"#, ".".into()).unwrap();
+
+    assert_eq!("magic-objcopy", c.objcopy_command("i686-unknown-dragonfly").unwrap());
+    assert_eq!("objcopy2", c.objcopy_command("foo").unwrap());
+    assert_eq!(None, c.objcopy_command("bar"));
 }
