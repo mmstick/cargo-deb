@@ -108,12 +108,20 @@ fn ensure_success(status: ExitStatus) -> io::Result<()> {
 /// Strips the binary that was created with cargo
 pub fn strip_binaries(options: &mut Config, target: Option<&str>, listener: &mut dyn Listener, separate_file: bool) -> CDResult<()> {
     let mut cargo_config = None;
+    let objcopy_tmp;
     let strip_tmp;
+    let mut objcopy_cmd = "objcopy";
     let mut strip_cmd = "strip";
 
     if let Some(target) = target {
         cargo_config = options.cargo_config()?;
         if let Some(ref conf) = cargo_config {
+            if let Some(cmd) = conf.objcopy_command(target) {
+                listener.info(format!("Using '{}' for '{}'", cmd, target));
+                objcopy_tmp = cmd;
+                objcopy_cmd = &objcopy_tmp;
+            }
+            
             if let Some(cmd) = conf.strip_command(target) {
                 listener.info(format!("Using '{}' for '{}'", cmd, target));
                 strip_tmp = cmd;
@@ -131,7 +139,7 @@ pub fn strip_binaries(options: &mut Config, target: Option<&str>, listener: &mut
                 let debug_path = asset.source.debug_source().expect("Failed to compute debug source path");
                 let debug_filename = debug_path.file_name().expect("Built binary has no filename");
 
-                Command::new("objcopy")
+                Command::new(objcopy_cmd)
                     .arg("--only-keep-debug")
                     .arg(path)
                     .arg(&debug_path)
@@ -154,7 +162,7 @@ pub fn strip_binaries(options: &mut Config, target: Option<&str>, listener: &mut
                             CargoDebError::CommandFailed(err, "strip")
                         }
                     })?;
-                Command::new("objcopy")
+                Command::new(objcopy_cmd)
                     .current_dir(
                         debug_path
                             .parent()
