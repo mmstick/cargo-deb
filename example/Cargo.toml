@@ -2,6 +2,7 @@
 name = "example"
 version = "0.1.0"
 build = "build.rs"
+publish = false
 
 [dependencies]
 
@@ -22,7 +23,8 @@ assets = [
     ["3.txt", "var/lib/example/3.txt", "644"],
 ]
 changelog = "changelog"
-
+default-features = false
+features = ["example_debian_build"]
 
 [package.metadata.deb.variants.debug]
 assets =  [
@@ -33,3 +35,8 @@ assets =  [
     ["target/release/assets/*", "var/lib/example", "644"],
     ["4.txt", "var/lib/example/4.txt", "644"],
 ]
+
+[features]
+default = ["example_non_debian_build"]
+example_non_debian_build = []
+example_debian_build = []
