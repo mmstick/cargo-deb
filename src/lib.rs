@@ -138,6 +138,10 @@ pub fn strip_binaries(options: &mut Config, target: Option<&str>, listener: &mut
                 // The debug_path and debug_filename should never return None if we have an AssetSource::Path
                 let debug_path = asset.source.debug_source().expect("Failed to compute debug source path");
                 let debug_filename = debug_path.file_name().expect("Built binary has no filename");
+                let conf_path = cargo_config
+                    .as_ref()
+                    .map(|c| c.path())
+                    .unwrap_or(Path::new(".cargo/config"));
 
                 Command::new(objcopy_cmd)
                     .arg("--only-keep-debug")
@@ -145,7 +149,13 @@ pub fn strip_binaries(options: &mut Config, target: Option<&str>, listener: &mut
                     .arg(&debug_path)
                     .status()
                     .and_then(ensure_success)
-                    .map_err(|err| CargoDebError::CommandFailed(err, "objcopy"))?;
+                    .map_err(|err| {
+                        if let Some(target) = target {
+                            CargoDebError::StripFailed(path.to_owned(), format!("{}: {}.\nhint: Target-specific strip commands are configured in [target.{}] objcopy = {{ path =\"{}\" }} in {}", objcopy_cmd, err, target, objcopy_cmd, conf_path.display()))
+                        } else {
+                            CargoDebError::CommandFailed(err, "objcopy")
+                        }
+                    })?;
                 Command::new(strip_cmd)
                    .arg("--strip-unneeded")
                    .arg(path)
@@ -153,11 +163,7 @@ pub fn strip_binaries(options: &mut Config, target: Option<&str>, listener: &mut
                    .and_then(ensure_success)
                    .map_err(|err| {
                         if let Some(target) = target {
-                            let conf_path = cargo_config
-                                .as_ref()
-                                .map(|c| c.path())
-                                .unwrap_or(Path::new(".cargo/config"));
-                            CargoDebError::StripFailed(path.to_owned(), format!("{}: {}.\nhint: Target-specific strip commands are configured in [target.{}] strip = \"{}\" in {}", strip_cmd, err, target, strip_cmd, conf_path.display()))
+                            CargoDebError::StripFailed(path.to_owned(), format!("{}: {}.\nhint: Target-specific strip commands are configured in [target.{}] strip = {{ path = \"{}\" }} in {}", strip_cmd, err, target, strip_cmd, conf_path.display()))
                         } else {
                             CargoDebError::CommandFailed(err, "strip")
                         }
