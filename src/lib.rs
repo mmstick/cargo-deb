@@ -121,7 +121,7 @@ pub fn strip_binaries(options: &mut Config, target: Option<&str>, listener: &mut
                 objcopy_tmp = cmd;
                 objcopy_cmd = &objcopy_tmp;
             }
-            
+
             if let Some(cmd) = conf.strip_command(target) {
                 listener.info(format!("Using '{}' for '{}'", cmd, target));
                 strip_tmp = cmd;
@@ -143,19 +143,21 @@ pub fn strip_binaries(options: &mut Config, target: Option<&str>, listener: &mut
                     .map(|c| c.path())
                     .unwrap_or(Path::new(".cargo/config"));
 
-                Command::new(objcopy_cmd)
-                    .arg("--only-keep-debug")
-                    .arg(path)
-                    .arg(&debug_path)
-                    .status()
-                    .and_then(ensure_success)
-                    .map_err(|err| {
-                        if let Some(target) = target {
-                            CargoDebError::StripFailed(path.to_owned(), format!("{}: {}.\nhint: Target-specific strip commands are configured in [target.{}] objcopy = {{ path =\"{}\" }} in {}", objcopy_cmd, err, target, objcopy_cmd, conf_path.display()))
-                        } else {
-                            CargoDebError::CommandFailed(err, "objcopy")
-                        }
-                    })?;
+                if separate_file {
+                    Command::new(objcopy_cmd)
+                        .arg("--only-keep-debug")
+                        .arg(path)
+                        .arg(&debug_path)
+                        .status()
+                        .and_then(ensure_success)
+                        .map_err(|err| {
+                            if let Some(target) = target {
+                                CargoDebError::StripFailed(path.to_owned(), format!("{}: {}.\nhint: Target-specific strip commands are configured in [target.{}] objcopy = {{ path =\"{}\" }} in {}", objcopy_cmd, err, target, objcopy_cmd, conf_path.display()))
+                            } else {
+                                CargoDebError::CommandFailed(err, "objcopy")
+                            }
+                        })?;
+                }
                 Command::new(strip_cmd)
                    .arg("--strip-unneeded")
                    .arg(path)
@@ -168,20 +170,22 @@ pub fn strip_binaries(options: &mut Config, target: Option<&str>, listener: &mut
                             CargoDebError::CommandFailed(err, "strip")
                         }
                     })?;
-                Command::new(objcopy_cmd)
-                    .current_dir(
-                        debug_path
-                            .parent()
-                            .expect("Debug source file had no parent path"),
-                    ).arg(format!(
-                        "--add-gnu-debuglink={}",
-                        debug_filename
-                            .to_str()
-                            .expect("Debug source file had no filename")
-                    )).arg(path)
-                    .status()
-                    .and_then(ensure_success)
-                    .map_err(|err| CargoDebError::CommandFailed(err, "objcopy"))?;
+                if separate_file {
+                    Command::new(objcopy_cmd)
+                        .current_dir(
+                            debug_path
+                                .parent()
+                                .expect("Debug source file had no parent path"),
+                        ).arg(format!(
+                            "--add-gnu-debuglink={}",
+                            debug_filename
+                                .to_str()
+                                .expect("Debug source file had no filename")
+                        )).arg(path)
+                        .status()
+                        .and_then(ensure_success)
+                        .map_err(|err| CargoDebError::CommandFailed(err, "objcopy"))?;
+                }
                 listener.info(format!("Stripped '{}'", path.display()));
             },
             None => {
