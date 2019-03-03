@@ -72,8 +72,9 @@ fn main() {
     }
 }
 
+#[allow(deprecated)]
 fn err_cause(err: &dyn std::error::Error, max: usize) {
-    if let Some(reason) = err.source() {
+    if let Some(reason) = err.cause() { // we use cause(), not source()
         eprintln!("  because: {}", reason);
         if max > 0 {
             err_cause(reason, max - 1);
