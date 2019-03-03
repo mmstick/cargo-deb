@@ -251,6 +251,8 @@ pub struct Config {
     pub default_features: bool,
     /// Should the binary be stripped from debug symbols?
     pub strip: bool,
+    /// Should the debug symbols be moved to a separate file included in the package? (implies `strip:true`)
+    pub separate_debug_symbols: bool,
     _use_constructor_to_make_this_struct_: (),
 }
 
@@ -566,6 +568,7 @@ impl Cargo {
             maintainer_scripts: deb.maintainer_scripts.map(PathBuf::from),
             features: deb.features.take().unwrap_or(vec![]),
             default_features: deb.default_features.unwrap_or(true),
+            separate_debug_symbols: deb.separate_debug_symbols.unwrap_or(false),
             strip: self.profile.as_ref().and_then(|p|p.release.as_ref())
                 .and_then(|r| r.debug.as_ref())
                 .map_or(true, |debug| match *debug {
@@ -729,6 +732,7 @@ struct CargoDeb {
     pub maintainer_scripts: Option<String>,
     pub features: Option<Vec<String>>,
     pub default_features: Option<bool>,
+    pub separate_debug_symbols: Option<bool>,
     pub variants: Option<HashMap<String, CargoDeb>>,
 }
 
@@ -753,6 +757,7 @@ impl CargoDeb {
             maintainer_scripts: self.maintainer_scripts.or(parent.maintainer_scripts),
             features: self.features.or(parent.features),
             default_features: self.default_features.or(parent.default_features),
+            separate_debug_symbols: self.separate_debug_symbols.or(parent.separate_debug_symbols),
             variants: self.variants.or(parent.variants),
         }
     }

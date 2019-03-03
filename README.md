@@ -52,6 +52,7 @@ Everything is optional:
  - **changelog**: Path to Debian-formatted [changelog file](https://www.debian.org/doc/manuals/maint-guide/dreq.en.html#changelog).
  - **features**: List of [Cargo features](https://doc.rust-lang.org/cargo/reference/manifest.html#the-features-section) to use when building the package.
  - **default-features**: whether to use default crate features in addition to the `features` list (default `true`).
+ - **separate-debug-symbols**: whether to keep debug symbols, but strip them from executables and save them in separate files (default `false`).
 
 ### Example of custom `Cargo.toml` additions
 
@@ -118,7 +119,7 @@ In `.cargo/config` you can add `[target.<target triple>] strip = { path = "…" 
 
     cargo deb --separate-debug-symbols
 
-Removes debug symbols from executables and places them as separate files in `/usr/lib/debug`.
+Removes debug symbols from executables and places them as separate files in `/usr/lib/debug`. Requires GNU `objcopy` tool.
 
 ### Custom build flags
 
