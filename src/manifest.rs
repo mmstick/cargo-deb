@@ -189,6 +189,8 @@ pub struct Config {
     pub target_dir: PathBuf,
     /// The name of the project to build
     pub name: String,
+    /// The name to give the Debian package; usually the same as the Cargo project name
+    pub deb_name: String,
     /// The software license of the project (SPDX format).
     pub license: Option<String>,
     /// The location of the license file
@@ -352,7 +354,7 @@ impl Config {
         self.assets.resolved.push(Asset::new(
             AssetSource::Data(copyright_file),
             Path::new("usr/share/doc")
-                .join(&self.name)
+                .join(&self.deb_name)
                 .join("copyright"),
             0o644,
             false,
@@ -384,7 +386,7 @@ impl Config {
                 self.assets.resolved.push(Asset::new(
                     AssetSource::Data(changelog_file),
                     Path::new("usr/share/doc")
-                        .join(&self.name)
+                        .join(&self.deb_name)
                         .join("changelog.gz"),
                     0o644,
                     false,
@@ -535,6 +537,7 @@ impl Cargo {
             target: target.map(|t| t.to_string()),
             target_dir,
             name: self.package.name.clone(),
+            deb_name: deb.name.take().unwrap_or(self.package.name.clone()),
             license: self.package.license.take(),
             license_file,
             license_file_skip_lines,
@@ -714,6 +717,7 @@ struct CargoPackageMetadata {
 #[derive(Clone, Debug, Deserialize, Default)]
 #[serde(rename_all = "kebab-case", deny_unknown_fields)]
 struct CargoDeb {
+    pub name: Option<String>,
     pub maintainer: Option<String>,
     pub copyright: Option<String>,
     pub license_file: Option<Vec<String>>,
@@ -739,6 +743,7 @@ struct CargoDeb {
 impl CargoDeb {
     fn inherit_from(self, parent: CargoDeb) -> CargoDeb {
         CargoDeb {
+            name: self.name.or(parent.name),
             maintainer: self.maintainer.or(parent.maintainer),
             copyright: self.copyright.or(parent.copyright),
             license_file: self.license_file.or(parent.license_file),

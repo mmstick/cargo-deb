@@ -14,7 +14,7 @@ pub struct DebArchive {
 
 impl DebArchive {
     pub fn new(config: &Config) -> CDResult<Self> {
-        let out_filename = format!("{}_{}_{}.deb", config.name, config.version, config.architecture);
+        let out_filename = format!("{}_{}_{}.deb", config.deb_name, config.version, config.architecture);
         let prefix = config.deb_temp_dir();
         let out_abspath = config.deb_output_path(&out_filename);
         {

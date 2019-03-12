@@ -58,7 +58,7 @@ fn generate_control(archive: &mut Archive, options: &Config, listener: &mut dyn 
     let mut control: Vec<u8> = Vec::with_capacity(1024);
 
     // Write all of the lines required by the control file.
-    writeln!(&mut control, "Package: {}", options.name)?;
+    writeln!(&mut control, "Package: {}", options.deb_name)?;
     writeln!(&mut control, "Version: {}", options.version)?;
     writeln!(&mut control, "Architecture: {}", options.architecture)?;
     if let Some(ref repo) = options.repository {

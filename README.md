@@ -32,6 +32,7 @@ For a more complete Debian package, you may also define a new table, `[package.m
 
 Everything is optional:
 
+- **name**: The name of the Debian package. If not present, the name of the crate is used.
 - **maintainer**: The person maintaining the Debian packaging. If not present, the first author is used.
 - **copyright**: To whom and when the copyright of the software is granted. If not present, the list of authors is used.
 - **license-file**: The location of the license and the amount of lines to skip at the top. If not present, package-level `license-file` is used.
