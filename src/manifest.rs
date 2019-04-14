@@ -264,7 +264,7 @@ impl Config {
     /// `None` target means the host machine's architecture.
     pub fn from_manifest(manifest_path: &Path, output_path: Option<String>, target: Option<&str>, variant: Option<&str>, listener: &dyn Listener) -> CDResult<Config> {
         let metadata = cargo_metadata(manifest_path)?;
-        let root_id = metadata.resolve.root;
+        let root_id = metadata.resolve.root.ok_or("There is no root package in cargo metadata")?;
         let root_package = metadata.packages.iter()
             .find(|p| p.id == root_id)
             .ok_or("Unable to find root package in cargo metadata")?;
@@ -777,7 +777,7 @@ struct CargoMetadata {
 
 #[derive(Deserialize)]
 struct CargoMetadataResolve {
-    root: String,
+    root: Option<String>,
 }
 
 #[derive(Deserialize)]
