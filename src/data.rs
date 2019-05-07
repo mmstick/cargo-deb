@@ -47,7 +47,7 @@ pub(crate) fn generate_copyright_asset(options: &Config) -> CDResult<Vec<u8>> {
         writeln!(&mut copyright, "License: {}", license)?;
     }
     if let Some(ref path) = options.license_file {
-        let license_string = fs::read_to_string(path)
+        let license_string = fs::read_to_string(options.path_in_workspace(path))
             .map_err(|e| CargoDebError::IoFile("unable to read license file", e, path.to_owned()))?;
         // Skip the first `A` number of lines and then iterate each line after that.
         for line in license_string.lines().skip(options.license_file_skip_lines) {
