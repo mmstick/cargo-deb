@@ -17,6 +17,7 @@ struct CliOptions {
     target: Option<String>,
     manifest_path: Option<String>,
     cargo_build_flags: Vec<String>,
+    deb_version: Option<String>,
 }
 
 fn main() {
@@ -35,6 +36,7 @@ fn main() {
     cli_opts.optflag("v", "verbose", "Print progress");
     cli_opts.optflag("h", "help", "Print this help menu");
     cli_opts.optflag("", "version", "Show the version of cargo-deb");
+    cli_opts.optopt("", "deb-version", "Alternate version string for package", "version");
 
     let matches = match cli_opts.parse(&args[1..]) {
         Ok(m) => m,
@@ -63,6 +65,7 @@ fn main() {
         target: matches.opt_str("target"),
         output_path: matches.opt_str("output"),
         manifest_path: matches.opt_str("manifest-path"),
+        deb_version: matches.opt_str("deb-version"),
         cargo_build_flags: matches.free,
     }) {
         Ok(()) => {},
@@ -88,7 +91,7 @@ fn err_exit(err: &dyn std::error::Error) -> ! {
     process::exit(1);
 }
 
-fn process(CliOptions {manifest_path, output_path, variant, target, install, no_build, no_strip, separate_debug_symbols, quiet, verbose, mut cargo_build_flags}: CliOptions) -> CDResult<()> {
+fn process(CliOptions {manifest_path, output_path, variant, target, install, no_build, no_strip, separate_debug_symbols, quiet, verbose, mut cargo_build_flags, deb_version}: CliOptions) -> CDResult<()> {
     let target = target.as_ref().map(|s|s.as_str());
     let variant = variant.as_ref().map(|s| s.as_str());
 
@@ -113,7 +116,7 @@ fn process(CliOptions {manifest_path, output_path, variant, target, install, no_
     };
 
     let manifest_path = manifest_path.as_ref().map(|s|s.as_str()).unwrap_or("Cargo.toml");
-    let mut options = Config::from_manifest(Path::new(manifest_path), output_path, target, variant, listener)?;
+    let mut options = Config::from_manifest(Path::new(manifest_path), output_path, target, variant, deb_version, listener)?;
     reset_deb_directory(&options)?;
 
     if !no_build {
