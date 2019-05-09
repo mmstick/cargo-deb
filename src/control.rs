@@ -59,7 +59,7 @@ fn generate_control(archive: &mut Archive, options: &Config, listener: &mut dyn 
 
     // Write all of the lines required by the control file.
     writeln!(&mut control, "Package: {}", options.deb_name)?;
-    writeln!(&mut control, "Version: {}", options.version)?;
+    writeln!(&mut control, "Version: {}", options.deb_version)?;
     writeln!(&mut control, "Architecture: {}", options.architecture)?;
     if let Some(ref repo) = options.repository {
         if repo.starts_with("http") {

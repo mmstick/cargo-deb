@@ -191,6 +191,8 @@ pub struct Config {
     pub name: String,
     /// The name to give the Debian package; usually the same as the Cargo project name
     pub deb_name: String,
+    /// The version to give the Debian package; usually the same as the Cargo version
+    pub deb_version: String,
     /// The software license of the project (SPDX format).
     pub license: Option<String>,
     /// The location of the license file
@@ -201,8 +203,6 @@ pub struct Config {
     /// (Debian's `copyright` file contents).
     pub copyright: String,
     pub changelog: Option<String>,
-    /// The version number of the project.
-    pub version: String,
     /// The homepage URL of the project.
     pub homepage: Option<String>,
     /// Documentation URL from `Cargo.toml`. Fallback if `homepage` is missing.
@@ -262,7 +262,7 @@ impl Config {
     /// Makes a new config from `Cargo.toml` in the current working directory.
     ///
     /// `None` target means the host machine's architecture.
-    pub fn from_manifest(manifest_path: &Path, output_path: Option<String>, target: Option<&str>, variant: Option<&str>, listener: &dyn Listener) -> CDResult<Config> {
+    pub fn from_manifest(manifest_path: &Path, output_path: Option<String>, target: Option<&str>, variant: Option<&str>, deb_version: Option<String>, listener: &dyn Listener) -> CDResult<Config> {
         let metadata = cargo_metadata(manifest_path)?;
         let root_id = metadata.resolve.root.ok_or("There is no root package in cargo metadata")?;
         let root_package = metadata.packages.iter()
@@ -273,7 +273,7 @@ impl Config {
         let manifest_dir = manifest_path.parent().unwrap();
         let content = fs::read(&manifest_path)
             .map_err(|e| CargoDebError::IoFile("unable to read Cargo.toml", e, manifest_path.to_owned()))?;
-        toml::from_slice::<Cargo>(&content)?.into_config(root_package, manifest_dir, output_path, target_dir, target, variant, listener)
+        toml::from_slice::<Cargo>(&content)?.into_config(root_package, manifest_dir, output_path, target_dir, target, variant, deb_version, listener)
     }
 
     pub(crate) fn get_dependencies(&self, listener: &dyn Listener) -> CDResult<String> {
@@ -497,6 +497,7 @@ impl Cargo {
         target_dir: &Path,
         target: Option<&str>,
         variant: Option<&str>,
+        deb_version: Option<String>,
         listener: &dyn Listener,
     ) -> CDResult<Config> {
         // Cargo cross-compiles to a dir
@@ -538,6 +539,7 @@ impl Cargo {
             target_dir,
             name: self.package.name.clone(),
             deb_name: deb.name.take().unwrap_or(self.package.name.clone()),
+            deb_version: deb_version.unwrap_or(self.version_string(deb.revision)),
             license: self.package.license.take(),
             license_file,
             license_file_skip_lines,
@@ -547,7 +549,6 @@ impl Cargo {
                 }
                 Ok(self.package.authors.join(", "))
             })?,
-            version: self.version_string(deb.revision),
             homepage: self.package.homepage.clone(),
             documentation: self.package.documentation.clone(),
             repository: self.package.repository.take(),
