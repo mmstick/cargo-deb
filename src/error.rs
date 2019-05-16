@@ -27,9 +27,11 @@ quick_error! {
             display("{} ({}): {}", msg, arg, String::from_utf8_lossy(reason))
         }
         Str(msg: &'static str) {
+            display("{}", msg)
             from()
         }
         NumParse(msg: &'static str, err: num::ParseIntError) {
+            display("{}", msg)
             cause(err)
         }
         InstallFailed {

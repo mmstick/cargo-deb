@@ -545,7 +545,7 @@ impl Cargo {
             license_file_skip_lines,
             copyright: deb.copyright.take().ok_or_then(|| {
                 if self.package.authors.is_empty() {
-                    Err("Package must have a copyright or authors")?;
+                    Err("The package must have a copyright or authors property")?;
                 }
                 Ok(self.package.authors.join(", "))
             })?,
@@ -556,7 +556,7 @@ impl Cargo {
             extended_description: self.extended_description(deb.extended_description.take(), readme)?,
             maintainer: deb.maintainer.take().ok_or_then(|| {
                 Ok(self.package.authors.get(0)
-                    .ok_or("Package must have a maintainer or authors")?.to_owned())
+                    .ok_or("The package must have a maintainer or authors property")?.to_owned())
             })?,
             depends: deb.depends.take().unwrap_or("$auto".to_owned()),
             conflicts: deb.conflicts.take(),
