@@ -9,7 +9,7 @@ homepage = "https://github.com/mmstick/cargo-deb#readme"
 keywords = ["cargo", "subcommand", "deb", "debian", "package"]
 repository = "https://github.com/mmstick/cargo-deb"
 readme = "README.md"
-version = "1.17.0"
+version = "1.18.0"
 edition = "2018"
 
 [package.metadata.deb]
