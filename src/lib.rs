@@ -22,7 +22,7 @@ The library interface is experimental. See `main.rs` for usage.
 pub mod compress;
 pub mod control;
 pub mod data;
-mod manifest;
+pub mod manifest;
 mod dependencies;
 mod ok_or;
 mod wordsplit;
