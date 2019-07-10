@@ -13,7 +13,9 @@ fn run_cargo_deb_command_on_example_dir() {
     let output = Command::new(cmd_path)
         .arg(format!("--manifest-path={}", root.join("example/Cargo.toml").display()))
         .output().unwrap();
-    assert!(output.status.success());
+    if !output.status.success() {
+        panic!("Cmd failed: {}\n{}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));
+    }
 
     // prints deb path on the last line
     let last_line = output.stdout[..output.stdout.len()-1].split(|&c| c==b'\n').last().unwrap();
