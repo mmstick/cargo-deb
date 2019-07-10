@@ -61,6 +61,12 @@ quick_error! {
         PackageNotFound(path: String, reason: Vec<u8>) {
             display("path '{}' does not belong to a package: {}", path, String::from_utf8_lossy(reason))
         }
+        PackageNotFoundInWorkspace(name: String, available: String) {
+            display("The workspace doesn't have a package named {}. Available packages are: {}", name, available)
+        }
+        NoRootFoundInWorkspace(available: String) {
+            display("This is a workspace with multiple packages, and there is no single package at the root. Please specify package name with -p. Available packages are: {}", available)
+        }
         VariantNotFound(variant: String) {
             display("[package.metadata.deb.variants.{}] not found in Cargo.toml", variant)
         }

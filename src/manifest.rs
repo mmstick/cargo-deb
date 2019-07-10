@@ -262,12 +262,26 @@ impl Config {
     /// Makes a new config from `Cargo.toml` in the current working directory.
     ///
     /// `None` target means the host machine's architecture.
-    pub fn from_manifest(manifest_path: &Path, output_path: Option<String>, target: Option<&str>, variant: Option<&str>, deb_version: Option<String>, listener: &dyn Listener) -> CDResult<Config> {
+    pub fn from_manifest(manifest_path: &Path, package_name: Option<&str>, output_path: Option<String>, target: Option<&str>, variant: Option<&str>, deb_version: Option<String>, listener: &dyn Listener) -> CDResult<Config> {
         let metadata = cargo_metadata(manifest_path)?;
-        let root_id = metadata.resolve.root.ok_or("There is no root package in cargo metadata")?;
-        let root_package = metadata.packages.iter()
-            .find(|p| p.id == root_id)
-            .ok_or("Unable to find root package in cargo metadata")?;
+        let available_package_names = || {
+            metadata.packages.iter()
+                .filter(|p| metadata.workspace_members.iter().any(|w| w == &p.id))
+                .map(|p| p.name.as_str())
+                .collect::<Vec<_>>().join(", ")
+        };
+        let root_package = if let Some(name) = package_name {
+            metadata.packages.iter().find(|p| {
+                p.name == name
+            })
+            .ok_or_else(|| CargoDebError::PackageNotFoundInWorkspace(name.into(), available_package_names()))
+        } else {
+            metadata.resolve.root.as_ref().and_then(|root_id| {
+                metadata.packages.iter()
+                    .find(|p| &p.id == root_id)
+            })
+            .ok_or_else(|| CargoDebError::NoRootFoundInWorkspace(available_package_names()))
+        }?;
         let target_dir = Path::new(&metadata.target_directory);
         let manifest_path = Path::new(&root_package.manifest_path);
         let manifest_dir = manifest_path.parent().unwrap();
@@ -773,6 +787,8 @@ impl CargoDeb {
 struct CargoMetadata {
     packages: Vec<CargoMetadataPackage>,
     resolve: CargoMetadataResolve,
+    #[serde(default)]
+    workspace_members: Vec<String>,
     target_directory: String,
 }
 
@@ -784,6 +800,7 @@ struct CargoMetadataResolve {
 #[derive(Deserialize)]
 struct CargoMetadataPackage {
     pub id: String,
+    pub name: String,
     pub targets: Vec<CargoMetadataTarget>,
     pub manifest_path: String,
 }

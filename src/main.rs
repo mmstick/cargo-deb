@@ -12,6 +12,7 @@ struct CliOptions {
     verbose: bool,
     quiet: bool,
     install: bool,
+    package_name: Option<String>,
     output_path: Option<String>,
     variant: Option<String>,
     target: Option<String>,
@@ -31,6 +32,7 @@ fn main() {
     cli_opts.optopt("", "target", "Rust target for cross-compilation", "triple");
     cli_opts.optopt("", "variant", "Alternative configuration section to use", "name");
     cli_opts.optopt("", "manifest-path", "Cargo project file location", "./Cargo.toml");
+    cli_opts.optopt("p", "package", "Select one of packages belonging to a workspace", "name");
     cli_opts.optopt("o", "output", "Write .deb to this file or directory", "path");
     cli_opts.optflag("q", "quiet", "Don't print warnings");
     cli_opts.optflag("v", "verbose", "Print progress");
@@ -64,6 +66,7 @@ fn main() {
         variant: matches.opt_str("variant"),
         target: matches.opt_str("target"),
         output_path: matches.opt_str("output"),
+        package_name: matches.opt_str("package"),
         manifest_path: matches.opt_str("manifest-path"),
         deb_version: matches.opt_str("deb-version"),
         cargo_build_flags: matches.free,
@@ -91,7 +94,7 @@ fn err_exit(err: &dyn std::error::Error) -> ! {
     process::exit(1);
 }
 
-fn process(CliOptions {manifest_path, output_path, variant, target, install, no_build, no_strip, separate_debug_symbols, quiet, verbose, mut cargo_build_flags, deb_version}: CliOptions) -> CDResult<()> {
+fn process(CliOptions {manifest_path, output_path, package_name, variant, target, install, no_build, no_strip, separate_debug_symbols, quiet, verbose, mut cargo_build_flags, deb_version}: CliOptions) -> CDResult<()> {
     let target = target.as_ref().map(|s|s.as_str());
     let variant = variant.as_ref().map(|s| s.as_str());
 
@@ -116,7 +119,7 @@ fn process(CliOptions {manifest_path, output_path, variant, target, install, no_
     };
 
     let manifest_path = manifest_path.as_ref().map(|s|s.as_str()).unwrap_or("Cargo.toml");
-    let mut options = Config::from_manifest(Path::new(manifest_path), output_path, target, variant, deb_version, listener)?;
+    let mut options = Config::from_manifest(Path::new(manifest_path), package_name.as_ref().map(|s| s.as_str()), output_path, target, variant, deb_version, listener)?;
     reset_deb_directory(&options)?;
 
     if !no_build {
