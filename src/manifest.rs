@@ -245,7 +245,7 @@ pub struct Config {
     /// A list of configuration files installed by the package.
     pub conf_files: Option<String>,
     /// All of the files that are to be packaged.
-    pub assets: Assets,
+    pub(crate) assets: Assets,
     /// The path were possible maintainer scripts live
     pub maintainer_scripts: Option<PathBuf>,
     /// List of Cargo features to use during build
