@@ -31,6 +31,6 @@ pub fn xz_or_gz(data: &[u8]) -> CDResult<Compressed> {
 }
 
 #[cfg(not(feature = "lzma"))]
-pub fn xz_or_gz(data: &[u8]) -> CDResult<Vec<u8>> {
-    gz(data, base_path).map(Compressed::Gz)
+pub fn xz_or_gz(data: &[u8]) -> CDResult<Compressed> {
+    gz(data).map(Compressed::Gz)
 }

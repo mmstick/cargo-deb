@@ -6,4 +6,5 @@ addons:
 script:
   - cargo test --all
   - cargo install --path .
+  - cargo check --no-default-features
   - cd example && cargo deb
