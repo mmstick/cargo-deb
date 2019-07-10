@@ -68,7 +68,7 @@ impl AssetSource {
 }
 
 #[derive(Debug, Clone)]
-pub struct Assets {
+pub(crate) struct Assets {
     pub unresolved: Vec<UnresolvedAsset>,
     pub resolved: Vec<Asset>,
 }
