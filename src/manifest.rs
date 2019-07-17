@@ -716,10 +716,12 @@ impl Cargo {
     }
 
     fn version_string(&self, revision: Option<String>) -> String {
+        let debianized_version = self.package.version.replace("-", "~");
+
         if let Some(revision) = revision {
-            format!("{}-{}", self.package.version, revision)
+            format!("{}-{}", debianized_version, revision)
         } else {
-            self.package.version.clone()
+            debianized_version
         }
     }
 }
