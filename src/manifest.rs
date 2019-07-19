@@ -715,13 +715,27 @@ impl Cargo {
         })
     }
 
+    /// Debian-compatible version of the semver version
     fn version_string(&self, revision: Option<String>) -> String {
-        let debianized_version = self.package.version.replace("-", "~");
+        let debianized_version;
+        let mut version = &self.package.version;
+
+        // Make debian's version ordering (newer versions) more compatible with semver's.
+        // Keep "semver-1" and "semver-xxx" as-is (assuming these are irrelevant, or debian revision already),
+        // but change "semver-beta.1" to "semver~beta.1"
+        let mut parts = version.splitn(2, '-');
+        let semver_main = parts.next().unwrap();
+        if let Some(semver_pre) = parts.next() {
+            if semver_pre.chars().any(|c| !c.is_numeric()) && semver_pre.chars().any(|c| c.is_numeric()) {
+                debianized_version = format!("{}~{}", semver_main, semver_pre);
+                version = &debianized_version;
+            }
+        }
 
         if let Some(revision) = revision {
-            format!("{}-{}", debianized_version, revision)
+            format!("{}-{}", version, revision)
         } else {
-            debianized_version
+            version.to_owned()
         }
     }
 }
@@ -964,3 +978,41 @@ mod tests {
     }
 }
 
+#[test]
+fn deb_ver() {
+    let mut c = Cargo {
+        package: cargo_toml::Package {
+            version: "1.2.3-1".into(),
+            authors: vec![],
+            autobenches: false,
+            autobins: false,
+            autotests: false,
+            autoexamples: false,
+            categories: vec![],
+            name: "test".into(),
+            edition: Default::default(),
+            homepage: None,
+            keywords: vec![],
+            publish: false,
+            repository: None,
+            workspace: None,
+            license: None,
+            license_file: None,
+            links: None,
+            metadata: None,
+            readme: None,
+            documentation: None,
+            description: Default::default(),
+            build: None,
+        },
+        profile: None,
+    };
+    assert_eq!("1.2.3-1", c.version_string(None));
+    assert_eq!("1.2.3-1-2", c.version_string(Some("2".into())));
+    c.package.version = "1.2.0-beta.3".into();
+    assert_eq!("1.2.0~beta.3", c.version_string(None));
+    assert_eq!("1.2.0~beta.3-4", c.version_string(Some("4".into())));
+    c.package.version = "1.2.0-new".into();
+    assert_eq!("1.2.0-new", c.version_string(None));
+    assert_eq!("1.2.0-new-11", c.version_string(Some("11".into())));
+}
