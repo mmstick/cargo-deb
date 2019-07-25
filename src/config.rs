@@ -73,6 +73,10 @@ impl CargoConfig {
                 }
             }
         }
+        let path = format!("/usr/bin/{}-strip", crate::debian_triple(target_triple));
+        if Path::new(&path).exists() {
+            return Some(path.into());
+        }
         None
     }
 
