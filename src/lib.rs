@@ -35,6 +35,7 @@ pub mod listener;
 
 use crate::listener::Listener;
 use std::fs;
+use std::env;
 use std::path::Path;
 use std::io;
 use std::process::{Command, ExitStatus};
@@ -80,6 +81,14 @@ pub fn cargo_build(options: &Config, target: Option<&str>, other_flags: &[String
     }
     if let Some(target) = target {
         cmd.arg(format!("--target={}", target));
+        // Set helpful defaults for cross-compiling
+        if env::var_os("PKG_CONFIG_ALLOW_CROSS").is_none() && env::var_os("PKG_CONFIG_PATH").is_none() {
+            let pkg_config_path = format!("/usr/lib/{}/pkgconfig", debian_triple(target));
+            if Path::new(&pkg_config_path).exists() {
+                cmd.env("PKG_CONFIG_ALLOW_CROSS", "1");
+                cmd.env("PKG_CONFIG_PATH", pkg_config_path);
+            }
+        }
     }
     if !options.default_features {
         cmd.arg("--no-default-features");
@@ -95,6 +104,27 @@ pub fn cargo_build(options: &Config, target: Option<&str>, other_flags: &[String
         Err(CargoDebError::BuildFailed)?;
     }
     Ok(())
+}
+
+// Maps Rust's blah-unknown-linux-blah to Debian's blah-linux-blah
+fn debian_triple(rust_target_triple: &str) -> String {
+    let mut p = rust_target_triple.split('-');
+    let arch = p.next().unwrap();
+    let abi = p.last().unwrap_or("");
+
+    let (darch, dabi) = match (arch, abi) {
+        ("i586", _) |
+        ("i686", _) => ("i386", "gnu"),
+        ("x86_64", _) => ("x86_64", "gnu"),
+        ("aarch64", _) => ("aarch64", "gnu"),
+        (arm, abi) if arm.starts_with("arm") || arm.starts_with("thumb") => {
+            ("arm", if abi.ends_with("hf") {"gnueabihf"} else {"gnueabi"})
+        },
+        ("mipsel", _) => ("mipsel", "gnu"),
+        (risc, _) if risc.starts_with("riscv64") => ("riscv64", "gnu"),
+        (arch, abi) => (arch, abi),
+    };
+    format!("{}-linux-{}", darch, dabi)
 }
 
 fn ensure_success(status: ExitStatus) -> io::Result<()> {
