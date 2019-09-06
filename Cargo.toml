@@ -9,7 +9,7 @@ homepage = "https://github.com/mmstick/cargo-deb#readme"
 keywords = ["debian", "ubuntu", "package", "cargo", "subcommand"]
 repository = "https://github.com/mmstick/cargo-deb"
 readme = "README.md"
-version = "1.21.0"
+version = "1.21.1"
 edition = "2018"
 
 [package.metadata.deb]
@@ -52,8 +52,8 @@ tar = "0.4.16"
 toml = "0.5.1"
 zopfli = "0.4.0"
 glob = "0.3"
-ar = "0.7"
-cargo_toml = "0.7"
+ar = "0.8"
+cargo_toml = "0.8"
 rayon = "1.0.3"
 
 [features]

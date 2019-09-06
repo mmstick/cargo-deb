@@ -993,7 +993,7 @@ fn deb_ver() {
             edition: Default::default(),
             homepage: None,
             keywords: vec![],
-            publish: false,
+            publish: Default::default(),
             repository: None,
             workspace: None,
             license: None,
