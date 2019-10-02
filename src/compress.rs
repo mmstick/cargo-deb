@@ -38,12 +38,11 @@ pub fn xz_or_gz(data: &[u8], fast: bool) -> CDResult<Compressed> {
     // Compressed data is typically half to a third the original size
     let mut compressed = Vec::with_capacity(data.len() >> 1);
     // Compression level 6 is a good trade off between size and [ridiculously] long compression time
-    XzEncoder::new(data, if fast {1} else {6}).read_to_end(&mut compressed)?;
+    XzEncoder::new(data, if fast { 1 } else { 6 }).read_to_end(&mut compressed)?;
     compressed.shrink_to_fit();
 
     Ok(Compressed::Xz(compressed))
 }
-
 
 #[cfg(not(feature = "lzma"))]
 pub fn xz_or_gz(data: &[u8], _fast: bool) -> CDResult<Compressed> {

@@ -3,7 +3,6 @@ use std::borrow::Cow;
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
-use toml;
 
 pub struct CargoConfig {
     path: PathBuf,

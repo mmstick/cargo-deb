@@ -2,7 +2,6 @@ use crate::error::*;
 use crate::listener::Listener;
 use crate::manifest::Config;
 use crate::tararchive::Archive;
-use md5;
 use md5::Digest;
 use std::collections::HashMap;
 use std::fs;

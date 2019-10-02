@@ -1,9 +1,9 @@
 use crate::error::*;
 use crate::listener::Listener;
+use rayon::prelude::*;
 use std::collections::HashSet;
 use std::path::Path;
 use std::process::Command;
-use rayon::prelude::*;
 
 /// Resolves the dependencies based on the output of ldd on the binary.
 pub fn resolve(path: &Path, architecture: &str, listener: &dyn Listener) -> CDResult<Vec<String>> {

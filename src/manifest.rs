@@ -3,18 +3,14 @@ use crate::dependencies::resolve;
 use crate::error::*;
 use crate::listener::Listener;
 use crate::ok_or::OkOrThen;
-use cargo_toml;
-use glob;
+use rayon::prelude::*;
 use serde_derive::Deserialize;
-use serde_json;
 use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
 use std::env::consts::{DLL_PREFIX, DLL_SUFFIX};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use toml;
-use rayon::prelude::*;
 
 fn is_glob_pattern(s: &str) -> bool {
     s.contains('*') || s.contains('[') || s.contains(']') || s.contains('!')
@@ -442,7 +438,12 @@ impl Config {
     /// user-friendly URLs or webpages instead of tool-specific URL schemes.
     pub(crate) fn repository_type(&self) -> Option<&str> {
         if let Some(ref repo) = self.repository {
-            if repo.starts_with("git+") || repo.ends_with(".git") || repo.contains("git@") || repo.contains("github.com") || repo.contains("gitlab.com") {
+            if repo.starts_with("git+")
+                || repo.ends_with(".git")
+                || repo.contains("git@")
+                || repo.contains("github.com")
+                || repo.contains("gitlab.com")
+            {
                 return Some("Git");
             }
             if repo.starts_with("cvs+") || repo.contains("pserver:") || repo.contains("@cvs.") {
@@ -855,7 +856,7 @@ fn get_arch(target: &str) -> &str {
         // https://wiki.debian.org/Multiarch/Tuples
         // rustc --print target-list
         // https://doc.rust-lang.org/std/env/consts/constant.ARCH.html
-        ("aarch64", _)          => "arm64",
+        ("aarch64", _) => "arm64",
         ("mips64", "gnuabin32") => "mipsn32",
         ("mips64el", "gnuabin32") => "mipsn32el",
         ("mipsisa32r6", _) => "mipsr6",
@@ -865,11 +866,9 @@ fn get_arch(target: &str) -> &str {
         ("mipsisa64r6el", "gnuabi64") => "mips64r6el",
         ("mipsisa64r6el", "gnuabin32") => "mipsn32r6el",
         ("powerpc", "gnuspe") => "powerpcspe",
-        ("powerpc64", _)   => "ppc64",
+        ("powerpc64", _) => "ppc64",
         ("powerpc64le", _) => "ppc64el",
-        ("i586", _) |
-        ("i686", _) |
-        ("x86", _)   => "i386",
+        ("i586", _) | ("i686", _) | ("x86", _) => "i386",
         ("x86_64", "gnux32") => "x32",
         ("x86_64", _) => "amd64",
         (arm, gnueabi) if arm.starts_with("arm") && gnueabi.ends_with("hf") => "armhf",
