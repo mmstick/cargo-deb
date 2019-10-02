@@ -1,6 +1,5 @@
+use std::io::Read;
 use std::ops;
-
-use zopfli::{self, Format, Options};
 
 use crate::error::*;
 
@@ -24,14 +23,16 @@ impl ops::Deref for Compressed {
 pub fn gz(data: &[u8]) -> CDResult<Vec<u8>> {
     // Compressed data is typically half to a third the original size
     let mut compressed = Vec::with_capacity(data.len() >> 1);
-    zopfli::compress(&Options::default(), &Format::Gzip, data, &mut compressed)?;
+
+    let level = flate2::Compression::default();
+    flate2::bufread::GzEncoder::new(data, level).read_to_end(&mut compressed)?;
+    compressed.shrink_to_fit();
 
     Ok(compressed)
 }
 
 #[cfg(feature = "lzma")]
 fn xz(data: &[u8]) -> CDResult<Vec<u8>> {
-    use std::io::Read;
     use xz2::bufread::XzEncoder;
 
     // Compressed data is typically half to a third the original size

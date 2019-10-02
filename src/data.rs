@@ -8,7 +8,6 @@ use std::collections::HashMap;
 use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use zopfli::{self, Format, Options};
 
 /// Generates an uncompressed tar archive and hashes of its files
 pub fn generate_archive(options: &Config, time: u64, listener: &mut dyn Listener) -> CDResult<(Vec<u8>, HashMap<PathBuf, Digest>)> {
@@ -21,14 +20,11 @@ pub fn generate_archive(options: &Config, time: u64, listener: &mut dyn Listener
 pub(crate) fn generate_changelog_asset(options: &Config) -> CDResult<Option<Vec<u8>>> {
     if let Some(ref path) = options.changelog {
         let changelog = fs::read(options.path_in_workspace(path))
+            .map_err(|e| CargoDebError::IoFile("unable to read changelog file", e, path.into()))
             .and_then(|content| {
                 // The input is plaintext, but the debian package should contain gzipped one.
-                let mut compressed = Vec::with_capacity(content.len());
-                zopfli::compress(&Options::default(), &Format::Gzip, &content, &mut compressed)?;
-                compressed.shrink_to_fit();
-                Ok(compressed)
-            })
-            .map_err(|e| CargoDebError::IoFile("unable to read changelog file", e, path.into()))?;
+                crate::compress::gz(&content)
+            })?;
         Ok(Some(changelog))
     } else {
         Ok(None)
