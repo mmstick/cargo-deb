@@ -2,7 +2,6 @@ use crate::error::*;
 use std::collections::HashSet;
 use std::io;
 use std::path::{Component, Path, PathBuf};
-use tar;
 use tar::EntryType;
 use tar::Header as TarHeader;
 

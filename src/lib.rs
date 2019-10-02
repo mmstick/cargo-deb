@@ -22,27 +22,27 @@ The library interface is experimental. See `main.rs` for usage.
 pub mod compress;
 pub mod control;
 pub mod data;
-pub mod manifest;
-mod dependencies;
-mod ok_or;
-mod wordsplit;
-mod error;
-mod tararchive;
-mod debarchive;
-mod config;
-mod pathbytes;
 pub mod listener;
+pub mod manifest;
+pub use crate::debarchive::DebArchive;
+pub use crate::error::*;
+pub use crate::manifest::Config;
+
+mod config;
+mod debarchive;
+mod dependencies;
+mod error;
+mod ok_or;
+mod pathbytes;
+mod tararchive;
+mod wordsplit;
 
 use crate::listener::Listener;
-use std::fs;
 use std::env;
-use std::path::Path;
+use std::fs;
 use std::io;
+use std::path::Path;
 use std::process::{Command, ExitStatus};
-
-pub use crate::error::*;
-pub use crate::debarchive::DebArchive;
-pub use crate::manifest::Config;
 
 const TAR_REJECTS_CUR_DIR: bool = true;
 
@@ -206,12 +206,14 @@ pub fn strip_binaries(options: &mut Config, target: Option<&str>, listener: &mut
                             debug_path
                                 .parent()
                                 .expect("Debug source file had no parent path"),
-                        ).arg(format!(
+                        )
+                        .arg(format!(
                             "--add-gnu-debuglink={}",
                             debug_filename
                                 .to_str()
                                 .expect("Debug source file had no filename")
-                        )).arg(path)
+                        ))
+                        .arg(path)
                         .status()
                         .and_then(ensure_success)
                         .map_err(|err| CargoDebError::CommandFailed(err, "objcopy"))?;

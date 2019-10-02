@@ -1,5 +1,4 @@
 use cargo_deb::*;
-use getopts;
 use std::env;
 use std::path::Path;
 use std::process;
@@ -94,8 +93,24 @@ fn err_exit(err: &dyn std::error::Error) -> ! {
     process::exit(1);
 }
 
-fn process(CliOptions {manifest_path, output_path, package_name, variant, target, install, no_build, no_strip, separate_debug_symbols, quiet, verbose, mut cargo_build_flags, deb_version}: CliOptions) -> CDResult<()> {
-    let target = target.as_ref().map(|s|s.as_str());
+fn process(
+    CliOptions {
+        manifest_path,
+        output_path,
+        package_name,
+        variant,
+        target,
+        install,
+        no_build,
+        no_strip,
+        separate_debug_symbols,
+        quiet,
+        verbose,
+        mut cargo_build_flags,
+        deb_version,
+    }: CliOptions,
+) -> CDResult<()> {
+    let target = target.as_ref().map(|s| s.as_str());
     let variant = variant.as_ref().map(|s| s.as_str());
 
     if install || target.is_none() {
@@ -118,8 +133,16 @@ fn process(CliOptions {manifest_path, output_path, package_name, variant, target
         &mut listener_tmp2
     };
 
-    let manifest_path = manifest_path.as_ref().map(|s|s.as_str()).unwrap_or("Cargo.toml");
-    let mut options = Config::from_manifest(Path::new(manifest_path), package_name.as_ref().map(|s| s.as_str()), output_path, target, variant, deb_version, listener)?;
+    let manifest_path = manifest_path.as_ref().map(|s| s.as_str()).unwrap_or("Cargo.toml");
+    let mut options = Config::from_manifest(
+        Path::new(manifest_path),
+        package_name.as_ref().map(|s| s.as_str()),
+        output_path,
+        target,
+        variant,
+        deb_version,
+        listener,
+    )?;
     reset_deb_directory(&options)?;
 
     if !no_build {
@@ -174,4 +197,3 @@ fn warn_if_not_linux() {}
 fn warn_if_not_linux() {
     eprintln!("warning: This command is for Linux only, and will not make sense when run on other systems");
 }
-
