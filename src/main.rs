@@ -9,6 +9,7 @@ struct CliOptions {
     no_build: bool,
     no_strip: bool,
     separate_debug_symbols: bool,
+    fast: bool,
     verbose: bool,
     quiet: bool,
     install: bool,
@@ -28,6 +29,7 @@ fn main() {
     cli_opts.optflag("", "no-build", "Assume project is already built");
     cli_opts.optflag("", "no-strip", "Do not strip debug symbols from the binary");
     cli_opts.optflag("", "separate-debug-symbols", "Strip debug symbols into a separate .debug file");
+    cli_opts.optflag("", "fast", "Use faster compression, which yields larger archive");
     cli_opts.optflag("", "install", "Immediately install created package");
     cli_opts.optopt("", "target", "Rust target for cross-compilation", "triple");
     cli_opts.optopt("", "variant", "Alternative configuration section to use", "name");
@@ -60,6 +62,7 @@ fn main() {
         no_build: matches.opt_present("no-build"),
         no_strip: matches.opt_present("no-strip"),
         separate_debug_symbols: matches.opt_present("separate-debug-symbols"),
+        fast: matches.opt_present("fast"),
         quiet: matches.opt_present("quiet"),
         verbose: matches.opt_present("verbose"),
         install: matches.opt_present("install"),
@@ -94,7 +97,7 @@ fn err_exit(err: &dyn std::error::Error) -> ! {
     process::exit(1);
 }
 
-fn process(CliOptions {manifest_path, output_path, package_name, variant, target, install, no_build, no_strip, separate_debug_symbols, quiet, verbose, mut cargo_build_flags, deb_version}: CliOptions) -> CDResult<()> {
+fn process(CliOptions {manifest_path, output_path, package_name, variant, target, install, no_build, no_strip, separate_debug_symbols, quiet, fast, verbose, mut cargo_build_flags, deb_version}: CliOptions) -> CDResult<()> {
     let target = target.as_ref().map(|s|s.as_str());
     let variant = variant.as_ref().map(|s| s.as_str());
 
@@ -146,7 +149,7 @@ fn process(CliOptions {manifest_path, output_path, package_name, variant, target
         // Initialize the contents of the control archive (metadata for the package manager).
         let control_archive = control::generate_archive(&options, system_time, asset_hashes, listener)?;
 
-        let (control_compressed, data_compressed) = rayon::join(|| compress::gz(&control_archive), || compress::xz_or_gz(&data_archive));
+        let (control_compressed, data_compressed) = rayon::join(|| compress::gz(&control_archive), || compress::xz_or_gz(&data_archive, fast));
 
         // Order is important for Debian
         deb_contents.add_data("control.tar.gz", system_time, &control_compressed?)?;

@@ -16,21 +16,31 @@ pub fn gz(data: &[u8]) -> CDResult<Vec<u8>> {
     Ok(compressed)
 }
 
-/// Compresses data using the xz2 library
 #[cfg(feature = "lzma")]
-pub fn xz_or_gz(data: &[u8]) -> CDResult<Compressed> {
-    use std::io::prelude::*;
-    use xz2::read::XzEncoder;
+fn xz(data: &[u8]) -> CDResult<Vec<u8>> {
+    use std::io::Read;
+    use xz2::bufread::XzEncoder;
 
     // Compressed data is typically half to a third the original size
     let mut compressed = Vec::with_capacity(data.len() >> 1);
-    let mut compressor = XzEncoder::new(data, 9);
-    compressor.read_to_end(&mut compressed)?;
+    // Compression level 6 is a good trade off between size and [ridiculously] long compression time
+    XzEncoder::new(data, 6).read_to_end(&mut compressed)?;
+    compressed.shrink_to_fit();
 
-    Ok(Compressed::Xz(compressed))
+    Ok(compressed)
+}
+
+/// Compresses data using the xz2 library
+#[cfg(feature = "lzma")]
+pub fn xz_or_gz(data: &[u8], fast: bool) -> CDResult<Compressed> {
+    if fast {
+        gz(data).map(Compressed::Gz)
+    } else {
+        xz(data).map(Compressed::Xz)
+    }
 }
 
 #[cfg(not(feature = "lzma"))]
-pub fn xz_or_gz(data: &[u8]) -> CDResult<Compressed> {
+pub fn xz_or_gz(data: &[u8], _fast: bool) -> CDResult<Compressed> {
     gz(data).map(Compressed::Gz)
 }
