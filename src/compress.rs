@@ -1,3 +1,5 @@
+use std::ops;
+
 use zopfli::{self, Format, Options};
 
 use crate::error::*;
@@ -5,6 +7,17 @@ use crate::error::*;
 pub enum Compressed {
     Gz(Vec<u8>),
     Xz(Vec<u8>),
+}
+
+impl ops::Deref for Compressed {
+    type Target = Vec<u8>;
+
+    fn deref(&self) -> &Self::Target {
+        match self {
+            Self::Gz(data) => &data,
+            Self::Xz(data) => &data,
+        }
+    }
 }
 
 /// Compresses data using the [native Rust implementation of Zopfli](https://github.com/carols10cents/zopfli).

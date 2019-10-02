@@ -153,7 +153,16 @@ fn process(CliOptions {manifest_path, output_path, package_name, variant, target
 
         // Order is important for Debian
         deb_contents.add_data("control.tar.gz", system_time, &control_compressed?)?;
-        match data_compressed? {
+        let data_compressed = data_compressed?;
+        let original = data_archive.len();
+        let compressed = data_compressed.len();
+        listener.info(format!(
+            "compressed/original ratio {}/{} ({}%)",
+            compressed,
+            original,
+            compressed * 100 / original
+        ));
+        match data_compressed {
             compress::Compressed::Gz(data) => deb_contents.add_data("data.tar.gz", system_time, &data)?,
             compress::Compressed::Xz(data) => deb_contents.add_data("data.tar.xz", system_time, &data)?,
         }
