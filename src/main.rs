@@ -57,14 +57,16 @@ fn main() {
         return;
     }
 
+    let install = matches.opt_present("install");
     match process(CliOptions {
         no_build: matches.opt_present("no-build"),
         no_strip: matches.opt_present("no-strip"),
         separate_debug_symbols: matches.opt_present("separate-debug-symbols"),
-        fast: matches.opt_present("fast"),
         quiet: matches.opt_present("quiet"),
         verbose: matches.opt_present("verbose"),
-        install: matches.opt_present("install"),
+        install,
+        // when installing locally it won't be transferred anywhere, so allow faster compression
+        fast: install || matches.opt_present("fast"),
         variant: matches.opt_str("variant"),
         target: matches.opt_str("target"),
         output_path: matches.opt_str("output"),

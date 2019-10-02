@@ -98,6 +98,8 @@ assets = [
 
 ## Advanced usage
 
+`--fast` flag uses lighter compression. Useful for very large packages or quick deployment.
+
 ### `[package.metadata.deb.variants.$name]`
 
 There can be multiple variants of the metadata in one `Cargo.toml` file. `--variant=name` selects the variant to use. Options set in a variant override `[package.metadata.deb]` options. It automatically adjusts package name.
