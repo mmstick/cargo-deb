@@ -568,7 +568,9 @@ impl Cargo {
             documentation: self.package.documentation.clone(),
             repository: self.package.repository.take(),
             description: self.package.description.take().unwrap_or_else(||format!("[generated from Rust crate {}]", self.package.name)),
-            extended_description: self.extended_description(deb.extended_description.take(), readme)?,
+            extended_description: self.extended_description(
+                deb.extended_description.take(),
+                deb.extended_description_file.as_ref().or(readme))?,
             maintainer: deb.maintainer.take().ok_or_then(|| {
                 Ok(self.package.authors.get(0)
                     .ok_or("The package must have a maintainer or authors property")?.to_owned())
@@ -629,12 +631,13 @@ impl Cargo {
         }
     }
 
-    fn extended_description(&self, desc: Option<String>, readme: Option<&String>) -> CDResult<Option<String>> {
+    fn extended_description(&self, desc: Option<String>, desc_file: Option<&String>) -> CDResult<Option<String>> {
         Ok(if desc.is_some() {
             desc
-        } else if let Some(readme) = readme {
-            Some(fs::read_to_string(readme)
-                .map_err(|err| CargoDebError::IoFile("unable to read README", err, PathBuf::from(readme)))?)
+        } else if let Some(desc_file) = desc_file {
+            Some(fs::read_to_string(desc_file)
+                .map_err(|err| CargoDebError::IoFile(
+                        "unable to read extended description from file", err, PathBuf::from(desc_file)))?)
         } else {
             None
         })
@@ -760,6 +763,7 @@ struct CargoDeb {
     pub replaces: Option<String>,
     pub provides: Option<String>,
     pub extended_description: Option<String>,
+    pub extended_description_file: Option<String>,
     pub section: Option<String>,
     pub priority: Option<String>,
     pub revision: Option<String>,
@@ -786,6 +790,7 @@ impl CargoDeb {
             replaces: self.replaces.or(parent.replaces),
             provides: self.provides.or(parent.provides),
             extended_description: self.extended_description.or(parent.extended_description),
+            extended_description_file: self.extended_description_file.or(parent.extended_description_file),
             section: self.section.or(parent.section),
             priority: self.priority.or(parent.priority),
             revision: self.revision.or(parent.revision),
