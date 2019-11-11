@@ -26,7 +26,7 @@ Debug symbols are stripped from the main binary by default, unless `[profile.rel
 
 No configuration is necessary to make a basic package from a Cargo project with a binary. This command obtains basic information it needs from [the `Cargo.toml` file](https://doc.rust-lang.org/cargo/reference/manifest.html). It uses Cargo fields: `name`, `version`, `license`, `license-file`, `description`, `readme`, `homepage`, and `repository`.
 
-For a more complete Debian package, you may also define a new table, `[package.metadata.deb]` that contains `maintainer`, `copyright`, `license-file`, `changelog`, `depends`, `conflicts`, `breaks`, `replaces`, `provides`, `extended-description`, `section`, `priority`, and `assets`.
+For a more complete Debian package, you may also define a new table, `[package.metadata.deb]` that contains `maintainer`, `copyright`, `license-file`, `changelog`, `depends`, `conflicts`, `breaks`, `replaces`, `provides`, `extended-description`/`extended-description-file`, `section`, `priority`, and `assets`.
 
 ### `[package.metadata.deb]` options
 
@@ -38,7 +38,8 @@ Everything is optional:
 - **license-file**: The location of the license and the amount of lines to skip at the top. If not present, package-level `license-file` is used.
 - **depends**: The runtime [dependencies](https://www.debian.org/doc/debian-policy/ch-relationships.html) of the project, which are automatically generated with the `$auto` keyword.
 - **conflicts**, **breaks**, **replaces**, **provides** — [package transition](https://wiki.debian.org/PackageTransition) control.
-- **extended-description**: An extended description of the project — the more detailed the better. Package's `readme` file is used as a fallback.
+- **extended-description**: An extended description of the project — the more detailed the better. Either **extended-description-file** (see below) or package's `readme` file is used if it is not provided.
+- **extended-description-file**: A file with extended description of the project. When specified, used if **extended-description** is not provided.
 - **revision**: Version of the Debian package (when the package is updated more often than the project).
 - **section**: The [application category](https://packages.debian.org/stretch/) that the software belongs to.
 - **priority**: Defines if the package is `required` or `optional`.
