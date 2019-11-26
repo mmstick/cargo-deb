@@ -149,7 +149,7 @@ fn process(
         deb_version,
         listener,
     )?;
-    reset_deb_directory(&options)?;
+    reset_deb_temp_directory(&options)?;
 
     if !no_build {
         cargo_build(&options, target, &cargo_build_flags, verbose)?;
@@ -198,6 +198,8 @@ fn process(
     if !quiet {
         println!("{}", generated.display());
     }
+
+    remove_deb_temp_directory(&options);
 
     if install {
         install_deb(&generated)?;

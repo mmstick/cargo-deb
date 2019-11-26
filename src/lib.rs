@@ -59,11 +59,28 @@ pub fn install_deb(path: &Path) -> CDResult<()> {
     Ok(())
 }
 
-/// Removes the target/debian directory so that we can start fresh.
-pub fn reset_deb_directory(options: &Config) -> io::Result<()> {
-    let deb_dir = options.deb_temp_dir();
-    let _ = fs::remove_dir_all(&deb_dir);
-    fs::create_dir_all(deb_dir)
+/// Creates empty (removes files if needed) target/debian/foo directory so that we can start fresh.
+pub fn reset_deb_temp_directory(options: &Config) -> io::Result<()> {
+    let deb_dir = options.default_deb_output_dir();
+    let deb_temp_dir = options.deb_temp_dir();
+    remove_deb_temp_directory(options);
+    // For backwards compatibility with previous cargo-deb behavior, also delete .deb from target/debian,
+    // but this time only debs from other versions of the same package
+    let g = deb_dir.join(DebArchive::filename_glob(options));
+    if let Ok(old_files) = glob::glob(g.to_str().expect("utf8 path")) {
+        for old_file in old_files {
+            if let Ok(old_file) = old_file {
+                let _ = fs::remove_file(old_file);
+            }
+        }
+    }
+    fs::create_dir_all(deb_temp_dir)
+}
+
+/// Removes the target/debian/foo
+pub fn remove_deb_temp_directory(options: &Config) {
+    let deb_temp_dir = options.deb_temp_dir();
+    let _ = fs::remove_dir(&deb_temp_dir);
 }
 
 /// Builds a release binary with `cargo build --release`

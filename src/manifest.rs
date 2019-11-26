@@ -318,7 +318,7 @@ impl Config {
                 .take_while(|part| !is_glob_pattern(part.to_str().unwrap()))
                 .collect();
             let source_is_glob = is_glob_pattern(source_path.to_str().unwrap());
-            let file_matches = glob::glob(source_path.to_str().unwrap())?
+            let file_matches = glob::glob(source_path.to_str().expect("utf8 path"))?
                 // Remove dirs from globs without throwing away errors
                 .map(|entry| {
                     let source_file = entry?;
@@ -470,7 +470,7 @@ impl Config {
 
     /// Store intermediate files here
     pub(crate) fn deb_temp_dir(&self) -> PathBuf {
-        self.target_dir.join("debian")
+        self.target_dir.join("debian").join(&self.name)
     }
 
     /// Save final .deb here
@@ -483,8 +483,12 @@ impl Config {
                 path.to_owned()
             }
         } else {
-            self.target_dir.join("debian").join(filename)
+            self.default_deb_output_dir().join(filename)
         }
+    }
+
+    pub(crate) fn default_deb_output_dir(&self) -> PathBuf {
+        self.target_dir.join("debian")
     }
 
     pub(crate) fn cargo_config(&self) -> CDResult<Option<CargoConfig>> {

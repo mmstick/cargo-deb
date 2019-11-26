@@ -30,6 +30,10 @@ impl DebArchive {
         })
     }
 
+    pub(crate) fn filename_glob(config: &Config) -> String {
+        format!("{}_*_{}.deb", config.deb_name, config.architecture)
+    }
+
     pub fn add_path(&mut self, path: &Path) -> CDResult<()> {
         let dest_path = path.strip_prefix(&self.prefix).map_err(|_| "invalid path")?;
         let mut file = File::open(&path)?;
