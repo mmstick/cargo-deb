@@ -172,6 +172,51 @@ fn debug_filename(path: &Path) -> PathBuf {
     Path::new(&debug_filename).to_path_buf()
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+enum ArchSpec {
+    /// e.g. [armhf]
+    Require(String),
+    /// e.g. [!armhf]
+    NegRequire(String),
+}
+
+fn get_architecture_specification(depend: &str) -> CDResult<(String, Option<ArchSpec>)> {
+    use ArchSpec::*;
+    let re = regex::Regex::new(r#"\[!?.*\]"#).unwrap();
+    match re.find(depend) {
+        Some(m) => {
+            let pkg = depend.get(0..m.start()).unwrap().trim().to_owned();
+            // trim '[' and ']'
+            let spec = depend.get(m.start()+1..m.end()-1).unwrap();
+            let spec = if spec.starts_with("!") {
+                NegRequire(spec.get(1..).unwrap().to_string())
+            } else {
+                Require(spec.get(0..).unwrap().to_string())
+            };
+            Ok((pkg, Some(spec)))
+        },
+        None => Ok((depend.to_string(), None))
+    }
+}
+
+/// Architecture specification strings
+/// https://www.debian.org/doc/debian-policy/ch-customized-programs.html#s-arch-spec
+fn match_architecture(spec: ArchSpec, target_arch: &str) -> CDResult<bool> {
+    let (neg, spec) = match spec {
+        ArchSpec::NegRequire(pkg) => (true, pkg),
+        ArchSpec::Require(pkg) => (false, pkg),
+    };
+    let output = Command::new("dpkg-architecture")
+        .args(&["-a", target_arch, "-i", &spec])
+        .output()
+        .map_err(|e| CargoDebError::CommandFailed(e, "dpkg-architecture"))?;
+    if neg {
+        Ok(!output.status.success())
+    } else {
+        Ok(output.status.success())
+    }
+}
+
 #[derive(Debug)]
 /// Cargo deb configuration read from the manifest and cargo metadata
 pub struct Config {
@@ -306,7 +351,14 @@ impl Config {
                     deps.insert(dep);
                 }
             } else {
-                deps.insert(word.to_owned());
+                let (dep, arch_spec) = get_architecture_specification(&word)?;
+                if let Some(spec) = arch_spec {
+                    if match_architecture(spec, &self.architecture)? {
+                        deps.insert(dep);
+                    }
+                } else {
+                    deps.insert(dep);
+                }
             }
         }
         Ok(deps.into_iter().collect::<Vec<_>>().join(", "))
@@ -893,6 +945,19 @@ mod tests {
     #[test]
     fn match_arm_arch() {
         assert_eq!("armhf", get_arch("arm-unknown-linux-gnueabihf"));
+    }
+
+    #[test]
+    fn arch_spec () {
+        use ArchSpec::*;
+        // req
+        assert_eq!(
+            get_architecture_specification("libjpeg64-turbo [armhf]").unwrap(),
+            ("libjpeg64-turbo".to_owned(), Some(Require("armhf".to_owned()))));
+        // neg
+        assert_eq!(
+            get_architecture_specification("libjpeg64-turbo [!amd64]").unwrap(),
+            ("libjpeg64-turbo".to_owned(), Some(NegRequire("amd64".to_owned()))));
     }
 
     #[test]
