@@ -182,20 +182,18 @@ enum ArchSpec {
 
 fn get_architecture_specification(depend: &str) -> CDResult<(String, Option<ArchSpec>)> {
     use ArchSpec::*;
-    let re = regex::Regex::new(r#"\[!?.*\]"#).unwrap();
-    match re.find(depend) {
-        Some(m) => {
-            let pkg = depend.get(0..m.start()).unwrap().trim().to_owned();
-            // trim '[' and ']'
-            let spec = depend.get(m.start()+1..m.end()-1).unwrap();
-            let spec = if spec.starts_with("!") {
-                NegRequire(spec.get(1..).unwrap().to_string())
+    let re = regex::Regex::new(r#"(.*)\[(!?)(.*)\]"#).unwrap();
+    match re.captures(depend) {
+        Some(caps) => {
+            let spec = if &caps[2] == "!" {
+                NegRequire(caps[3].to_string())
             } else {
-                Require(spec.get(0..).unwrap().to_string())
+                assert_eq!(&caps[2], "");
+                Require(caps[3].to_string())
             };
-            Ok((pkg, Some(spec)))
-        },
-        None => Ok((depend.to_string(), None))
+            Ok((caps[1].trim().to_string(), Some(spec)))
+        }
+        None => Ok((depend.to_string(), None)),
     }
 }
 
