@@ -786,7 +786,8 @@ impl Cargo {
         let mut parts = version.splitn(2, '-');
         let semver_main = parts.next().unwrap();
         if let Some(semver_pre) = parts.next() {
-            if semver_pre.chars().any(|c| !c.is_numeric()) && semver_pre.chars().any(|c| c.is_numeric()) {
+            let pre_ascii = semver_pre.as_bytes();
+            if pre_ascii.iter().any(|c| !c.is_ascii_digit()) && pre_ascii.iter().any(|c| c.is_ascii_digit()) {
                 debianized_version = format!("{}~{}", semver_main, semver_pre);
                 version = &debianized_version;
             }
