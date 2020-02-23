@@ -41,10 +41,17 @@ pub fn resolve(path: &Path, architecture: &str, listener: &dyn Listener) -> CDRe
         // only collect unique packages.
         .collect();
 
-    Ok(dependencies.par_iter().map(|package| {
+    Ok(dependencies.into_par_iter().map(|package| {
         // There can be multiple arch-specific versions of a package
-        let version = get_version(&format!("{}:{}", package, architecture)).unwrap();   /* If we got here, package exists. */
-        format!("{} (>= {})", package, version)
+        match get_version(&format!("{}:{}", package, architecture)) {
+            Ok(version) => {
+                format!("{} (>= {})", package, version)
+            },
+            Err(e) => {
+                listener.warning(format!("Can't get version of {}: {}", package, e));
+                package
+            },
+        }
     }).collect())
 }
 
