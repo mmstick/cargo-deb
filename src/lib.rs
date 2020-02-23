@@ -54,7 +54,7 @@ pub fn install_deb(path: &Path) -> CDResult<()> {
     let status = Command::new("sudo").arg("dpkg").arg("-i").arg(path)
         .status()?;
     if !status.success() {
-        Err(CargoDebError::InstallFailed)?;
+        return Err(CargoDebError::InstallFailed);
     }
     Ok(())
 }
@@ -118,7 +118,7 @@ pub fn cargo_build(options: &Config, target: Option<&str>, other_flags: &[String
     let status = cmd.status()
         .map_err(|e| CargoDebError::CommandFailed(e, "cargo"))?;
     if !status.success() {
-        Err(CargoDebError::BuildFailed)?;
+        return Err(CargoDebError::BuildFailed);
     }
     Ok(())
 }
@@ -188,7 +188,7 @@ pub fn strip_binaries(options: &mut Config, target: Option<&str>, listener: &mut
                 let conf_path = cargo_config
                     .as_ref()
                     .map(|c| c.path())
-                    .unwrap_or(Path::new(".cargo/config"));
+                    .unwrap_or_else(|| Path::new(".cargo/config"));
 
                 if separate_file {
                     Command::new(objcopy_cmd)

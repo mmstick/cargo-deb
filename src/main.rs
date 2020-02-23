@@ -139,7 +139,7 @@ fn process(
         &mut listener_tmp2
     };
 
-    let manifest_path = manifest_path.as_ref().map(|s| s.as_str()).unwrap_or("Cargo.toml");
+    let manifest_path = manifest_path.as_ref().map_or("Cargo.toml", |s| s.as_str());
     let mut options = Config::from_manifest(
         Path::new(manifest_path),
         package_name.as_ref().map(|s| s.as_str()),

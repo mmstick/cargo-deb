@@ -25,6 +25,7 @@ pub enum AssetSource {
 }
 
 impl AssetSource {
+    #[must_use]
     pub fn path(&self) -> Option<&Path> {
         match *self {
             AssetSource::Path(ref p) => Some(p),
@@ -32,6 +33,7 @@ impl AssetSource {
         }
     }
 
+    #[must_use]
     pub fn len(&self) -> Option<u64> {
         match *self {
             // FIXME: may not be accurate if the executable is not stripped yet?
@@ -40,6 +42,7 @@ impl AssetSource {
         }
     }
 
+    #[must_use]
     pub fn data(&self) -> CDResult<Cow<'_, [u8]>> {
         Ok(match *self {
             AssetSource::Path(ref p) => {
@@ -145,21 +148,20 @@ impl Asset {
     /// Returns the target path for the debug symbol file, which will be
     /// /usr/lib/debug/<path-to-executable>.debug
     pub fn debug_target(&self) -> Option<PathBuf> {
-        match self.is_built {
-            true => {
-                // Turn an absolute path into one relative to "/"
-                let relative = match self.target_path.strip_prefix(Path::new("/")) {
-                    Ok(path) => path,
-                    Err(_) => self.target_path.as_path(),
-                };
+        if self.is_built {
+            // Turn an absolute path into one relative to "/"
+            let relative = match self.target_path.strip_prefix(Path::new("/")) {
+                Ok(path) => path,
+                Err(_) => self.target_path.as_path(),
+            };
 
-                // Prepend the debug location
-                let debug_path = Path::new("/usr/lib/debug").join(relative);
+            // Prepend the debug location
+            let debug_path = Path::new("/usr/lib/debug").join(relative);
 
-                // Add `.debug` to the end of the filename
-                Some(debug_filename(&debug_path))
-            }
-            false => None,
+            // Add `.debug` to the end of the filename
+            Some(debug_filename(&debug_path))
+        } else {
+            None
         }
     }
 }
@@ -388,7 +390,7 @@ impl Config {
             // If glob didn't match anything, it's likely an error
             // as all files should exist when called to resolve
             if file_matches.is_empty() {
-                Err(CargoDebError::AssetFileNotFound(source_path))?
+                return Err(CargoDebError::AssetFileNotFound(source_path));
             }
 
             for source_file in file_matches {
@@ -629,7 +631,7 @@ impl Cargo {
                 Ok(self.package.authors.get(0)
                     .ok_or("The package must have a maintainer or authors property")?.to_owned())
             })?,
-            depends: deb.depends.take().unwrap_or("$auto".to_owned()),
+            depends: deb.depends.take().unwrap_or_else(|| "$auto".to_owned()),
             conflicts: deb.conflicts.take(),
             breaks: deb.breaks.take(),
             replaces: deb.replaces.take(),
@@ -641,7 +643,7 @@ impl Cargo {
             assets: Assets::new(),
             changelog: deb.changelog.take(),
             maintainer_scripts: deb.maintainer_scripts.map(PathBuf::from),
-            features: deb.features.take().unwrap_or(vec![]),
+            features: deb.features.take().unwrap_or_default(),
             default_features: deb.default_features.unwrap_or(true),
             separate_debug_symbols: deb.separate_debug_symbols.unwrap_or(false),
             strip: self.profile.as_ref().and_then(|p|p.release.as_ref())
