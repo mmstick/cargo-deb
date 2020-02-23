@@ -7,7 +7,7 @@ use tempdir::TempDir;
 #[test]
 #[cfg(all(feature = "lzma", target_os = "linux"))]
 fn run_cargo_deb_command_on_example_dir() {
-    let root = PathBuf::from(env::var_os("CARGO_MANIFEST_DIR").unwrap());
+    let root = PathBuf::from(env::var_os("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR"));
     let cmd_path = root.join("target/debug/cargo-deb");
     assert!(cmd_path.exists());
     let output = Command::new(cmd_path)
@@ -22,7 +22,7 @@ fn run_cargo_deb_command_on_example_dir() {
     let deb_path = Path::new(::std::str::from_utf8(last_line).unwrap());
     assert!(deb_path.exists());
 
-    let ardir = TempDir::new("cargo-deb-test").unwrap();
+    let ardir = TempDir::new("cargo-deb-test").expect("testdir");
     assert!(ardir.path().exists());
     assert!(Command::new("ar")
         .current_dir(ardir.path())

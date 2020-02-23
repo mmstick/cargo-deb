@@ -425,9 +425,9 @@ impl Config {
     pub fn add_debug_assets(&mut self) {
         let mut assets_to_add: Vec<Asset> = Vec::new();
         for asset in self.built_binaries().into_iter().filter(|a| a.source.path().is_some()) {
-            let debug_source = asset.source.debug_source().unwrap();
+            let debug_source = asset.source.debug_source().expect("debug asset");
             if debug_source.exists() {
-                let debug_target = asset.debug_target().unwrap();
+                let debug_target = asset.debug_target().expect("debug asset");
                 assets_to_add.push(Asset::new(
                     AssetSource::Path(debug_source),
                     debug_target,
@@ -950,11 +950,11 @@ mod tests {
         use ArchSpec::*;
         // req
         assert_eq!(
-            get_architecture_specification("libjpeg64-turbo [armhf]").unwrap(),
+            get_architecture_specification("libjpeg64-turbo [armhf]").expect("arch"),
             ("libjpeg64-turbo".to_owned(), Some(Require("armhf".to_owned()))));
         // neg
         assert_eq!(
-            get_architecture_specification("libjpeg64-turbo [!amd64]").unwrap(),
+            get_architecture_specification("libjpeg64-turbo [!amd64]").expect("arch"),
             ("libjpeg64-turbo".to_owned(), Some(NegRequire("amd64".to_owned()))));
     }
 

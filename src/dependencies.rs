@@ -15,18 +15,19 @@ pub fn resolve(path: &Path, architecture: &str, listener: &dyn Listener) -> CDRe
         if !output.status.success() {
             return Err(CargoDebError::CommandError("ldd", path.display().to_string(), output.stderr));
         }
-        String::from_utf8(output.stdout).unwrap()
+        String::from_utf8(output.stdout).expect("utf8")
     };
 
     // Create an iterator of unique dependencies
     let dependencies: HashSet<_> = dependencies.lines()
         // We only want the third field on each line, which contains the filepath of the library.
         .map(|line| line.split_whitespace().nth(2))
+        .filter_map(|x| x)
         // If the field exists and starts with '/', we have found a filepath.
-        .filter(|x| x.is_some() && x.unwrap().starts_with('/'))
+        .filter(|x| x.starts_with('/'))
         // Obtain the names of the packages.
-        .filter_map(|path_str_opt| {
-            get_package_name_with_fallback(path_str_opt.unwrap())
+        .filter_map(|path_str| {
+            get_package_name_with_fallback(path_str)
                 .map_err(|err| {
                     listener.warning(format!(
                         "{} (skip this auto dep for {})",
@@ -71,7 +72,7 @@ fn get_package_name(path: &str) -> CDResult<String> {
         return Err(CargoDebError::PackageNotFound(path.to_owned(), output.stderr));
     }
     let package = output.stdout.iter().take_while(|&&x| x != b':').cloned().collect::<Vec<u8>>();
-    Ok(String::from_utf8(package).unwrap())
+    Ok(String::from_utf8(package).expect("utf8"))
 }
 
 /// Uses apt-cache policy to determine the version of the package that this project was built against.
@@ -85,6 +86,6 @@ fn get_version(package: &str) -> CDResult<String> {
     if !output.status.success() {
         return Err(CargoDebError::CommandError("dpkg-query (get package version)", package.to_owned(), output.stderr));
     }
-    let version = ::std::str::from_utf8(&output.stdout).unwrap();
+    let version = ::std::str::from_utf8(&output.stdout).expect("utf8");
     Ok(version.splitn(2, '-').next().unwrap().to_owned())
 }
