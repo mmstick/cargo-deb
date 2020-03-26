@@ -49,7 +49,7 @@ Everything is optional:
         - If is argument ends with `/` it will be inferred that the target is the directory where the file will be copied.
         - Otherwise, it will be inferred that the source argument will be renamed when copied.
     3. The third argument is the permissions (octal string) to assign that file.
- - **maintainer-scripts** - directory containing `preinst`, `postinst`, `prerm`, or `postrm` [scripts](https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html).
+ - **maintainer-scripts** - directory containing `templates`, `preinst`, `postinst`, `prerm`, or `postrm` [scripts](https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html).
  - **conf-files** - [List of configuration files](https://www.debian.org/doc/manuals/maint-guide/dother.en.html#conffiles) that the package management system will not overwrite when the package is upgraded.
  - **changelog**: Path to Debian-formatted [changelog file](https://www.debian.org/doc/manuals/maint-guide/dreq.en.html#changelog).
  - **features**: List of [Cargo features](https://doc.rust-lang.org/cargo/reference/manifest.html#the-features-section) to use when building the package.
