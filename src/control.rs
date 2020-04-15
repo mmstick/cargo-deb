@@ -8,7 +8,7 @@ use md5::Digest;
 use std::collections::HashMap;
 use std::fs;
 use std::io::Write;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// Generates an uncompressed tar archive with `control`, `md5sums`, and others
 pub fn generate_archive(options: &Config, time: u64, asset_hashes: HashMap<PathBuf, Digest>, listener: &mut dyn Listener) -> CDResult<Vec<u8>> {
@@ -19,6 +19,9 @@ pub fn generate_archive(options: &Config, time: u64, asset_hashes: HashMap<PathB
         generate_conf_files(&mut archive, files)?;
     }
     generate_scripts(&mut archive, options)?;
+    if let Some(ref file) = options.triggers_file {
+        generate_triggers_file(&mut archive, file)?;
+    }
     Ok(archive.into_inner()?)
 }
 
@@ -38,13 +41,15 @@ fn generate_scripts(archive: &mut Archive, option: &Config) -> CDResult<()> {
 fn generate_md5sums(archive: &mut Archive, options: &Config, asset_hashes: HashMap<PathBuf, Digest>) -> CDResult<()> {
     let mut md5sums: Vec<u8> = Vec::new();
 
-    // Collect md5sums from each asset in the archive.
+    // Collect md5sums from each asset in the archive (excludes symlinks).
     for asset in &options.assets.resolved {
-        write!(md5sums, "{:x}", asset_hashes[&asset.target_path])?;
-        md5sums.write_all(b"  ")?;
+        if let Some(value) = asset_hashes.get(&asset.target_path) {
+            write!(md5sums, "{:x}", value)?;
+            md5sums.write_all(b"  ")?;
 
-        md5sums.write_all(&asset.target_path.as_path().as_unix_path())?;
-        md5sums.write_all(&[b'\n'])?;
+            md5sums.write_all(&asset.target_path.as_path().as_unix_path())?;
+            md5sums.write_all(&[b'\n'])?;
+        }
     }
 
     // Write the data to the archive
@@ -88,6 +93,10 @@ fn generate_control(archive: &mut Archive, options: &Config, listener: &mut dyn 
 
     writeln!(&mut control, "Depends: {}", options.get_dependencies(listener)?)?;
 
+    if let Some(ref build_depends) = options.build_depends {
+        writeln!(&mut control, "Build-Depends: {}", build_depends)?;
+    }
+
     if let Some(ref conflicts) = options.conflicts {
         writeln!(&mut control, "Conflicts: {}", conflicts)?;
     }
@@ -124,5 +133,12 @@ fn generate_conf_files(archive: &mut Archive, files: &str) -> CDResult<()> {
     data.write_all(files.as_bytes())?;
     data.push(b'\n');
     archive.file("./conffiles", &data, 0o644)?;
+    Ok(())
+}
+
+fn generate_triggers_file<P: AsRef<Path>>(archive: &mut Archive, path: P) -> CDResult<()> {
+    if let Ok(content) = fs::read(path) {
+        archive.file("./triggers", &content, 0o644)?;
+    }
     Ok(())
 }
