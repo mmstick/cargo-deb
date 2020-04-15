@@ -9,7 +9,7 @@ homepage = "https://github.com/mmstick/cargo-deb#readme"
 keywords = ["debian", "ubuntu", "package", "cargo", "subcommand"]
 repository = "https://github.com/mmstick/cargo-deb"
 readme = "README.md"
-version = "1.23.2"
+version = "1.24.0"
 edition = "2018"
 
 [package.metadata.deb]
@@ -70,3 +70,7 @@ tempdir = "0.3.6"
 
 [workspace]
 exclude = ["example"]
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
+
