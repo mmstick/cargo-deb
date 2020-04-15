@@ -73,8 +73,22 @@ fn archive_files(archive: &mut Archive, options: &Config, listener: &mut dyn Lis
 
         listener.info(format!("{} -> {}", asset.source.path().unwrap_or_else(|| Path::new("-")).display(), asset.target_path.display()));
 
-        hashes.insert(asset.target_path.clone(), md5::compute(&out_data));
-        archive.file(&asset.target_path, &out_data, asset.chmod)?;
+        let mut archived = false;
+        if options.preserve_symlinks {
+            if let Some(source_path) = asset.source.path() {
+                let md = fs::symlink_metadata(source_path)?;
+                if md.file_type().is_symlink() {
+                    archived = true;
+                    let link_name = fs::read_link(source_path)?;
+                    archive.symlink(&asset.target_path, &link_name)?;
+                }
+            }
+        }
+
+        if !archived {
+            hashes.insert(asset.target_path.clone(), md5::compute(&out_data));
+            archive.file(&asset.target_path, &out_data, asset.chmod)?;
+        }
     }
     Ok(hashes)
 }

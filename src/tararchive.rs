@@ -68,6 +68,21 @@ impl Archive {
         Ok(())
     }
 
+    pub fn symlink<P: AsRef<Path>>(&mut self, path: P, link_name: P) -> CDResult<()> {
+        self.add_parent_directories(path.as_ref())?;
+
+        let mut header = TarHeader::new_gnu();
+        header.set_mtime(self.time);
+        header.set_entry_type(EntryType::Symlink);
+        header.set_path(&path)?;
+        header.set_link_name(&link_name)?;
+        header.set_size(0);
+        header.set_mode(0o777);
+        header.set_cksum();
+        self.tar.append(&header, &mut io::empty())?;
+        Ok(())
+    }
+
     pub fn into_inner(self) -> io::Result<Vec<u8>> {
         self.tar.into_inner()
     }

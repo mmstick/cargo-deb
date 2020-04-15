@@ -259,6 +259,8 @@ pub struct Config {
     pub maintainer: String,
     /// The Debian dependencies required to run the project.
     pub depends: String,
+    /// The Debian dependencies required to build the project.
+    pub build_depends: Option<String>,
     /// The Debian software category to which the package belongs.
     pub section: Option<String>,
     /// The Debian priority of the project. Typically 'optional'.
@@ -287,6 +289,8 @@ pub struct Config {
     pub conf_files: Option<String>,
     /// All of the files that are to be packaged.
     pub(crate) assets: Assets,
+    /// The location of the triggers file
+    pub triggers_file: Option<PathBuf>,
     /// The path were possible maintainer scripts live
     pub maintainer_scripts: Option<PathBuf>,
     /// List of Cargo features to use during build
@@ -296,6 +300,8 @@ pub struct Config {
     pub strip: bool,
     /// Should the debug symbols be moved to a separate file included in the package? (implies `strip:true`)
     pub separate_debug_symbols: bool,
+    /// Should symlinks be preserved in the assets
+    pub preserve_symlinks: bool,
     _use_constructor_to_make_this_struct_: (),
 }
 
@@ -632,6 +638,7 @@ impl Cargo {
                     .ok_or("The package must have a maintainer or authors property")?.to_owned())
             })?,
             depends: deb.depends.take().unwrap_or_else(|| "$auto".to_owned()),
+            build_depends: deb.build_depends.take(),
             conflicts: deb.conflicts.take(),
             breaks: deb.breaks.take(),
             replaces: deb.replaces.take(),
@@ -641,6 +648,7 @@ impl Cargo {
             architecture: get_arch(target.unwrap_or(crate::DEFAULT_TARGET)).to_owned(),
             conf_files: deb.conf_files.map(|x| x.iter().fold(String::new(), |a, b| a + b + "\n")),
             assets: Assets::new(),
+            triggers_file: deb.triggers_file.map(PathBuf::from),
             changelog: deb.changelog.take(),
             maintainer_scripts: deb.maintainer_scripts.map(PathBuf::from),
             features: deb.features.take().unwrap_or_default(),
@@ -653,6 +661,7 @@ impl Cargo {
                     toml::Value::Boolean(value) => value,
                     _ => true
                 }),
+            preserve_symlinks: deb.preserve_symlinks.unwrap_or(false),
             _use_constructor_to_make_this_struct_: (),
         };
         let assets = self.take_assets(&config, deb.assets.take(), &root_package.targets, readme)?;
@@ -815,6 +824,7 @@ struct CargoDeb {
     pub license_file: Option<Vec<String>>,
     pub changelog: Option<String>,
     pub depends: Option<String>,
+    pub build_depends: Option<String>,
     pub conflicts: Option<String>,
     pub breaks: Option<String>,
     pub replaces: Option<String>,
@@ -826,10 +836,12 @@ struct CargoDeb {
     pub revision: Option<String>,
     pub conf_files: Option<Vec<String>>,
     pub assets: Option<Vec<Vec<String>>>,
+    pub triggers_file: Option<String>,
     pub maintainer_scripts: Option<String>,
     pub features: Option<Vec<String>>,
     pub default_features: Option<bool>,
     pub separate_debug_symbols: Option<bool>,
+    pub preserve_symlinks: Option<bool>,
     pub variants: Option<HashMap<String, CargoDeb>>,
 }
 
@@ -842,6 +854,7 @@ impl CargoDeb {
             license_file: self.license_file.or(parent.license_file),
             changelog: self.changelog.or(parent.changelog),
             depends: self.depends.or(parent.depends),
+            build_depends: self.build_depends.or(parent.build_depends),
             conflicts: self.conflicts.or(parent.conflicts),
             breaks: self.breaks.or(parent.breaks),
             replaces: self.replaces.or(parent.replaces),
@@ -853,10 +866,12 @@ impl CargoDeb {
             revision: self.revision.or(parent.revision),
             conf_files: self.conf_files.or(parent.conf_files),
             assets: self.assets.or(parent.assets),
+            triggers_file: self.triggers_file.or(parent.triggers_file),
             maintainer_scripts: self.maintainer_scripts.or(parent.maintainer_scripts),
             features: self.features.or(parent.features),
             default_features: self.default_features.or(parent.default_features),
             separate_debug_symbols: self.separate_debug_symbols.or(parent.separate_debug_symbols),
+            preserve_symlinks: self.preserve_symlinks.or(parent.preserve_symlinks),
             variants: self.variants.or(parent.variants),
         }
     }

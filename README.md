@@ -37,6 +37,7 @@ Everything is optional:
 - **copyright**: To whom and when the copyright of the software is granted. If not present, the list of authors is used.
 - **license-file**: The location of the license and the amount of lines to skip at the top. If not present, package-level `license-file` is used.
 - **depends**: The runtime [dependencies](https://www.debian.org/doc/debian-policy/ch-relationships.html) of the project, which are automatically generated with the `$auto` keyword.
+- **build-depends**: The build dependencies of the project.
 - **conflicts**, **breaks**, **replaces**, **provides** — [package transition](https://wiki.debian.org/PackageTransition) control.
 - **extended-description**: An extended description of the project — the more detailed the better. Either **extended-description-file** (see below) or package's `readme` file is used if it is not provided.
 - **extended-description-file**: A file with extended description of the project. When specified, used if **extended-description** is not provided.
@@ -51,10 +52,12 @@ Everything is optional:
     3. The third argument is the permissions (octal string) to assign that file.
  - **maintainer-scripts** - directory containing `templates`, `preinst`, `postinst`, `prerm`, or `postrm` [scripts](https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html).
  - **conf-files** - [List of configuration files](https://www.debian.org/doc/manuals/maint-guide/dother.en.html#conffiles) that the package management system will not overwrite when the package is upgraded.
+ - **triggers-file**: Path to triggers control file for use by the dpkg trigger facility.
  - **changelog**: Path to Debian-formatted [changelog file](https://www.debian.org/doc/manuals/maint-guide/dreq.en.html#changelog).
  - **features**: List of [Cargo features](https://doc.rust-lang.org/cargo/reference/manifest.html#the-features-section) to use when building the package.
  - **default-features**: whether to use default crate features in addition to the `features` list (default `true`).
  - **separate-debug-symbols**: whether to keep debug symbols, but strip them from executables and save them in separate files (default `false`).
+ - **preserve-symlinks**: Whether to preserve symlinks in the asset files (default `false`).
 
 ### Example of custom `Cargo.toml` additions
 
