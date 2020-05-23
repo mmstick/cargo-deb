@@ -87,7 +87,11 @@ pub fn remove_deb_temp_directory(options: &Config) {
 pub fn cargo_build(options: &Config, target: Option<&str>, other_flags: &[String], verbose: bool) -> CDResult<()> {
     let mut cmd = Command::new("cargo");
     cmd.current_dir(&options.manifest_dir);
-    cmd.arg("build").args(&["--release", "--all"]);
+    if options.build_whole_workspace {
+        cmd.arg("build").args(&["--release", "--all"]);
+    } else {
+        cmd.arg("build").args(&["--release"]);
+    }
 
     for flag in other_flags {
         cmd.arg(flag);
