@@ -4,7 +4,7 @@ use crate::error::*;
 use crate::listener::Listener;
 use crate::ok_or::OkOrThen;
 use rayon::prelude::*;
-use serde_derive::Deserialize;
+use serde::Deserialize;
 use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
 use std::env::consts::{DLL_PREFIX, DLL_SUFFIX};
