@@ -20,9 +20,17 @@ pub fn resolve(path: &Path, architecture: &str, listener: &dyn Listener) -> CDRe
 
     // Create an iterator of unique dependencies
     let dependencies: HashSet<_> = dependencies.lines()
-        // We only want the third field on each line, which contains the filepath of the library.
-        .map(|line| line.split_whitespace().nth(2))
-        .filter_map(|x| x)
+        // The syntax is "name => path (addr)"
+        .filter_map(|line| {
+            let mut parts = line.splitn(2, "=>");
+            let name = parts.next()?.trim();
+
+            if name == "libgcc_s.so.1" {
+                // it's guaranteed by LSB to always be present
+                return None;
+            }
+            parts.next()?.split_whitespace().next()
+        })
         // If the field exists and starts with '/', we have found a filepath.
         .filter(|x| x.starts_with('/'))
         // Obtain the names of the packages.
@@ -43,12 +51,13 @@ pub fn resolve(path: &Path, architecture: &str, listener: &dyn Listener) -> CDRe
 
     Ok(dependencies.into_par_iter().map(|package| {
         // There can be multiple arch-specific versions of a package
-        match get_version(&format!("{}:{}", package, architecture)) {
+        let arch_version = format!("{}:{}", package, architecture);
+        match get_version(&arch_version) {
             Ok(version) => {
                 format!("{} (>= {})", package, version)
             },
             Err(e) => {
-                listener.warning(format!("Can't get version of {}: {}", package, e));
+                listener.warning(format!("Can't get version of {}: {}", arch_version, e));
                 package
             },
         }
@@ -95,4 +104,14 @@ fn get_version(package: &str) -> CDResult<String> {
     }
     let version = ::std::str::from_utf8(&output.stdout).expect("utf8");
     Ok(version.splitn(2, '-').next().unwrap().to_owned())
+}
+
+#[test]
+#[cfg(target_os = "linux")]
+fn resolve_test() {
+    let exe = std::env::current_exe().unwrap();
+    let arch = crate::manifest::get_arch(crate::DEFAULT_TARGET);
+    let deps = resolve(&exe, arch, &crate::listener::NoOpListener).unwrap();
+    assert!(deps.iter().any(|d| d.starts_with("libc")));
+    assert!(!deps.iter().any(|d| d.starts_with("libgcc")));
 }

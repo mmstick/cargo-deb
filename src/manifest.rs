@@ -925,7 +925,7 @@ fn cargo_metadata(manifest_path: &Path) -> CDResult<CargoMetadata> {
 }
 
 /// Debianizes the architecture name
-fn get_arch(target: &str) -> &str {
+pub(crate) fn get_arch(target: &str) -> &str {
     let mut parts = target.split('-');
     let arch = parts.next().unwrap();
     let abi = parts.last().unwrap_or("");
