@@ -945,6 +945,7 @@ pub(crate) fn get_arch(target: &str) -> &str {
         ("powerpc", "gnuspe") => "powerpcspe",
         ("powerpc64", _) => "ppc64",
         ("powerpc64le", _) => "ppc64el",
+        ("riscv64gc", _) => "riscv64",
         ("i586", _) | ("i686", _) | ("x86", _) => "i386",
         ("x86_64", "gnux32") => "x32",
         ("x86_64", _) => "amd64",
