@@ -679,7 +679,7 @@ impl Cargo {
         if self.package.description.is_none() {
             listener.warning("description field is missing in Cargo.toml".to_owned());
         }
-        if self.package.license.is_none() {
+        if self.package.license.is_none() && self.package.license_file.is_none() {
             listener.warning("license field is missing in Cargo.toml".to_owned());
         }
         if let Some(readme) = readme {
