@@ -36,6 +36,9 @@ mod ok_or;
 mod pathbytes;
 mod tararchive;
 mod wordsplit;
+mod dh_installsystemd;
+mod dh_lib;
+mod util;
 
 use crate::listener::Listener;
 use std::env;

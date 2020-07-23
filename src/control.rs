@@ -4,6 +4,9 @@ use crate::manifest::Config;
 use crate::pathbytes::*;
 use crate::tararchive::Archive;
 use crate::wordsplit::WordSplit;
+use crate::dh_installsystemd;
+use crate::dh_lib;
+use crate::util::find_first;
 use md5::Digest;
 use std::collections::HashMap;
 use std::fs;
@@ -18,22 +21,96 @@ pub fn generate_archive(options: &Config, time: u64, asset_hashes: HashMap<PathB
     if let Some(ref files) = options.conf_files {
         generate_conf_files(&mut archive, files)?;
     }
-    generate_scripts(&mut archive, options)?;
+    generate_scripts(&mut archive, options, listener)?;
     if let Some(ref file) = options.triggers_file {
         generate_triggers_file(&mut archive, file)?;
     }
     Ok(archive.into_inner()?)
 }
 
-/// Append all files that reside in the `maintainer_scripts` path to the archive
-fn generate_scripts(archive: &mut Archive, option: &Config) -> CDResult<()> {
+/// Append Debian maintainer script files (control, preinst, postinst, prerm,
+/// postrm and templates) present in the `maintainer_scripts` path to the
+/// archive, if `maintainer_scripts` is configured.
+/// 
+/// Additionally, when `systemd_units` is configured, shell script fragments
+/// "for enabling, disabling, starting, stopping and restarting systemd unit
+/// files" (quoting man 1 dh_installsystemd) will replace the `#DEBHELPER#`
+/// token in the provided maintainer scripts.
+/// 
+/// If a shell fragment cannot be inserted because the target script is missing
+/// then the entire script will be generated and appended to the archive.
+/// 
+/// # Requirements
+/// 
+/// When `systemd_units` is configured, user supplied `maintainer_scripts` must
+/// contain a `#DEBHELPER#` token at the point where shell script fragments
+/// should be inserted.
+/// 
+/// When `systemd_units` is configured, a directory for temporarily storing
+/// selected shell script fragments will be created inside the cargo deb temp
+/// directory, and will be cleaned up/removed when the cargo deb temp directory
+/// is cleaned up/removed.
+/// 
+/// # Panics
+/// 
+/// When `systemd_units` is configured, failure to replace the `#DEBHELPER#`
+/// token because it is not present in a user supplied `maintainer_script` will
+/// cause a panic.
+fn generate_scripts(archive: &mut Archive, option: &Config, listener: &mut dyn Listener) -> CDResult<()> {
     if let Some(ref maintainer_scripts) = option.maintainer_scripts {
+        let mut search_dirs = vec![maintainer_scripts.clone()];
+
+        if let Some(systemd_units_config) = &option.systemd_units {
+            // Ensure we have a clean temporary directory for working on
+            // maintainer scripts and autoscript fragments.
+            let tmp_dir = option.deb_temp_dir().join("systemd");
+            if tmp_dir.exists() {
+                fs::remove_dir_all(&tmp_dir).map_err(|e| CargoDebError::Io(e))?;
+            }
+            fs::create_dir(&tmp_dir).map_err(|e| CargoDebError::Io(e))?;
+
+            // Select and populate autoscript templates relevant to the unit
+            // file(s) in this package and the configuration settings chosen.
+            dh_installsystemd::generate(
+                maintainer_scripts,
+                &option.name,
+                &option.assets.resolved,
+                &tmp_dir,
+                &dh_installsystemd::Options::from(systemd_units_config),
+                listener);
+                
+            // Get Option<&str> from Option<String>
+            let unit_name = systemd_units_config.unit_name
+                .as_ref().map(|s| s.as_str());
+
+            // Replace the #DEBHELPER# token in the users maintainer scripts
+            // and/or generate maintainer scripts from scratch as needed.
+            dh_lib::apply(
+                &tmp_dir,
+                &option.name,
+                unit_name,
+                listener);
+
+            // Use the maintainer scripts that we just created/customized in
+            // preference to the unmodified user supplied versions.
+            search_dirs.insert(0, tmp_dir);
+        }
+
+        // Add maintainer scripts to the archive, either those supplied by the
+        // user or if available prefer modified versions generated above.
         for name in &["config", "preinst", "postinst", "prerm", "postrm", "templates"] {
-            if let Ok(script) = fs::read(maintainer_scripts.join(name)) {
-                archive.file(name, &script, 0o755)?;
+            if let Some(script_path) = find_first(search_dirs.as_slice(), name) {
+                let abs_path = script_path.canonicalize().unwrap();
+                let rel_path = abs_path.strip_prefix(&option.manifest_dir).unwrap();
+                listener.info(format!("Archiving {}", rel_path.to_string_lossy()));
+
+                if let Ok(script) = fs::read(script_path) {
+                    archive.file(name, &script, 0o755)?;
+                }
             }
         }
     }
+
     Ok(())
 }
 
