@@ -3,6 +3,7 @@ use crate::dependencies::resolve;
 use crate::error::*;
 use crate::listener::Listener;
 use crate::ok_or::OkOrThen;
+use crate::dh_installsystemd;
 use rayon::prelude::*;
 use serde::Deserialize;
 use std::borrow::Cow;
@@ -11,6 +12,7 @@ use std::env::consts::{DLL_PREFIX, DLL_SUFFIX};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::convert::From;
 
 fn is_glob_pattern(s: &str) -> bool {
     s.contains('*') || s.contains('[') || s.contains(']') || s.contains('!')
@@ -62,6 +64,42 @@ impl AssetSource {
         match *self {
             AssetSource::Path(ref p) => Some(debug_filename(p)),
             _ => None,
+        }
+    }
+}
+
+/// Configuration settings for the systemd_units functionality.
+/// 
+/// `unit_scripts`: (optional) relative path to a directory containing correctly
+/// named systemd unit files. See `dh_lib::pkgfile()` and `dh_installsystemd.rs`
+/// for more details on file naming. If not supplied, defaults to the
+/// `maintainer_scripts` directory.
+/// 
+/// `unit_name`: (optjonal) in cases where the `unit_scripts` directory contains
+/// multiple units, only process those matching this unit name.
+/// 
+/// For details on the other options please see `dh_installsystemd::Options`.
+#[derive(Clone, Debug, Deserialize, Default)]
+#[serde(rename_all = "kebab-case", deny_unknown_fields)]
+pub(crate) struct SystemdUnitsConfig {
+    pub unit_scripts: Option<PathBuf>,
+    pub unit_name: Option<String>,
+    pub enable: Option<bool>,
+    pub start: Option<bool>,
+    pub restart_after_upgrade: Option<bool>,
+    pub stop_on_upgrade: Option<bool>,
+}
+
+/// Match the official dh_installsystemd defaults and rename the confusing
+/// dh_installsystemd option names to be consistently positive rather than
+/// mostly, but not always, negative.
+impl From<&SystemdUnitsConfig> for dh_installsystemd::Options {
+    fn from(config: &SystemdUnitsConfig) -> Self {
+        Self {
+            no_enable: !config.enable.unwrap_or(false),
+            no_start: !config.start.unwrap_or(false),
+            restart_after_upgrade: config.restart_after_upgrade.unwrap_or(true),
+            no_stop_on_upgrade: !config.stop_on_upgrade.unwrap_or(true),
         }
     }
 }
@@ -302,6 +340,8 @@ pub struct Config {
     pub separate_debug_symbols: bool,
     /// Should symlinks be preserved in the assets
     pub preserve_symlinks: bool,
+    /// Details of how to install any systemd units
+    pub(crate) systemd_units: Option<SystemdUnitsConfig>,
     _use_constructor_to_make_this_struct_: (),
 }
 
@@ -371,6 +411,8 @@ impl Config {
     }
 
     pub fn resolve_assets(&mut self) -> CDResult<()> {
+        self.add_systemd_assets()?;
+
         for UnresolvedAsset { source_path, target_path, chmod, is_built } in self.assets.unresolved.drain(..) {
             let source_prefix: PathBuf = source_path.iter()
                 .take_while(|part| !is_glob_pattern(part.to_str().unwrap()))
@@ -459,6 +501,35 @@ impl Config {
                     0o644,
                     false,
                 ));
+            }
+        }
+        Ok(())
+    }
+
+    fn add_systemd_assets(&mut self) -> CDResult<()> {
+        if let Some(ref config) = self.systemd_units {
+            let units_dir_option = config.unit_scripts.as_ref()
+                .or(self.maintainer_scripts.as_ref());
+            if let Some(unit_dir) = units_dir_option {
+                let search_path = self.path_in_workspace(unit_dir);
+                let package = &self.name;
+                let unit_name = if let Some(ref unit_name) = config.unit_name {
+                    Some(unit_name.as_str())
+                } else {
+                    None
+                };
+
+                let units = dh_installsystemd::find_units(
+                    &search_path, package, unit_name);
+
+                for (source, target) in &units {
+                    self.assets.resolved.push(Asset::new(
+                        AssetSource::Path(source.clone()),
+                        target.path.clone(),
+                        target.mode,
+                        false,
+                    ));
+                }
             }
         }
         Ok(())
@@ -662,6 +733,7 @@ impl Cargo {
                     _ => true
                 }),
             preserve_symlinks: deb.preserve_symlinks.unwrap_or(false),
+            systemd_units: deb.systemd_units.take(),
             _use_constructor_to_make_this_struct_: (),
         };
         let assets = self.take_assets(&config, deb.assets.take(), &root_package.targets, readme)?;
@@ -842,6 +914,7 @@ struct CargoDeb {
     pub default_features: Option<bool>,
     pub separate_debug_symbols: Option<bool>,
     pub preserve_symlinks: Option<bool>,
+    pub systemd_units: Option<SystemdUnitsConfig>,
     pub variants: Option<HashMap<String, CargoDeb>>,
 }
 
@@ -872,6 +945,7 @@ impl CargoDeb {
             default_features: self.default_features.or(parent.default_features),
             separate_debug_symbols: self.separate_debug_symbols.or(parent.separate_debug_symbols),
             preserve_symlinks: self.preserve_symlinks.or(parent.preserve_symlinks),
+            systemd_units: self.systemd_units.or(parent.systemd_units),
             variants: self.variants.or(parent.variants),
         }
     }
