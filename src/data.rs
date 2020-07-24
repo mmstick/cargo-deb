@@ -81,9 +81,9 @@ pub fn compress_man_pages(options: &mut Config, listener: &dyn Listener) -> CDRe
         {
             listener.info(format!("Compressing '{}'", asset.source.path().unwrap().to_string_lossy()));
 
-            let content = asset.source.data().unwrap();
+            let content = asset.source.data()?;
             let mut compressed = Vec::with_capacity(content.len());
-            zopfli::compress(&Options::default(), &Format::Gzip, &content, &mut compressed).unwrap();
+            zopfli::compress(&Options::default(), &Format::Gzip, &content, &mut compressed)?;
             compressed.shrink_to_fit();
 
             new_assets.push(Asset::new(
