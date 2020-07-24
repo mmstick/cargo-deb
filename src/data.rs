@@ -1,6 +1,6 @@
 use crate::error::*;
 use crate::listener::Listener;
-use crate::manifest::Config;
+use crate::manifest::{Asset, Config};
 use crate::tararchive::Archive;
 use md5::Digest;
 use std::collections::HashMap;
@@ -62,6 +62,48 @@ pub(crate) fn generate_copyright_asset(options: &Config) -> CDResult<Vec<u8>> {
 
     // Write a copy to the disk for the sake of obtaining a md5sum for the control archive.
     Ok(copyright)
+}
+
+/// Compress man page assets per Debian Policy.
+/// 
+/// # References
+/// 
+/// https://www.debian.org/doc/debian-policy/ch-docs.html#manual-pages
+/// https://lintian.debian.org/tags/manpage-not-compressed.html
+pub fn compress_man_pages(options: &mut Config, listener: &dyn Listener) -> CDResult<()> {
+    let mut indices_to_remove = Vec::new();
+    let mut new_assets = Vec::new();
+
+    for (idx, asset) in options.assets.resolved.iter().enumerate() {
+        let target_path_str = asset.target_path.to_string_lossy();
+        if target_path_str.starts_with("usr/share/man/") &&
+           !target_path_str.ends_with(".gz")
+        {
+            listener.info(format!("Compressing '{}'", asset.source.path().unwrap().to_string_lossy()));
+
+            let content = asset.source.data().unwrap();
+            let mut compressed = Vec::with_capacity(content.len());
+            zopfli::compress(&Options::default(), &Format::Gzip, &content, &mut compressed).unwrap();
+            compressed.shrink_to_fit();
+
+            new_assets.push(Asset::new(
+                crate::manifest::AssetSource::Data(compressed),
+                Path::new(&format!("{}.gz", target_path_str)).into(),
+                asset.chmod,
+                false
+            ));
+
+            indices_to_remove.push(idx);
+        }
+    }
+
+    for idx in indices_to_remove.iter().rev() {
+        options.assets.resolved.remove(*idx);
+    }
+
+    options.assets.resolved.append(&mut new_assets);
+
+    Ok(())
 }
 
 /// Copies all the files to be packaged into the tar archive.
