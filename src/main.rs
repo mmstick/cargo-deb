@@ -157,6 +157,8 @@ fn process(
 
     options.resolve_assets()?;
 
+    crate::data::compress_man_pages(&mut options, listener)?;
+
     if (options.strip || separate_debug_symbols) && !no_strip {
         strip_binaries(&mut options, target, listener, separate_debug_symbols)?;
     }
