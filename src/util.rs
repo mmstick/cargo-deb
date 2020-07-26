@@ -16,12 +16,6 @@ pub(crate) fn copy_file(from: &Path, to: &Path) -> std::io::Result<u64> {
 /// # Provenance
 /// 
 /// From: https://stackoverflow.com/a/27582993
-/// 
-/// # Usage
-/// 
-/// ```
-/// let names = map!{ 1 => "one", 2 => "two" };
-/// ```
 #[macro_export]
 macro_rules! map(
     { $($key:expr => $value:expr),+ } => {
