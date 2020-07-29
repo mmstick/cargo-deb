@@ -50,7 +50,7 @@ fn run_cargo_deb_command_on_example_dir() {
 
     let md5sums = fs::read_to_string(cdir.path().join("md5sums")).unwrap();
     assert!(md5sums.contains(" usr/bin/example\n"));
-    assert!(md5sums.contains(" usr/share/doc/example/changelog.gz\n"));
+    assert!(md5sums.contains(" usr/share/doc/example/changelog.Debian.gz\n"));
     assert!(md5sums.contains("b1946ac92492d2347c6235b4d2611184  var/lib/example/1.txt\n"));
     assert!(md5sums.contains("591785b794601e212b260e25925636fd  var/lib/example/2.txt\n"));
     assert!(md5sums.contains("1537684900f6b12358c88a612adf1049  var/lib/example/3.txt\n"));
@@ -67,12 +67,12 @@ fn run_cargo_deb_command_on_example_dir() {
     assert!(ddir.path().join("var/lib/example/2.txt").exists());
     assert!(ddir.path().join("var/lib/example/3.txt").exists());
     assert!(ddir.path().join("usr/share/doc/example/copyright").exists());
-    assert!(ddir.path().join("usr/share/doc/example/changelog.gz").exists());
+    assert!(ddir.path().join("usr/share/doc/example/changelog.Debian.gz").exists());
     assert!(ddir.path().join("usr/bin/example").exists());
-    // changelog.gz starts with the gzip magic
+    // changelog.Debian.gz starts with the gzip magic
     assert_eq!(
         &[0x1F, 0x8B],
-        &fs::read(ddir.path().join("usr/share/doc/example/changelog.gz")).unwrap()[..2]
+        &fs::read(ddir.path().join("usr/share/doc/example/changelog.Debian.gz")).unwrap()[..2]
     );
 }
 
@@ -133,7 +133,7 @@ fn run_cargo_deb_command_on_example_dir_with_variant() {
 
     let md5sums = fs::read_to_string(cdir.path().join("md5sums")).unwrap();
     assert!(md5sums.contains(" usr/bin/example\n"));
-    assert!(md5sums.contains(" usr/share/doc/example-debug/changelog.gz\n"));
+    assert!(md5sums.contains(" usr/share/doc/example-debug/changelog.Debian.gz\n"));
     assert!(md5sums.contains("b1946ac92492d2347c6235b4d2611184  var/lib/example/1.txt\n"));
     assert!(md5sums.contains("591785b794601e212b260e25925636fd  var/lib/example/2.txt\n"));
     assert!(md5sums.contains("835a3c46f2330925774ebf780aa74241  var/lib/example/4.txt\n"));
@@ -150,7 +150,7 @@ fn run_cargo_deb_command_on_example_dir_with_variant() {
     assert!(ddir.path().join("var/lib/example/2.txt").exists());
     assert!(ddir.path().join("var/lib/example/4.txt").exists());
     assert!(ddir.path().join("usr/share/doc/example-debug/copyright").exists());
-    assert!(ddir.path().join("usr/share/doc/example-debug/changelog.gz").exists());
+    assert!(ddir.path().join("usr/share/doc/example-debug/changelog.Debian.gz").exists());
     assert!(ddir.path().join("usr/bin/example").exists());
 }
 
@@ -206,7 +206,7 @@ fn run_cargo_deb_command_on_example_dir_with_version() {
 
     let md5sums = fs::read_to_string(cdir.path().join("md5sums")).unwrap();
     assert!(md5sums.contains(" usr/bin/example\n"));
-    assert!(md5sums.contains(" usr/share/doc/example/changelog.gz\n"));
+    assert!(md5sums.contains(" usr/share/doc/example/changelog.Debian.gz\n"));
     assert!(md5sums.contains("b1946ac92492d2347c6235b4d2611184  var/lib/example/1.txt\n"));
     assert!(md5sums.contains("591785b794601e212b260e25925636fd  var/lib/example/2.txt\n"));
     assert!(md5sums.contains("1537684900f6b12358c88a612adf1049  var/lib/example/3.txt\n"));
@@ -223,11 +223,11 @@ fn run_cargo_deb_command_on_example_dir_with_version() {
     assert!(ddir.path().join("var/lib/example/2.txt").exists());
     assert!(ddir.path().join("var/lib/example/3.txt").exists());
     assert!(ddir.path().join("usr/share/doc/example/copyright").exists());
-    assert!(ddir.path().join("usr/share/doc/example/changelog.gz").exists());
+    assert!(ddir.path().join("usr/share/doc/example/changelog.Debian.gz").exists());
     assert!(ddir.path().join("usr/bin/example").exists());
-    // changelog.gz starts with the gzip magic
+    // changelog.Debian.gz starts with the gzip magic
     assert_eq!(
         &[0x1F, 0x8B],
-        &fs::read(ddir.path().join("usr/share/doc/example/changelog.gz")).unwrap()[..2]
+        &fs::read(ddir.path().join("usr/share/doc/example/changelog.Debian.gz")).unwrap()[..2]
     );
 }
