@@ -683,7 +683,7 @@ impl Cargo {
             listener.warning("license field is missing in Cargo.toml".to_owned());
         }
         if let Some(readme) = readme {
-            if deb.extended_description.is_none() && (readme.ends_with(".md") || readme.ends_with(".markdown")) {
+            if deb.extended_description.is_none() && deb.extended_description_file.is_none() && (readme.ends_with(".md") || readme.ends_with(".markdown")) {
                 listener.warning(format!("extended-description field missing. Using {}, but markdown may not render well.",readme));
             }
         } else {
