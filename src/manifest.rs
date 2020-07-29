@@ -455,7 +455,7 @@ impl Config {
                     AssetSource::Data(changelog_file),
                     Path::new("usr/share/doc")
                         .join(&self.deb_name)
-                        .join("changelog.gz"),
+                        .join("changelog.Debian.gz"),
                     0o644,
                     false,
                 ));
