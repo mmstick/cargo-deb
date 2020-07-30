@@ -52,14 +52,15 @@ Everything is optional:
         - If is argument ends with `/` it will be inferred that the target is the directory where the file will be copied.
         - Otherwise, it will be inferred that the source argument will be renamed when copied.
     3. The third argument is the permissions (octal string) to assign that file.
- - **maintainer-scripts** - directory containing `templates`, `preinst`, `postinst`, `prerm`, or `postrm` [scripts](https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html).
- - **conf-files** - [List of configuration files](https://www.debian.org/doc/manuals/maint-guide/dother.en.html#conffiles) that the package management system will not overwrite when the package is upgraded.
+ - **maintainer-scripts**: directory containing `templates`, `preinst`, `postinst`, `prerm`, or `postrm` [scripts](https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html).
+ - **conf-files**: [List of configuration files](https://www.debian.org/doc/manuals/maint-guide/dother.en.html#conffiles) that the package management system will not overwrite when the package is upgraded.
  - **triggers-file**: Path to triggers control file for use by the dpkg trigger facility.
  - **changelog**: Path to Debian-formatted [changelog file](https://www.debian.org/doc/manuals/maint-guide/dreq.en.html#changelog).
  - **features**: List of [Cargo features](https://doc.rust-lang.org/cargo/reference/manifest.html#the-features-section) to use when building the package.
  - **default-features**: whether to use default crate features in addition to the `features` list (default `true`).
  - **separate-debug-symbols**: whether to keep debug symbols, but strip them from executables and save them in separate files (default `false`).
  - **preserve-symlinks**: Whether to preserve symlinks in the asset files (default `false`).
+ - **systemd-units**: Optional configuration settings for automated installation of systemd units.
 
 ### `[package.metadata.deb.systemd-units]` options
 
@@ -74,12 +75,12 @@ This works as follows:
 
 The exact behaviour can be tuned using the following options:
 
- - **unit-scripts** - directory containing zero or more [systemd unit files](https://www.freedesktop.org/software/systemd/man/systemd.unit.html) (see below for matching rules) (default `maintainer-scripts`).
- - **unit-name** - only include systemd unit files for this unit (see below for matching rules).
- - **enable** - enable the systemd unit on package installation and disable it on package removal (default `true`).
- - **start** - start the systemd unit on package installation and stop it on package removal (default `true`).
- - **restart-after-upgrade** - if true, postpone systemd service restart until after upgrade is complete (+ = less downtime, - = can confuse some programs), otherwise stop the service before upgrade and start it again after upgrade (default `true`).
- - **stop-on-upgrade** - if true stop the systemd on package upgrade and removal, otherwise stop the sytemsd service only on package removal (default `true`).
+ - **unit-scripts**: Directory containing zero or more [systemd unit files](https://www.freedesktop.org/software/systemd/man/systemd.unit.html) (see below for matching rules) (default `maintainer-scripts`).
+ - **unit-name**: Only include systemd unit files for this unit (see below for matching rules).
+ - **enable**: Enable the systemd unit on package installation and disable it on package removal (default `true`).
+ - **start**: Start the systemd unit on package installation and stop it on package removal (default `true`).
+ - **restart-after-upgrade**: If true, postpone systemd service restart until after upgrade is complete (+ = less downtime, - = can confuse some programs), otherwise stop the service before upgrade and start it again after upgrade (default `true`).
+ - **stop-on-upgrade**: If true stop the systemd on package upgrade and removal, otherwise stop the sytemsd service only on package removal (default `true`).
 
 Systemd unit file names must match one of the following patterns:
 
