@@ -96,8 +96,8 @@ pub(crate) struct SystemdUnitsConfig {
 impl From<&SystemdUnitsConfig> for dh_installsystemd::Options {
     fn from(config: &SystemdUnitsConfig) -> Self {
         Self {
-            no_enable: !config.enable.unwrap_or(false),
-            no_start: !config.start.unwrap_or(false),
+            no_enable: !config.enable.unwrap_or(true),
+            no_start: !config.start.unwrap_or(true),
             restart_after_upgrade: config.restart_after_upgrade.unwrap_or(true),
             no_stop_on_upgrade: !config.stop_on_upgrade.unwrap_or(true),
         }
