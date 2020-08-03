@@ -172,7 +172,7 @@ fn autoscript_sed(
     for (from, to) in replacements {
         snippet = snippet.replace(&format!("#{}#", from), to);
     }
-    String::from(snippet)
+    snippet
 }
 
 /// Copy the merged autoscript fragments to the final maintainer script, either
