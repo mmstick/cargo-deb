@@ -56,7 +56,7 @@ struct Autoscripts;
 /// # References
 ///
 /// https://git.launchpad.net/ubuntu/+source/debhelper/tree/lib/Debian/Debhelper/Dh_Lib.pm?h=applied/12.10ubuntu1#n957
-pub(crate) fn pkgfile(dir: &PathBuf, package: &str, filename: &str, unit_name: Option<&str>)
+pub(crate) fn pkgfile(dir: &Path, package: &str, filename: &str, unit_name: Option<&str>)
      -> Option<PathBuf>
 {
     // From man 1 dh_installsystemd on Ubuntu 20.04 LTS. See:
@@ -188,7 +188,7 @@ fn autoscript_sed(
 /// # References
 ///
 /// https://git.launchpad.net/ubuntu/+source/debhelper/tree/lib/Debian/Debhelper/Dh_Lib.pm?h=applied/12.10ubuntu1#n2161
-fn debhelper_script_subst(tmp_dir: &PathBuf, package: &str, script: &str, unit_name: Option<&str>,
+fn debhelper_script_subst(tmp_dir: &Path, package: &str, script: &str, unit_name: Option<&str>,
     listener: &mut dyn Listener)
 {
     let user_file = pkgfile(tmp_dir, package, script, unit_name);
@@ -230,7 +230,7 @@ fn debhelper_script_subst(tmp_dir: &PathBuf, package: &str, script: &str, unit_n
 /// collected in the temp directory with the originals supplied by the user.
 /// 
 /// See: https://git.launchpad.net/ubuntu/+source/debhelper/tree/dh_installdeb?h=applied/12.10ubuntu1#n300
-pub(crate) fn apply(tmp_dir: &PathBuf, package: &str, unit_name: Option<&str>,
+pub(crate) fn apply(tmp_dir: &Path, package: &str, unit_name: Option<&str>,
     listener: &mut dyn Listener)
 {
     for script in &["postinst", "preinst", "prerm", "postrm"] {
