@@ -329,7 +329,7 @@ pub struct Config {
     pub(crate) assets: Assets,
     /// The location of the triggers file
     pub triggers_file: Option<PathBuf>,
-    /// The path were possible maintainer scripts live
+    /// The path where possible maintainer scripts live
     pub maintainer_scripts: Option<PathBuf>,
     /// List of Cargo features to use during build
     pub features: Vec<String>,
