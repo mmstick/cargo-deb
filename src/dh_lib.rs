@@ -172,6 +172,11 @@ fn autoscript_sed(
     for (from, to) in replacements {
         snippet = snippet.replace(&format!("#{}#", from), to);
     }
+
+    if !snippet.ends_with('\n') {
+        snippet.push('\n');
+    }
+
     snippet
 }
 
