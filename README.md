@@ -39,16 +39,15 @@ Everything is optional:
 - **name**: The name of the Debian package. If not present, the name of the crate is used.
 - **maintainer**: The person maintaining the Debian packaging. If not present, the first author is used.
 - **copyright**: To whom and when the copyright of the software is granted. If not present, the list of authors is used.
-- **license-file**: The location of the license and the amount of lines to skip at the top. If not present, package-level `license-file` is used.
-- **depends**: The runtime [dependencies](https://www.debian.org/doc/debian-policy/ch-relationships.html) of the project, which are automatically generated with the `$auto` keyword.
-- **build-depends**: The build dependencies of the project.
+- **license-file**: 2-element array with a location of the license file and the amount of lines to skip at the top. If not present, package-level `license-file` is used.
+- **depends**: The runtime [dependencies](https://www.debian.org/doc/debian-policy/ch-relationships.html) of the project. Generated automatically when absent, or if the list includes the `$auto` keyword.
 - **conflicts**, **breaks**, **replaces**, **provides** — [package transition](https://wiki.debian.org/PackageTransition) control.
 - **extended-description**: An extended description of the project — the more detailed the better. Either **extended-description-file** (see below) or package's `readme` file is used if it is not provided.
 - **extended-description-file**: A file with extended description of the project. When specified, used if **extended-description** is not provided.
 - **revision**: Version of the Debian package (when the package is updated more often than the project).
 - **section**: The [application category](https://packages.debian.org/stretch/) that the software belongs to.
 - **priority**: Defines if the package is `required` or `optional`.
-- **assets**: Files to be included in the package and the permissions to assign them. If assets are not specified, then defaults are taken from binaries explicitly listed in `[[bin]]` (copied to `/usr/bin/`) and package `readme` (copied to `usr/share/doc/…`).
+- **assets**: Files to be included in the package and the permissions to assign them. If assets are not specified, then defaults are taken from binaries listed in `[[bin]]` (copied to `/usr/bin/`) and package `readme` (copied to `usr/share/doc/…`).
     1. The first argument of each asset is the location of that asset in the Rust project. Glob patterns are allowed. You can use `target/release/` in asset paths, even if Cargo is configured to cross-compile or use custom `CARGO_TARGET_DIR`. The target dir paths will be automatically corrected.
     2. The second argument is where the file will be copied.
         - If is argument ends with `/` it will be inferred that the target is the directory where the file will be copied.
@@ -125,7 +124,7 @@ Flags after `--` are passed to `cargo build`, so you can use options such as `-Z
 
 ### Workspaces
 
-Workspaces are not fully supported yet. [Please leave feedback if you're interested in workspace support](https://github.com/mmstick/cargo-deb/issues/49).
+Cargo-deb understands workspaces, but doesn't have sophisticated control for packags in the workspace. [Please leave feedback if you're interested in workspace support](https://github.com/mmstick/cargo-deb/issues/49).
 
 It's possible to build a project in another directory with `cargo deb --manifest-path=<path/to/Cargo.toml>`.
 
