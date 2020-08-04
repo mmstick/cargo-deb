@@ -37,6 +37,9 @@ quick_error! {
         BuildFailed {
             display("build failed")
         }
+        DebHelperReplaceFailed(name: PathBuf) {
+            display("unable to replace #DEBHELPER# token in maintainer script '{}'", name.display())
+        }
         StripFailed(name: PathBuf, reason: String) {
             display("unable to strip binary '{}': {}", name.display(), reason)
         }
@@ -54,6 +57,10 @@ quick_error! {
             from()
             display("unable to parse `cargo metadata` output")
             cause(err)
+        }
+        ParseUTF8(err: std::str::Utf8Error) {
+            from()
+            from(err: std::string::FromUtf8Error) -> (err.utf8_error())
         }
         PackageNotFound(path: String, reason: Vec<u8>) {
             display("path '{}' does not belong to a package: {}", path, String::from_utf8_lossy(reason))

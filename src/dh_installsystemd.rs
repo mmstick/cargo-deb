@@ -26,7 +26,7 @@ use crate::util::*;
 
 // the map macro is defined in util.rs but gets exported at the crate root so
 // has to be imported like this:
-use crate::map;
+use crate::{CDResult, map};
 
 /// From man 1 dh_installsystemd on Ubuntu 20.04 LTS. See:
 ///   http://manpages.ubuntu.com/manpages/focal/en/man1/dh_installsystemd.1.html
@@ -206,30 +206,22 @@ fn unquote(s: &str) -> &str {
 /// manually in Cargo.toml, that will be installed into `LIB_SYSTEMD_SYSTEM_DIR`
 /// will be analysed.
 /// 
-/// User supplied maintainer scripts are copied into the provided temporary
-/// directory. A later call to `dh_lib::apply()` will merge the results of this
-/// function into those copies of the maintainer scripts, the users originals
-/// will be left untouched.
+/// Unlike `dh_installsystemd` results are returned as a `ScriptFragments` value
+/// rather than being written to temporary files on disk.
+/// 
+/// # Usage
+/// 
+/// Pass the `ScriptFragments` result to `apply()`.
 /// 
 /// See:
 ///   https://git.launchpad.net/ubuntu/+source/debhelper/tree/dh_installsystemd?h=applied/12.10ubuntu1#n288
 pub fn generate(
-    dir: &PathBuf,
     package: &str,
-    assets: &std::vec::Vec<Asset>,
-    tmp_dir: &Path,
+    assets: &Vec<Asset>,
     options: &Options,
-    listener: &mut dyn Listener)
+    listener: &mut dyn Listener) -> CDResult<ScriptFragments>
 {
-    // copy maintainer scripts to the temporary directory.
-    for script_name in &["preinst", "postinst", "prerm", "postrm"] {
-        let src_path = dir.join(script_name);
-        if src_path.exists() {
-            let dst_path = tmp_dir.join(script_name);
-            listener.info(format!("Found user supplied maintainer script {}", script_name));
-            copy_file(&src_path, &dst_path).unwrap();
-        }
-    }
+    let mut scripts = ScriptFragments::new();
 
     // add postinst code blocks to handle tmpfiles
     // see: https://salsa.debian.org/debian/debhelper/-/blob/master/dh_installsystemd#L305
@@ -241,8 +233,8 @@ pub fn generate(
         .join(" ");
 
     if !tmp_file_names.is_empty() {
-        autoscript(&tmp_dir, package, "postinst", "postinst-init-tmpfiles",
-            &map!{ "TMPFILES" => tmp_file_names}, listener);
+        autoscript(&mut scripts, package, "postinst", "postinst-init-tmpfiles",
+            &map!{ "TMPFILES" => tmp_file_names}, listener)?;
     }
 
     // add postinst, prerm, and postrm code blocks to handle activation,
@@ -288,9 +280,7 @@ pub fn generate(
                 .find(|&item| item.target_path == needle)
                 .unwrap()
                 .source
-                .data()
-                .unwrap();
-
+                .data()?;
             let reader = data.into_owned();
 
             // for every line in the file look for specific keys that we are
@@ -353,11 +343,11 @@ pub fn generate(
             false => "postinst-systemd-enable",
         };
         for unit in &enable_units {
-            autoscript(&tmp_dir, package, "postinst", snippet,
-                &map!{ "UNITFILE" => unit.clone()}, listener);
+            autoscript(&mut scripts, package, "postinst", snippet,
+                &map!{ "UNITFILE" => unit.clone()}, listener)?;
         }
-        autoscript(&tmp_dir, package, "postrm", "postrm-systemd",
-            &map!{ "UNITFILES" => enable_units.join(" ")}, listener);
+        autoscript(&mut scripts, package, "postrm", "postrm-systemd",
+            &map!{ "UNITFILES" => enable_units.join(" ")}, listener)?;
     }
 
     // update the maintainer scripts to start units, where the exact action to
@@ -378,27 +368,28 @@ pub fn generate(
                     replace.insert("RESTART_ACTION", "restart".to_string());
                 }
             };
-            autoscript(&tmp_dir, package, "postinst", snippet, &replace, listener);
+            autoscript(&mut scripts, package, "postinst", snippet, &replace, listener)?;
         } else {
             if !options.no_start {
                 // (stop|start) service (before|after) upgrade
-                autoscript(&tmp_dir, package, "postinst", "postinst-systemd-start", &replace, listener);
+                autoscript(&mut scripts, package, "postinst", "postinst-systemd-start", &replace, listener)?;
             }
         }
 
         if options.no_stop_on_upgrade || options.restart_after_upgrade {
             // stop service only on remove
-			autoscript(&tmp_dir, package, "prerm", "prerm-systemd-restart", &replace, listener);
+			autoscript(&mut scripts, package, "prerm", "prerm-systemd-restart", &replace, listener)?;
         } else {
             if !options.no_start {
                 // always stop service
-                autoscript(&tmp_dir, package, "prerm", "prerm-systemd", &replace, listener);
+                autoscript(&mut scripts, package, "prerm", "prerm-systemd", &replace, listener)?;
             }
         }
 
         // Run this with "default" order so it is always after other service
         // related autosnippets.
-		autoscript(&tmp_dir, package, "postrm", "postrm-systemd-reload-only", &replace, listener);
+		autoscript(&mut scripts, package, "postrm", "postrm-systemd-reload-only", &replace, listener)?;
     }
-}
 
+    Ok(scripts)
+}

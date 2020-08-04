@@ -18,12 +18,10 @@
 use rust_embed::RustEmbed;
 
 use std::collections::HashMap;
-use std::fs::File;
-use std::fs::OpenOptions;
-use std::io::prelude::*;
 use std::path::{Path, PathBuf};
 
-use crate::listener::Listener;
+use crate::{CDResult, listener::Listener};
+use crate::error::*;
 
 /// DebHelper autoscripts are embedded in the Rust library binary. For more
 /// information about the source of the scripts see `autoscripts/README.md`.
@@ -31,7 +29,9 @@ use crate::listener::Listener;
 #[folder = "autoscripts/"]
 struct Autoscripts;
 
-/// Find a file in the given directory that best match the given package,
+pub(crate) type ScriptFragments = HashMap<String, Vec<u8>>;
+
+/// Find a file in the given directory that best matches the given package,
 /// filename and (optional) unit name. Enables callers to use the most specific
 /// match while also falling back to a less specific match (e.g. a file to be
 /// used as a default) when more specific matches are not available.
@@ -103,6 +103,9 @@ pub(crate) fn pkgfile(dir: &Path, package: &str, filename: &str, unit_name: Opti
 /// 
 /// The autoscripts are sourced from within the binary via the rust_embed crate.
 /// 
+/// Results are stored as updated or new entries in the `ScriptFragments` map,
+/// rather than being written to temporary files on disk.
+/// 
 /// # Known limitations
 /// 
 /// Arbitrary sed command based file editing is not supported.
@@ -111,30 +114,31 @@ pub(crate) fn pkgfile(dir: &Path, package: &str, filename: &str, unit_name: Opti
 ///
 /// https://git.launchpad.net/ubuntu/+source/debhelper/tree/lib/Debian/Debhelper/Dh_Lib.pm?h=applied/12.10ubuntu1#n1135
 pub(crate) fn autoscript(
-    tmp_dir: &Path,
+    scripts: &mut ScriptFragments,
     package: &str,
     script: &str,
     snippet_filename: &str,
     replacements: &HashMap<&str, String>,
-    listener: &mut dyn Listener)
+    listener: &mut dyn Listener) -> CDResult<()>
 {
     let bin_name = std::env::current_exe().unwrap();
     let bin_name = bin_name.file_name().unwrap();
     let bin_name = bin_name.to_str().unwrap();
-    let outfile = tmp_dir.join(format!("{}.{}.debhelper", package, script));
+    let outfile = format!("{}.{}.debhelper", package, script);
 
     listener.info(format!("Maintainer script {} will be augmented with autoscript {}", &script, snippet_filename));
 
-    if outfile.exists() && (script == "postrm" || script == "prerm") {
+    if scripts.contains_key(&outfile) && (script == "postrm" || script == "prerm") {
         if !replacements.is_empty() {
+            let existing_text = std::str::from_utf8(scripts.get(&outfile).unwrap())?;
+
             // prepend new text to existing file
             let mut new_text = String::new();
             new_text.push_str(&format!("# Automatically added by {}\n", bin_name));
             new_text.push_str(&autoscript_sed(snippet_filename, replacements));
             new_text.push_str("# End automatically added section\n");
-            new_text.push_str(&std::fs::read_to_string(&outfile).unwrap());
-            let mut file = File::create(&outfile).unwrap(); // deletes the original, if any
-            file.write_all(&new_text.into_bytes()).unwrap();
+            new_text.push_str(existing_text);
+            scripts.insert(outfile, new_text.into());
         } else {
             // We don't support sed commands yet.
             unimplemented!();
@@ -144,16 +148,13 @@ pub(crate) fn autoscript(
         new_text.push_str(&format!("# Automatically added by {:?}\n", bin_name));
         new_text.push_str(&autoscript_sed(snippet_filename, replacements));
         new_text.push_str("# End automatically added section\n");
-        let mut file = if !outfile.exists() {
-            File::create(&outfile).unwrap()
-        } else {
-            OpenOptions::new().append(true).open(&outfile).unwrap()
-        };
-        file.write_all(&new_text.into_bytes()).unwrap();
+        scripts.insert(outfile, new_text.into());
     } else {
         // We don't support sed commands yet.
         unimplemented!();
     }
+
+    Ok(())
 }
 
 /// Search and replace a collection of key => value pairs in the given file and
@@ -184,6 +185,11 @@ fn autoscript_sed(
 /// at the point where the user placed a #DEBHELPER# token to indicate where
 /// they should be inserted, or by adding a shebang header to make the fragments
 /// into a complete shell script.
+///
+/// # Cargo Deb specific behaviour
+/// 
+/// Results are stored as updated or new entries in the `ScriptFragments` map,
+/// rather than being written to temporary files on disk.
 /// 
 /// # Known limitations
 /// 
@@ -193,54 +199,56 @@ fn autoscript_sed(
 /// # References
 ///
 /// https://git.launchpad.net/ubuntu/+source/debhelper/tree/lib/Debian/Debhelper/Dh_Lib.pm?h=applied/12.10ubuntu1#n2161
-fn debhelper_script_subst(tmp_dir: &Path, package: &str, script: &str, unit_name: Option<&str>,
-    listener: &mut dyn Listener)
+fn debhelper_script_subst(user_scripts_dir: &Path, scripts: &mut ScriptFragments, package: &str, script: &str, unit_name: Option<&str>,
+    listener: &mut dyn Listener) -> CDResult<()>
 {
-    let user_file = pkgfile(tmp_dir, package, script, unit_name);
-    let generated_file = tmp_dir.join(format!("{}.{}.debhelper", package, script));
-    let out_file = tmp_dir.join(script);
+    let user_file = pkgfile(user_scripts_dir, package, script, unit_name);
+    let generated_file_name = format!("{}.{}.debhelper", package, script);
 
-    if user_file.is_some() {
-        listener.info(format!("Augmenting maintainer script {}", script));
+    if let Some(user_file_path) = user_file {
+        listener.info(format!("Augmenting maintainer script {}", user_file_path.display()));
 
         // merge the generated scripts if they exist into the user script
         // if no generated script exists, we still need to remove #DEBHELPER# if
         // present otherwise the script will be syntactically invalid
-        let generated_text = if generated_file.exists() {
-            std::fs::read_to_string(generated_file).unwrap()
-        } else {
-            String::from("")
+        let generated_text = match scripts.get(&generated_file_name) {
+            Some(contents) => String::from_utf8(contents.clone())?,
+            None           => String::from("")
         };
-        let user_text = std::fs::read_to_string(user_file.clone().unwrap()).unwrap();
+        let user_text = std::fs::read_to_string(user_file_path.as_path())?;
         let new_text = user_text.replace("#DEBHELPER#", &generated_text);
         if new_text == user_text {
-            panic!("#DEBHELPER# token not found in maintainer script {:?}",
-                user_file.unwrap().strip_prefix(tmp_dir).unwrap());
+            return Err(CargoDebError::DebHelperReplaceFailed(user_file_path));
         }
-        let mut file = File::create(out_file).unwrap(); // deletes the original, if any
-        file.write_all(&new_text.into_bytes()).unwrap();
-    } else if generated_file.exists() {
+        scripts.insert(script.to_string(), new_text.into());
+    } else if let Some(generated_bytes) = scripts.get(&generated_file_name) {
         listener.info(format!("Generating maintainer script {}", script));
+
         // give it a shebang header and rename it
         let mut new_text = String::new();
         new_text.push_str("#!/bin/sh\n");
         new_text.push_str("set -e\n");
-        new_text.push_str(&std::fs::read_to_string(&generated_file).unwrap());
-        let mut file = File::create(out_file).unwrap(); // deletes the original, if any
-        file.write_all(&new_text.into_bytes()).unwrap();
+        new_text.push_str(std::str::from_utf8(generated_bytes)?);
+
+        scripts.insert(script.to_string(), new_text.into());
     }
+
+    Ok(())
 }
 
 /// Generate final maintainer scripts by merging the autoscripts that have been
-/// collected in the temp directory with the originals supplied by the user.
+/// collected in the `ScriptFragments` map  with the maintainer scripts
+/// on disk supplied by the user.
 /// 
 /// See: https://git.launchpad.net/ubuntu/+source/debhelper/tree/dh_installdeb?h=applied/12.10ubuntu1#n300
-pub(crate) fn apply(tmp_dir: &Path, package: &str, unit_name: Option<&str>,
-    listener: &mut dyn Listener)
+pub(crate) fn apply(user_scripts_dir: &Path, scripts: &mut ScriptFragments, package: &str, unit_name: Option<&str>,
+    listener: &mut dyn Listener) -> CDResult<()>
 {
     for script in &["postinst", "preinst", "prerm", "postrm"] {
-        // note: we don't support custom defines thus we don't have the a last
+        // note: we don't support custom defines thus we don't have the final
         // 'package_subst' argument to debhelper_script_subst().
-        debhelper_script_subst(tmp_dir, package, script, unit_name, listener);
+        debhelper_script_subst(user_scripts_dir, scripts, package, script, unit_name, listener)?;
     }
+
+    Ok(())
 }

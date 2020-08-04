@@ -6,12 +6,12 @@ use crate::tararchive::Archive;
 use crate::wordsplit::WordSplit;
 use crate::dh_installsystemd;
 use crate::dh_lib;
-use crate::util::find_first;
 use md5::Digest;
 use std::collections::HashMap;
 use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
+use dh_lib::ScriptFragments;
 
 /// Generates an uncompressed tar archive with `control`, `md5sums`, and others
 pub fn generate_archive(options: &Config, time: u64, asset_hashes: HashMap<PathBuf, Digest>, listener: &mut dyn Listener) -> CDResult<Vec<u8>> {
@@ -45,40 +45,19 @@ pub fn generate_archive(options: &Config, time: u64, asset_hashes: HashMap<PathB
 /// When `systemd_units` is configured, user supplied `maintainer_scripts` must
 /// contain a `#DEBHELPER#` token at the point where shell script fragments
 /// should be inserted.
-/// 
-/// When `systemd_units` is configured, a directory for temporarily storing
-/// selected shell script fragments will be created inside the cargo deb temp
-/// directory, and will be cleaned up/removed when the cargo deb temp directory
-/// is cleaned up/removed.
-/// 
-/// # Panics
-/// 
-/// When `systemd_units` is configured, failure to replace the `#DEBHELPER#`
-/// token because it is not present in a user supplied `maintainer_script` will
-/// cause a panic.
 fn generate_scripts(archive: &mut Archive, option: &Config, listener: &mut dyn Listener) -> CDResult<()> {
-    if let Some(ref maintainer_scripts) = option.maintainer_scripts {
-        let mut search_dirs = vec![maintainer_scripts.clone()];
+    if let Some(ref maintainer_scripts_dir) = option.maintainer_scripts {
+        let mut scripts;
 
         if let Some(systemd_units_config) = &option.systemd_units {
-            // Ensure we have a clean temporary directory for working on
-            // maintainer scripts and autoscript fragments.
-            let tmp_dir = option.deb_temp_dir().join("systemd");
-            if tmp_dir.exists() {
-                fs::remove_dir_all(&tmp_dir).map_err(|e| CargoDebError::Io(e))?;
-            }
-            fs::create_dir(&tmp_dir).map_err(|e| CargoDebError::Io(e))?;
-
             // Select and populate autoscript templates relevant to the unit
             // file(s) in this package and the configuration settings chosen.
-            dh_installsystemd::generate(
-                maintainer_scripts,
+            scripts = dh_installsystemd::generate(
                 &option.name,
                 &option.assets.resolved,
-                &tmp_dir,
                 &dh_installsystemd::Options::from(systemd_units_config),
-                listener);
-                
+                listener)?;
+
             // Get Option<&str> from Option<String>
             let unit_name = systemd_units_config.unit_name
                 .as_ref().map(|s| s.as_str());
@@ -86,27 +65,29 @@ fn generate_scripts(archive: &mut Archive, option: &Config, listener: &mut dyn L
             // Replace the #DEBHELPER# token in the users maintainer scripts
             // and/or generate maintainer scripts from scratch as needed.
             dh_lib::apply(
-                &tmp_dir,
+                &maintainer_scripts_dir,
+                &mut scripts,
                 &option.name,
                 unit_name,
-                listener);
-
-            // Use the maintainer scripts that we just created/customized in
-            // preference to the unmodified user supplied versions.
-            search_dirs.insert(0, tmp_dir);
+                listener)?;
+        } else {
+            scripts = ScriptFragments::with_capacity(0);
         }
 
         // Add maintainer scripts to the archive, either those supplied by the
         // user or if available prefer modified versions generated above.
         for name in &["config", "preinst", "postinst", "prerm", "postrm", "templates"] {
-            if let Some(script_path) = find_first(search_dirs.as_slice(), name) {
-                let abs_path = script_path.canonicalize().unwrap();
-                let rel_path = abs_path.strip_prefix(&option.manifest_dir).unwrap();
-                listener.info(format!("Archiving {}", rel_path.to_string_lossy()));
+            let mut script = scripts.remove(&name.to_string());
 
-                if let Ok(script) = fs::read(script_path) {
-                    archive.file(name, &script, 0o755)?;
+            if script.is_none() {
+                let script_path = maintainer_scripts_dir.join(name);
+                if script_path.exists() {
+                    script = Some(fs::read(script_path)?);
                 }
+            }
+
+            if let Some(contents) = script {
+                archive.file(name, &contents, 0o755)?;
             }
         }
     }

@@ -1,14 +1,9 @@
 use std::collections::HashSet;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
-/// Get the filename from a path. Intended to be erplaced when testing.
+/// Get the filename from a path. Intended to be replaced when testing.
 pub(crate) fn fname_from_path(path: &Path) -> String {
     path.file_name().unwrap().to_string_lossy().to_string()
-}
-
-/// Copy a file from `from` to `to`. Intended to be replaced when testing.
-pub(crate) fn copy_file(from: &Path, to: &Path) -> std::io::Result<u64> {
-    std::fs::copy(&from, &to)
 }
 
 /// Create a HashMap from one or more key => value pairs in a single statement.
@@ -45,16 +40,4 @@ impl MyJoin for HashSet<String> {
         }
         v.join(sep)
     }
-}
-
-/// Return Some(path) to the first directory in the `search_dirs` array that
-/// contains an immediate child file with name `filename`, if found, else None.
-pub(crate) fn find_first(search_dirs: &[PathBuf], filename: &str) -> Option<PathBuf> {
-    search_dirs.iter().find_map(|dir| {
-        let abs_path = dir.join(filename);
-        match abs_path.exists() {
-            true => Some(abs_path),
-            false => None
-        }
-    })
 }
