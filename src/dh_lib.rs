@@ -82,8 +82,21 @@ pub(crate) fn pkgfile(dir: &Path, package: &str, filename: &str, unit_name: Opti
     paths_to_try.push(dir.join(named_filename.clone()));
     paths_to_try.push(dir.join(filename.clone()));
 
+    fn is_file(path: &PathBuf) -> bool {
+        cfg_if! {
+            if #[cfg(test)] {
+                // Avoid accessing the filesystem when testing so that we don't
+                // have to create real directories and files in unique locations
+                // for each test run in parallel, uggh.
+                path.mock_is_file()
+            } else {
+                path.is_file()
+            }
+        }
+    }
+
     for path_to_try in paths_to_try {
-        if path_to_try.is_file() {
+        if is_file(&path_to_try) {
             return Some(path_to_try);
         }
     }
@@ -251,4 +264,181 @@ pub(crate) fn apply(user_scripts_dir: &Path, scripts: &mut ScriptFragments, pack
     }
 
     Ok(())
+}
+
+cfg_if! {
+    if #[cfg(test)] {
+        // ---------------------------------------------------------------------
+        // Begin: testable extension to PathBuf
+        // ---------------------------------------------------------------------
+        // The pkgfile() function accesses the filesystem directly via its use
+        // the Path(Buf)::is_file() method which checks for the existence of a
+        // file in the real filesystem.
+        //
+        // To test this without having to create real files and directories we
+        // extend the PathBuf type via a trait with a mock_is_file() method
+        // which, in test builds, is used by pkgfile() instead of the real
+        // PathBuf::is_file() method.
+        //
+        // The mock_is_file() method looks up the current path in a vector which
+        // represents a set of paths in a virtual filesystem. I don't know of a
+        // way to make additional state available to the trait, e.g. AFAIK it
+        // cannot yet have its own fields, and so it can only check global
+        // state. However, accessing global state in a multithreaded test run is
+        // unsafe, plus we want each test to define its own virtual filesystem
+        // to test against, not a single global virtual filesystem shared by all
+        // tests.
+        //
+        // To implement this test specific virtual filesystem I use a vector,
+        // protected by a thread local vector such that each test (thread) gets
+        // its own copy of the vector. To be able to mutate the vector I protect
+        // it with a Mutex. To make this setup easier to work with I define a
+        // couple of helpher functions:
+        //
+        //   - add_test_fs_paths() - adds paths to the current tests virtual fs
+        //   - with_test_fs() - passes the current tests virtual fs vector to
+        //                      a user defined callback function.
+        use std::sync::Mutex;
+
+        thread_local!(
+            static MOCK_FS: Mutex<Vec<&'static str>> = Mutex::new(vec![])
+        );
+
+        fn add_test_fs_paths(paths: &Vec<&'static str>) {
+            MOCK_FS.with(|fs| {
+                fs.lock().unwrap().extend(paths);
+            });
+        }
+
+        fn with_test_fs<F, R>(callback: F) -> R
+        where
+            F: Fn(&Vec<&'static str>) -> R
+        {
+            MOCK_FS.with(|fs| {
+                callback(&fs.lock().unwrap())
+            })
+        }
+
+        pub(crate) trait TestablePath {
+            fn mock_is_file(&self) -> bool;
+        }
+
+        impl TestablePath for PathBuf {
+            fn mock_is_file(&self) -> bool {
+                with_test_fs(|fs| {
+                    fs.contains(&self.to_str().unwrap())
+                })
+            }
+        }
+        // ---------------------------------------------------------------------
+        // End: testable extension to PathBuf
+        // ---------------------------------------------------------------------
+
+        mod tests {
+            use super::*;
+
+            // helper conversion
+            // create a new type to work around error "only traits defined in
+            // the current crate can be implemented for arbitrary types"
+            #[derive(Debug)]
+            struct LocalOptionPathBuf(Option<PathBuf>);
+            // Implement <&str> == <LocalOptionPathBuf> comparisons
+            impl PartialEq<LocalOptionPathBuf> for &str {
+                fn eq(&self, other: &LocalOptionPathBuf) -> bool {
+                    Some(Path::new(self).to_path_buf()) == other.0
+                }
+            }
+            // Implement <LocalOptionPathBuf> == <&str> comparisons
+            impl PartialEq<&str> for LocalOptionPathBuf {
+                fn eq(&self, other: &&str) -> bool {
+                    self.0 == Some(Path::new(*other).to_path_buf())
+                }
+            }
+
+            #[test]
+            fn pkgfile_finds_most_specific_match_with_pkg_unit_file() {
+                add_test_fs_paths(&vec![
+                    "/parent/dir/postinst",
+                    "/parent/dir/myunit.postinst",
+                    "/parent/dir/mypkg.postinst",
+                    "/parent/dir/mypkg.myunit.postinst",
+                    "/parent/dir/nested/mypkg.myunit.postinst",
+                    "/parent/mypkg.myunit.postinst",
+                ]);
+
+                let r = pkgfile(Path::new("/parent/dir/"), "mypkg", "postinst", Some("myunit"));
+                assert_eq!("/parent/dir/mypkg.myunit.postinst", LocalOptionPathBuf(r));
+
+                let r = pkgfile(Path::new("/parent/dir/"), "mypkg", "postinst", None);
+                assert_eq!("/parent/dir/mypkg.postinst", LocalOptionPathBuf(r));
+            }
+
+            #[test]
+            fn pkgfile_finds_most_specific_match_without_unit_file() {
+                add_test_fs_paths(&vec![
+                    "/parent/dir/postinst",
+                    "/parent/dir/myunit.postinst",
+                    "/parent/dir/mypkg.postinst",
+                    "/parent/dir/nested/mypkg.myunit.postinst",
+                    "/parent/mypkg.myunit.postinst",
+                ]);
+
+                let r = pkgfile(Path::new("/parent/dir/"), "mypkg", "postinst", Some("myunit"));
+                assert_eq!("/parent/dir/mypkg.postinst", LocalOptionPathBuf(r));
+
+                let r = pkgfile(Path::new("/parent/dir/"), "mypkg", "postinst", None);
+                assert_eq!("/parent/dir/mypkg.postinst", LocalOptionPathBuf(r));
+            }
+
+            #[test]
+            fn pkgfile_finds_most_specific_match_without_pkg_file() {
+                add_test_fs_paths(&vec![
+                    "/parent/dir/postinst",
+                    "/parent/dir/myunit.postinst",
+                ]);
+
+                let r = pkgfile(Path::new("/parent/dir/"), "mypkg", "postinst", Some("myunit"));
+                assert_eq!("/parent/dir/myunit.postinst", LocalOptionPathBuf(r));
+
+                let r = pkgfile(Path::new("/parent/dir/"), "mypkg", "postinst", None);
+                assert_eq!("/parent/dir/postinst", LocalOptionPathBuf(r));
+            }
+  
+            #[test]
+            fn pkgfile_finds_a_fallback_match() {
+                add_test_fs_paths(&vec![
+                    "/parent/dir/postinst",
+                    "/parent/dir/myunit.postinst",
+                    "/parent/dir/mypkg.postinst",
+                    "/parent/dir/mypkg.myunit.postinst",
+                    "/parent/dir/nested/mypkg.myunit.postinst",
+                    "/parent/mypkg.myunit.postinst",
+                ]);
+
+                let r = pkgfile(Path::new("/parent/dir/"), "mypkg", "postinst", Some("wrongunit"));
+                assert_eq!("/parent/dir/mypkg.postinst", LocalOptionPathBuf(r));
+
+                let r = pkgfile(Path::new("/parent/dir/"), "wrongpkg", "postinst", None);
+                assert_eq!("/parent/dir/postinst", LocalOptionPathBuf(r));
+            }
+
+            #[test]
+            fn pkgfile_fails_to_find_a_match() {
+                add_test_fs_paths(&vec![
+                    "/parent/dir/postinst",
+                    "/parent/dir/myunit.postinst",
+                    "/parent/dir/mypkg.postinst",
+                    "/parent/dir/mypkg.myunit.postinst",
+                    "/parent/dir/nested/mypkg.myunit.postinst",
+                    "/parent/mypkg.myunit.postinst",
+                ]);
+
+                let r = pkgfile(Path::new("/parent/dir/"), "mypkg", "wrongfile", None);
+                assert_eq!(None, r);
+
+                let r = pkgfile(Path::new("/wrong/dir/"), "mypkg", "postinst", None);
+                assert_eq!(None, r);
+            }
+       }
+    }
 }
