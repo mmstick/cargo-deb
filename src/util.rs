@@ -2,6 +2,8 @@ use std::collections::BTreeSet;
 use std::path::Path;
 
 /// Get the filename from a path. Intended to be replaced when testing.
+/// Note: Due to the way the Path type works the final component is returned
+/// even if it looks like a directory, e.g. "/some/dir/" will return "dir"...
 pub(crate) fn fname_from_path(path: &Path) -> String {
     path.file_name().unwrap().to_string_lossy().into()
 }
@@ -68,6 +70,30 @@ impl MyJoin for BTreeSet<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn fname_from_path_returns_file_name_even_if_file_does_not_exist() {
+        assert_eq!("some_name", fname_from_path(Path::new("some_name")));
+        assert_eq!("some_name", fname_from_path(Path::new("/some_name")));
+        assert_eq!("some_name", fname_from_path(Path::new("/a/b/some_name")));
+    }
+
+    #[test]
+    fn fname_from_path_returns_file_name_even_if_it_looks_like_a_directory() {
+        assert_eq!("some_name", fname_from_path(Path::new("some_name/")));
+    }
+
+    #[test]
+    #[should_panic]
+    fn fname_from_path_panics_when_path_is_empty() {
+        assert_eq!("", fname_from_path(Path::new("")));
+    }
+
+    #[test]
+    #[should_panic]
+    fn fname_from_path_panics_when_path_has_no_filename() {
+        assert_eq!("", fname_from_path(Path::new("/a/")));
+    }
 
     #[test]
     fn map_macro() {
