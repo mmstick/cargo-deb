@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::BTreeSet;
 use std::path::Path;
 
 /// Get the filename from a path. Intended to be replaced when testing.
@@ -32,8 +32,28 @@ pub(crate) trait MyJoin {
 
 /// Returns a String containing the hash set items joined together by the given
 /// separator.
-impl MyJoin for HashSet<String> {
+impl MyJoin for BTreeSet<String> {
     fn join(&self, sep: &str) -> String {
         self.iter().map(|item| item.as_str()).collect::<Vec<&str>>().join(sep)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn hashset_join() {
+        let empty: BTreeSet<String> = vec![].into_iter().collect();
+        assert_eq!("", empty.join(""));
+        assert_eq!("", empty.join(","));
+
+        let one: BTreeSet<String> = vec!["a"].into_iter().map(|s| s.to_owned()).collect();
+        assert_eq!("a", one.join(""));
+        assert_eq!("a", one.join(","));
+
+        let two: BTreeSet<String> = vec!["a", "b"].into_iter().map(|s| s.to_owned()).collect();
+        assert_eq!("ab", two.join(""));
+        assert_eq!("a,b", two.join(","));
     }
 }

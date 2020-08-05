@@ -14,7 +14,7 @@
 
 use itertools::Itertools; // for .next_tuple()
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, BTreeSet};
 use std::io::prelude::*;
 use std::path::{Path, PathBuf};
 use std::str;
@@ -244,17 +244,17 @@ pub fn generate(
 
     // skip template service files. Enabling, disabling, starting or stopping
     // those services without specifying the instance is not useful.
-    let mut installed_non_template_units: HashSet<String> = HashSet::new();
+    let mut installed_non_template_units: BTreeSet<String> = BTreeSet::new();
     installed_non_template_units.extend(assets
         .iter()
         .filter(|v| v.target_path.starts_with(LIB_SYSTEMD_SYSTEM_DIR))
         .map(|v | fname_from_path(v.target_path.as_path()))
         .filter(|fname| !fname.contains("@")));
 
-    let mut aliases = HashSet::new();
-    let mut enable_units = HashSet::new();
-    let mut start_units = HashSet::new();
-    let mut seen = HashSet::new();
+    let mut aliases = BTreeSet::new();
+    let mut enable_units = BTreeSet::new();
+    let mut start_units = BTreeSet::new();
+    let mut seen = BTreeSet::new();
 
     // note: we do not support handling of services with a sysv-equivalent
     // see: https://git.launchpad.net/ubuntu/+source/debhelper/tree/dh_installsystemd?h=applied/12.10ubuntu1#n373
@@ -265,7 +265,7 @@ pub fn generate(
     // arrange to be done for them in the maintainer scripts.
     while !units.is_empty() {
         // gather unit names mentioned in 'Also=' kv pairs in the unit files
-        let mut also_units = HashSet::<String>::new();
+        let mut also_units = BTreeSet::<String>::new();
 
         // for each unit that we have not yet processed
         for unit in units.iter() {
