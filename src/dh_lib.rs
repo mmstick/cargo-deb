@@ -220,7 +220,7 @@ fn debhelper_script_subst(user_scripts_dir: &Path, scripts: &mut ScriptFragments
         if new_text == user_text {
             return Err(CargoDebError::DebHelperReplaceFailed(user_file_path));
         }
-        scripts.insert(script.to_string(), new_text.into());
+        scripts.insert(script.into(), new_text.into());
     } else if let Some(generated_bytes) = scripts.get(&generated_file_name) {
         listener.info(format!("Generating maintainer script {}", script));
 
@@ -230,7 +230,7 @@ fn debhelper_script_subst(user_scripts_dir: &Path, scripts: &mut ScriptFragments
         new_text.push_str("set -e\n");
         new_text.push_str(std::str::from_utf8(generated_bytes)?);
 
-        scripts.insert(script.to_string(), new_text.into());
+        scripts.insert(script.into(), new_text.into());
     }
 
     Ok(())

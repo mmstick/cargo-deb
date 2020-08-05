@@ -361,11 +361,11 @@ pub fn generate(
             match options.no_start {
                 true => {
                     snippet = "postinst-systemd-restartnostart";
-                    replace.insert("RESTART_ACTION", "try-restart".to_string());
+                    replace.insert("RESTART_ACTION", "try-restart".into());
                 },
                 false => {
                     snippet = "postinst-systemd-restart";
-                    replace.insert("RESTART_ACTION", "restart".to_string());
+                    replace.insert("RESTART_ACTION", "restart".into());
                 }
             };
             autoscript(&mut scripts, package, "postinst", snippet, &replace, listener)?;

@@ -3,7 +3,7 @@ use std::path::Path;
 
 /// Get the filename from a path. Intended to be replaced when testing.
 pub(crate) fn fname_from_path(path: &Path) -> String {
-    path.file_name().unwrap().to_string_lossy().to_string()
+    path.file_name().unwrap().to_string_lossy().into()
 }
 
 /// Create a HashMap from one or more key => value pairs in a single statement.
