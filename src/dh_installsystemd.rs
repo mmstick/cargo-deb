@@ -179,6 +179,10 @@ pub fn find_units(
     installables
 }
 
+/// Determine if the given string is a systemd unit file comment line.
+/// 
+/// See:
+///   https://www.freedesktop.org/software/systemd/man/systemd.syntax.html#Introduction
 fn is_comment(s: &str) -> bool {
     match s.chars().next() {
         Some('#') => true,
@@ -187,8 +191,20 @@ fn is_comment(s: &str) -> bool {
     }
 }
 
+/// Strip off any first layer of outer quotes according to systemd quoting
+/// rules.
+/// 
+/// See:
+///   https://www.freedesktop.org/software/systemd/man/systemd.service.html#Command%20lines
 fn unquote(s: &str) -> &str {
-    s.trim_matches(|c| c == '"' || c == '\'')
+    println!("s: [{}] len={}", s, s.len());
+    if s.len() > 1 &&
+       ((s.starts_with("\"") && s.ends_with("\"")) ||
+       (s.starts_with("'") && s.ends_with("'"))) {
+        &s[std::ops::Range {start: 1, end: s.len()-1}]
+    } else {
+        s
+    }
 }
 
 /// This function implements the primary logic of the Debian dh_installsystemd
@@ -389,4 +405,75 @@ pub fn generate(
     }
 
     Ok(scripts)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn is_comment_detects_comments() {
+        assert!(is_comment("#"));
+        assert!(is_comment("#  "));
+        assert!(is_comment("# some comment"));
+        assert!(is_comment(";"));
+        assert!(is_comment(";  "));
+        assert!(is_comment("; some comment"));
+    }
+
+    #[test]
+    fn is_comment_detects_non_comments() {
+        assert!(!is_comment(" #"));
+        assert!(!is_comment(" #  "));
+        assert!(!is_comment(" # some comment"));
+        assert!(!is_comment(" ;"));
+        assert!(!is_comment(" ;  "));
+        assert!(!is_comment(" ; some comment"));
+    }
+
+    #[test]
+    fn unquote_unquotes_matching_single_quotes() {
+        assert_eq!("", unquote("''"));
+        assert_eq!("a", unquote("'a'"));
+        assert_eq!("ab", unquote("'ab'"));
+    }
+
+    #[test]
+    fn unquote_unquotes_matching_double_quotes() {
+        assert_eq!("", unquote(r#""""#));
+        assert_eq!("a", unquote(r#""a""#));
+        assert_eq!("ab", unquote(r#""ab""#));
+    }
+
+    #[test]
+    fn unquote_ignores_embedded_quotes() {
+        assert_eq!("a'b", unquote("'a'b'"));
+        assert_eq!(r#"a"b"#, unquote(r#"'a"b'"#));
+        assert_eq!(r#"a"b"#, unquote(r#""a"b""#));
+        assert_eq!(r#"a'b"#, unquote(r#""a'b""#));
+    }
+
+    #[test]
+    fn unquote_ignores_partial_quotes() {
+        assert_eq!("'", unquote("'"));
+        assert_eq!("'ab", unquote("'ab"));
+        assert_eq!("ab'", unquote("ab'"));
+        assert_eq!("'ab'ab", unquote("'ab'ab"));
+        assert_eq!("ab'ab'", unquote("ab'ab'"));
+        assert_eq!(r#"""#, unquote(r#"""#));
+        assert_eq!(r#""ab"#, unquote(r#""ab"#));
+        assert_eq!(r#"ab""#, unquote(r#"ab""#));
+        assert_eq!(r#""ab"ab"#, unquote(r#""ab"ab"#));
+        assert_eq!(r#"ab"ab""#, unquote(r#"ab"ab""#));
+    }
+
+    #[test]
+    fn unquote_ignores_mismatched_quotes() {
+        assert_eq!(r#""'"#, unquote(r#""'"#));
+        assert_eq!(r#"'""#, unquote(r#"'""#));
+        assert_eq!(r#""a'"#, unquote(r#""a'"#));
+        assert_eq!(r#"'a""#, unquote(r#"'a""#));
+        assert_eq!(r#""ab'"#, unquote(r#""ab'"#));
+        assert_eq!(r#"'ab""#, unquote(r#"'ab""#));
+    }
 }
