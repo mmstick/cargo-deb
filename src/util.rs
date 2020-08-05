@@ -34,10 +34,6 @@ pub(crate) trait MyJoin {
 /// separator.
 impl MyJoin for HashSet<String> {
     fn join(&self, sep: &str) -> String {
-        let mut v = Vec::<&str>::new();
-        for item in self.iter() {
-            v.push(item.as_str());
-        }
-        v.join(sep)
+        self.iter().map(|item| item.as_str()).collect::<Vec<&str>>().join(sep)
     }
 }
