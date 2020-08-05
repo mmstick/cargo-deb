@@ -23,10 +23,7 @@ use crate::manifest::Asset;
 use crate::dh_lib::*;
 use crate::listener::Listener;
 use crate::util::*;
-
-// the map macro is defined in util.rs but gets exported at the crate root so
-// has to be imported like this:
-use crate::{CDResult, map};
+use crate::CDResult;
 
 /// From man 1 dh_installsystemd on Ubuntu 20.04 LTS. See:
 ///   http://manpages.ubuntu.com/manpages/focal/en/man1/dh_installsystemd.1.html
@@ -234,7 +231,7 @@ pub fn generate(
 
     if !tmp_file_names.is_empty() {
         autoscript(&mut scripts, package, "postinst", "postinst-init-tmpfiles",
-            &map!{ "TMPFILES" => tmp_file_names}, listener)?;
+            &map!{ "TMPFILES" => tmp_file_names }, listener)?;
     }
 
     // add postinst, prerm, and postrm code blocks to handle activation,
@@ -344,17 +341,17 @@ pub fn generate(
         };
         for unit in &enable_units {
             autoscript(&mut scripts, package, "postinst", snippet,
-                &map!{ "UNITFILE" => unit.clone()}, listener)?;
+                &map!{ "UNITFILE" => unit.clone() }, listener)?;
         }
         autoscript(&mut scripts, package, "postrm", "postrm-systemd",
-            &map!{ "UNITFILES" => enable_units.join(" ")}, listener)?;
+            &map!{ "UNITFILES" => enable_units.join(" ") }, listener)?;
     }
 
     // update the maintainer scripts to start units, where the exact action to
     // be taken is influenced by the options passed to us.
     // see: https://git.launchpad.net/ubuntu/+source/debhelper/tree/dh_installsystemd?h=applied/12.10ubuntu1#n398
     if !start_units.is_empty() {
-        let mut replace = map!{ "UNITFILES" => start_units.join(" ")};
+        let mut replace = map!{ "UNITFILES" => start_units.join(" ") };
 
         if options.no_stop_on_upgrade {
             let snippet;

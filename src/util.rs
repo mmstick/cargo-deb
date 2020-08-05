@@ -8,10 +8,29 @@ pub(crate) fn fname_from_path(path: &Path) -> String {
 
 /// Create a HashMap from one or more key => value pairs in a single statement.
 /// 
+/// # Usage
+/// 
+/// Any types supported by HashMap for keys and values are supported:
+/// ```
+/// let mut one = std::collections::HashMap::new();
+/// one.insert(1, 'a');
+/// assert_eq!(one, map!{ 1 => 'a' });
+///
+/// let mut two = std::collections::HashMap::new();
+/// two.insert("a", 1);
+/// two.insert("b", 2);
+/// assert_eq!(two, map!{ "a" => 1, "b" => 2 });
+/// ```
+/// 
+/// Empty maps are not supported, attempting to create one will fail to compile:
+/// ```compile_fail
+/// let empty = std::collections::HashMap::new();
+/// assert_eq!(empty, map!{ });
+/// ```
+/// 
 /// # Provenance
 /// 
 /// From: https://stackoverflow.com/a/27582993
-#[macro_export]
 macro_rules! map(
     { $($key:expr => $value:expr),+ } => {
         {
@@ -43,7 +62,16 @@ mod tests {
     use super::*;
 
     #[test]
-    fn hashset_join() {
+    fn map_macro() {
+        let mut one = std::collections::HashMap::new();
+        one.insert(1, 'a');
+        assert_eq!(one, map!{ 1 => 'a' });
+
+        let mut two = std::collections::HashMap::new();
+        two.insert("a", 1);
+        two.insert("b", 2);
+        assert_eq!(two, map!{ "a" => 1, "b" => 2 });
+    }
         let empty: BTreeSet<String> = vec![].into_iter().collect();
         assert_eq!("", empty.join(""));
         assert_eq!("", empty.join(","));
