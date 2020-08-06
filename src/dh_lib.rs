@@ -23,8 +23,11 @@ use std::path::{Path, PathBuf};
 use crate::{CDResult, listener::Listener};
 use crate::error::*;
 
-/// DebHelper autoscripts are embedded in the Rust library binary. For more
-/// information about the source of the scripts see `autoscripts/README.md`.
+/// DebHelper autoscripts are embedded in the Rust library binary.
+/// The autoscripts were taken from:
+///   https://git.launchpad.net/ubuntu/+source/debhelper/tree/autoscripts?h=applied/12.10ubuntu1
+/// To understand which scripts are invoked when, consult:
+///   https://www.debian.org/doc/debian-policy/ap-flowcharts.htm
 #[derive(RustEmbed)]
 #[folder = "autoscripts/"]
 struct Autoscripts;
