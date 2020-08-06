@@ -107,6 +107,25 @@ pub(crate) fn pkgfile(dir: &Path, package: &str, filename: &str, unit_name: Opti
     None
 }
 
+/// Get the bytes for the specified filename whose contents were embedded in our
+/// binary by the rust-embed crate. See #[derive(RustEmbed)] above.
+fn get_embedded_autoscript(snippet_filename: &str) -> String {
+    // load
+    let snippet = Autoscripts::get(snippet_filename)
+        .expect(&format!("Unknown autoscript '{}'", snippet_filename));
+
+    // convert to string
+    let mut snippet = String::from(std::str::from_utf8(snippet.as_ref()).unwrap());
+
+    // normalize
+    if !snippet.ends_with('\n') {
+        snippet.push('\n');
+    }
+
+    // return
+    snippet
+}
+
 /// Build up one or more shell script fragments for a given maintainer script
 /// for a debian package in preparation for writing them into or as complete
 /// maintainer scripts in `apply()`, pulling fragments from a "library" of
@@ -180,19 +199,11 @@ pub(crate) fn autoscript(
 /// # References
 ///
 /// https://git.launchpad.net/ubuntu/+source/debhelper/tree/lib/Debian/Debhelper/Dh_Lib.pm?h=applied/12.10ubuntu1#n1203
-fn autoscript_sed(
-    snippet_filename: &str,
-    replacements: &HashMap<&str, String>)
-        -> String
-{
-    let snippet = Autoscripts::get(snippet_filename).unwrap();
-    let mut snippet = String::from(std::str::from_utf8(snippet.as_ref()).unwrap());
+fn autoscript_sed(snippet_filename: &str, replacements: &HashMap<&str, String>) -> String {
+    let mut snippet = get_embedded_autoscript(snippet_filename);
+
     for (from, to) in replacements {
         snippet = snippet.replace(&format!("#{}#", from), to);
-    }
-
-    if !snippet.ends_with('\n') {
-        snippet.push('\n');
     }
 
     snippet
@@ -309,18 +320,14 @@ cfg_if! {
         );
 
         fn add_test_fs_paths(paths: &Vec<&'static str>) {
-            MOCK_FS.with(|fs| {
-                fs.lock().unwrap().extend(paths);
-            });
+            MOCK_FS.with(|fs| fs.lock().unwrap().extend(paths));
         }
 
         fn with_test_fs<F, R>(callback: F) -> R
         where
             F: Fn(&Vec<&'static str>) -> R
         {
-            MOCK_FS.with(|fs| {
-                callback(&fs.lock().unwrap())
-            })
+            MOCK_FS.with(|fs| callback(&fs.lock().unwrap()))
         }
 
         pub(crate) trait TestablePath {
@@ -340,6 +347,7 @@ cfg_if! {
 
         mod tests {
             use super::*;
+            use rstest::*;
 
             // helper conversion
             // create a new type to work around error "only traits defined in
@@ -442,6 +450,147 @@ cfg_if! {
 
                 let r = pkgfile(Path::new("/wrong/dir/"), "mypkg", "postinst", None);
                 assert_eq!(None, r);
+            }
+
+            fn autoscript_test_wrapper(pkg: &str, script: &str, snippet: &str, unit: &str, scripts: Option<ScriptFragments>)
+                -> ScriptFragments
+            {
+                let mut mock_listener = crate::listener::MockListener::new();
+                mock_listener.expect_info().times(1).return_const(());
+                let mut scripts = scripts.unwrap_or(ScriptFragments::new());
+                let replacements = map!{ "UNITFILES" => unit.to_owned() };
+                autoscript(&mut scripts, pkg, script, snippet, &replacements, &mut mock_listener).unwrap();
+                return scripts;
+            }
+
+            #[test]
+            #[should_panic(expected = "Unknown autoscript 'idontexist'")]
+            fn autoscript_panics_with_unknown_autoscript() {
+                autoscript_test_wrapper("mypkg", "somescript", "idontexist", "dummyunit", None);
+            }
+
+            #[test]
+            #[should_panic(expected = "not implemented")]
+            fn autoscript_panics_in_sed_mode() {
+                let mut mock_listener = crate::listener::MockListener::new();
+                mock_listener.expect_info().times(1).return_const(());
+                let mut scripts = ScriptFragments::new();
+                autoscript(&mut scripts, "mypkg", "somescript", "idontexist", &HashMap::new(), &mut mock_listener).unwrap();
+            }
+
+            #[test]
+            fn autoscript_check_embedded_files() {
+                let mut actual_scripts: Vec<std::borrow::Cow<'static, str>> = Autoscripts::iter().collect();
+                actual_scripts.sort();
+
+                let expected_scripts = vec![
+                    "postinst-init-tmpfiles",
+                    "postinst-systemd-dont-enable",
+                    "postinst-systemd-enable",
+                    "postinst-systemd-restart",
+                    "postinst-systemd-restartnostart",
+                    "postinst-systemd-start",
+                    "postrm-systemd",
+                    "postrm-systemd-reload-only",
+                    "prerm-systemd",
+                    "prerm-systemd-restart",
+                ];
+
+                assert_eq!(expected_scripts, actual_scripts);
+            }
+
+            #[test]
+            fn autoscript_sanity_check_with_embedded_snippets() {
+                for snippet_filename in Autoscripts::iter() {
+                    autoscript_test_wrapper("mypkg", "somescript", &snippet_filename, "dummyunit", None);
+                }
+            }
+
+            #[rstest(maintainer_script, prepend,
+                case::prerm("prerm", true),
+                case::preinst("preinst", false),
+                case::postinst("postinst", false),
+                case::postrm("postrm", true),
+            )]
+            fn autoscript_detailed_check(maintainer_script: &str, prepend: bool) {
+                let autoscript_name = "postrm-systemd";
+
+                // Populate an autoscript template and add the result to a
+                // collection of scripts and return it to us.
+                let scripts = autoscript_test_wrapper("mypkg", maintainer_script, &autoscript_name, "dummyunit", None);
+
+                // Expect autoscript() to have created one temporary script
+                // fragment called <package>.<script>.debhelper.
+                assert_eq!(1, scripts.len());
+
+                let expected_created_name = &format!("mypkg.{}.debhelper", maintainer_script);
+                let (created_name, created_bytes) = scripts.iter().next().unwrap();
+
+                // Verify the created script filename key
+                assert_eq!(expected_created_name, created_name);
+
+                // Verify the created script contents. It should have two lines
+                // more than the autoscript fragment it was based on, like so:
+                //   # Automatically added by ...
+                //   <autoscript fragment lines with placeholders replaced>
+                //   # End automatically added section
+                let autoscript_text = get_embedded_autoscript(autoscript_name);
+                let autoscript_line_count = autoscript_text.lines().count();
+                let created_text = std::str::from_utf8(created_bytes).unwrap();
+                let created_line_count = created_text.lines().count();
+                assert_eq!(autoscript_line_count + 2, created_line_count);
+
+                // Verify the content of the added comment lines
+                let mut lines = created_text.lines();
+                assert!(lines.nth(0).unwrap().starts_with("# Automatically added by"));
+                assert_eq!(lines.nth_back(0).unwrap(), "# End automatically added section");
+
+                // Check that the autoscript fragment lines were properly copied
+                // into the created script complete with expected substitutions
+                let expected_autoscript_text1 = autoscript_text.replace("#UNITFILES#", "dummyunit");
+                let expected_autoscript_text1 = expected_autoscript_text1.trim_end();
+                let start1 = 1; let end1 = start1 + autoscript_line_count;
+                let created_autoscript_text1 = created_text.lines().collect::<Vec<&str>>()[start1..end1].join("\n");
+                assert_ne!(expected_autoscript_text1, autoscript_text);
+                assert_eq!(expected_autoscript_text1, created_autoscript_text1);
+
+                // Process the same autoscript again but use a different unit
+                // name so that we can see if the autoscript template was again
+                // populated but this time with the different value, and pass in
+                // the existing set of created scripts to check how it gets
+                // modified.
+                let scripts = autoscript_test_wrapper("mypkg", maintainer_script, &autoscript_name, "otherunit", Some(scripts));
+
+                // The number and name of the output scripts should remain the same
+                assert_eq!(1, scripts.len());
+                let (created_name, created_bytes) = scripts.iter().next().unwrap();
+                assert_eq!(expected_created_name, created_name);
+
+                // The line structure should now contain two injected blocks
+                let created_text = std::str::from_utf8(created_bytes).unwrap();
+                let created_line_count = created_text.lines().count();
+                assert_eq!((autoscript_line_count + 2) * 2, created_line_count);
+
+                let mut lines = created_text.lines();
+                assert!(lines.nth(0).unwrap().starts_with("# Automatically added by"));
+                assert_eq!(lines.nth_back(0).unwrap(), "# End automatically added section");
+
+                // The content should be different
+                let expected_autoscript_text2 = autoscript_text.replace("#UNITFILES#", "otherunit");
+                let expected_autoscript_text2 = expected_autoscript_text2.trim_end();
+                let start2 = end1 + 2; let end2 = start2 + autoscript_line_count;
+                let created_autoscript_text1 = created_text.lines().collect::<Vec<&str>>()[start1..end1].join("\n");
+                let created_autoscript_text2 = created_text.lines().collect::<Vec<&str>>()[start2..end2].join("\n");
+                assert_ne!(expected_autoscript_text1, autoscript_text);
+                assert_ne!(expected_autoscript_text2, autoscript_text);
+
+                if prepend {
+                    assert_eq!(expected_autoscript_text1, created_autoscript_text2);
+                    assert_eq!(expected_autoscript_text2, created_autoscript_text1);
+                } else {
+                    assert_eq!(expected_autoscript_text1, created_autoscript_text1);
+                    assert_eq!(expected_autoscript_text2, created_autoscript_text2);
+                }
             }
        }
     }
