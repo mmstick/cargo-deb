@@ -145,7 +145,7 @@ pub(crate) fn autoscript(
         if !replacements.is_empty() {
             let existing_text = std::str::from_utf8(scripts.get(&outfile).unwrap())?;
 
-            // prepend new text to existing file
+            // prepend new text to existing script fragment
             let mut new_text = String::new();
             new_text.push_str(&format!("# Automatically added by {}\n", bin_name));
             new_text.push_str(&autoscript_sed(snippet_filename, replacements));
@@ -157,8 +157,9 @@ pub(crate) fn autoscript(
             unimplemented!();
         }
     } else if !replacements.is_empty() {
-        let mut new_text = String::new();
-        new_text.push_str(&format!("# Automatically added by {:?}\n", bin_name));
+        // append to existing script fragment (if any)
+        let mut new_text = String::from(std::str::from_utf8(scripts.get(&outfile).unwrap_or(&Vec::new()))?);
+        new_text.push_str(&format!("# Automatically added by {}\n", bin_name));
         new_text.push_str(&autoscript_sed(snippet_filename, replacements));
         new_text.push_str("# End automatically added section\n");
         scripts.insert(outfile, new_text.into());
