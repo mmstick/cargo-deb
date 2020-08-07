@@ -34,6 +34,18 @@ struct Autoscripts;
 
 pub(crate) type ScriptFragments = HashMap<String, Vec<u8>>;
 
+cfg_if! {
+    if #[cfg(not(test))] {
+        fn is_path_file(path: &PathBuf) -> bool {
+            path.is_file()
+        }
+
+        fn read_file_to_string(path: &Path) -> std::io::Result<String> {
+            std::fs::read_to_string(path)
+        }
+    }
+}
+
 /// Find a file in the given directory that best matches the given package,
 /// filename and (optional) unit name. Enables callers to use the most specific
 /// match while also falling back to a less specific match (e.g. a file to be
@@ -85,21 +97,8 @@ pub(crate) fn pkgfile(dir: &Path, package: &str, filename: &str, unit_name: Opti
     paths_to_try.push(dir.join(named_filename.clone()));
     paths_to_try.push(dir.join(filename.clone()));
 
-    fn is_file(path: &PathBuf) -> bool {
-        cfg_if! {
-            if #[cfg(test)] {
-                // Avoid accessing the filesystem when testing so that we don't
-                // have to create real directories and files in unique locations
-                // for each test run in parallel, uggh.
-                path.mock_is_file()
-            } else {
-                path.is_file()
-            }
-        }
-    }
-
     for path_to_try in paths_to_try {
-        if is_file(&path_to_try) {
+        if is_path_file(&path_to_try) {
             return Some(path_to_try);
         }
     }
@@ -250,7 +249,7 @@ fn debhelper_script_subst(user_scripts_dir: &Path, scripts: &mut ScriptFragments
             Some(contents) => String::from_utf8(contents.clone())?,
             None           => String::from("")
         };
-        let user_text = std::fs::read_to_string(user_file_path.as_path())?;
+        let user_text = read_file_to_string(user_file_path.as_path())?;
         let new_text = user_text.replace("#DEBHELPER#", &generated_text);
         if new_text == user_text {
             return Err(CargoDebError::DebHelperReplaceFailed(user_file_path));
@@ -323,31 +322,48 @@ cfg_if! {
         use std::sync::Mutex;
 
         thread_local!(
-            static MOCK_FS: Mutex<Vec<&'static str>> = Mutex::new(vec![])
+            static MOCK_FS: Mutex<HashMap<&'static str, String>> = Mutex::new(HashMap::new())
         );
 
         fn add_test_fs_paths(paths: &Vec<&'static str>) {
-            MOCK_FS.with(|fs| fs.lock().unwrap().extend(paths));
+            MOCK_FS.with(|fs| {
+                let mut fs_map = fs.lock().unwrap();
+                for path in paths {
+                    fs_map.insert(path, "".to_owned());
+                }
+            })
+        }
+
+        fn set_test_fs_path_content(path: &'static str, contents: String) {
+            MOCK_FS.with(|fs| {
+                let mut fs_map = fs.lock().unwrap();
+                fs_map.insert(path, contents);
+            })
         }
 
         fn with_test_fs<F, R>(callback: F) -> R
         where
-            F: Fn(&Vec<&'static str>) -> R
+            F: Fn(&HashMap<&'static str, String>) -> R
         {
             MOCK_FS.with(|fs| callback(&fs.lock().unwrap()))
         }
 
-        pub(crate) trait TestablePath {
-            fn mock_is_file(&self) -> bool;
+        fn is_path_file(path: &PathBuf) -> bool {
+            with_test_fs(|fs| {
+                fs.contains_key(&path.to_str().unwrap())
+            })
         }
 
-        impl TestablePath for PathBuf {
-            fn mock_is_file(&self) -> bool {
-                with_test_fs(|fs| {
-                    fs.contains(&self.to_str().unwrap())
-                })
-            }
+        fn read_file_to_string(path: &Path) -> std::io::Result<String> {
+            with_test_fs(|fs| {
+                match fs.get(&path.to_str().unwrap()) {
+                    Some(contents) => Ok(contents.clone()),
+                    None           => Err(std::io::Error::new(std::io::ErrorKind::NotFound,
+                        format!("Test filesystem path {:?} does not exist", path)))
+                }
+            })
         }
+
         // ---------------------------------------------------------------------
         // End: testable extension to PathBuf
         // ---------------------------------------------------------------------
@@ -602,6 +618,94 @@ cfg_if! {
                     assert_eq!(expected_autoscript_text1, created_autoscript_text1);
                     assert_eq!(expected_autoscript_text2, created_autoscript_text2);
                 }
+            }
+
+            #[fixture]
+            fn empty_user_file() -> String { "".to_owned() }
+
+            #[fixture]
+            fn invalid_user_file() -> String { "some content".to_owned() }
+
+            #[fixture]
+            fn valid_user_file() -> String { "some #DEBHELPER# content".to_owned() }
+
+            #[test]
+            fn debhelper_script_subst_with_no_matching_files() {
+                let mut mock_listener = crate::listener::MockListener::new();
+                mock_listener.expect_info().times(0).return_const(());
+
+                let mut scripts = ScriptFragments::new();
+
+                assert_eq!(0, scripts.len());
+                debhelper_script_subst(Path::new(""), &mut scripts, "mypkg", "myscript", None, &mut mock_listener).unwrap();
+                assert_eq!(0, scripts.len());
+            }
+
+            #[rstest]
+            #[should_panic(expected = "Test failed as expected")]
+            fn debhelper_script_subst_errs_if_user_file_lacks_token(invalid_user_file: String) {
+                set_test_fs_path_content("myscript", invalid_user_file);
+
+                let mut mock_listener = crate::listener::MockListener::new();
+                mock_listener.expect_info().times(1).return_const(());
+
+                let mut scripts = ScriptFragments::new();
+
+                match debhelper_script_subst(Path::new(""), &mut scripts, "mypkg", "myscript", None, &mut mock_listener) {
+                    Ok(_) => (),
+                    Err(CargoDebError::DebHelperReplaceFailed(_)) => panic!("Test failed as expected"),
+                    Err(err) => panic!("Unexpected error {:?}", err)
+                }
+            }
+
+            #[rstest]
+            fn debhelper_script_subst_with_user_file_only(valid_user_file: String) {
+                set_test_fs_path_content("myscript", valid_user_file);
+
+                let mut mock_listener = crate::listener::MockListener::new();
+                mock_listener.expect_info().times(1).return_const(());
+
+                let mut scripts = ScriptFragments::new();
+
+                assert_eq!(0, scripts.len());
+                debhelper_script_subst(Path::new(""), &mut scripts, "mypkg", "myscript", None, &mut mock_listener).unwrap();
+            }
+
+            #[test]
+            fn debhelper_script_subst_with_generated_file_only() {
+                let mut mock_listener = crate::listener::MockListener::new();
+                mock_listener.expect_info().times(1).return_const(());
+
+                let mut scripts = ScriptFragments::new();
+                scripts.insert("mypkg.myscript.debhelper".to_owned(), Vec::from("some content".as_bytes()));
+
+                assert_eq!(1, scripts.len());
+                debhelper_script_subst(Path::new(""), &mut scripts, "mypkg", "myscript", None, &mut mock_listener).unwrap();
+                assert_eq!(2, scripts.len());
+                assert!(scripts.contains_key("mypkg.myscript.debhelper"));
+                assert!(scripts.contains_key("myscript"));
+            }
+
+            #[test]
+            fn apply_with_no_matching_files() {
+                let mut mock_listener = crate::listener::MockListener::new();
+                mock_listener.expect_info().times(0).return_const(());
+                apply(Path::new(""), &mut ScriptFragments::new(), "mypkg", None, &mut mock_listener).unwrap();
+            }
+
+            #[rstest]
+            #[test]
+            fn apply_with_valid_user_files(valid_user_file: String) {
+                let scripts = &["postinst", "preinst", "prerm", "postrm"];
+
+                for script in scripts {
+                    set_test_fs_path_content(script, valid_user_file.clone());
+                }
+
+                let mut mock_listener = crate::listener::MockListener::new();
+                mock_listener.expect_info().times(scripts.len()).return_const(());
+
+                apply(Path::new(""), &mut ScriptFragments::new(), "mypkg", None, &mut mock_listener).unwrap();
             }
         }
     }
