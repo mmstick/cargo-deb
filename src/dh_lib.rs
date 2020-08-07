@@ -108,14 +108,16 @@ pub(crate) fn pkgfile(dir: &Path, package: &str, filename: &str, unit_name: Opti
 }
 
 /// Get the bytes for the specified filename whose contents were embedded in our
-/// binary by the rust-embed crate. See #[derive(RustEmbed)] above.
+/// binary by the rust-embed crate. See #[derive(RustEmbed)] above, decode them
+/// as UTF-8 and return as an owned copy of the resulting String. Also appends
+/// a trailing newline '\n' if missing.
 fn get_embedded_autoscript(snippet_filename: &str) -> String {
     // load
     let snippet = Autoscripts::get(snippet_filename)
         .expect(&format!("Unknown autoscript '{}'", snippet_filename));
 
     // convert to string
-    let mut snippet = String::from(std::str::from_utf8(snippet.as_ref()).unwrap());
+    let mut snippet = String::from_utf8(Vec::from(snippet)).unwrap();
 
     // normalize
     if !snippet.ends_with('\n') {
@@ -196,6 +198,11 @@ pub(crate) fn autoscript(
 /// Search and replace a collection of key => value pairs in the given file and
 /// return the resulting text as a String.
 /// 
+/// # Known limitations
+/// 
+/// Keys are replaced in arbitrary order, not in reverse sorted order. See:
+///   https://git.launchpad.net/ubuntu/+source/debhelper/tree/lib/Debian/Debhelper/Dh_Lib.pm?h=applied/12.10ubuntu1#n1214
+/// 
 /// # References
 ///
 /// https://git.launchpad.net/ubuntu/+source/debhelper/tree/lib/Debian/Debhelper/Dh_Lib.pm?h=applied/12.10ubuntu1#n1203
@@ -221,7 +228,7 @@ fn autoscript_sed(snippet_filename: &str, replacements: &HashMap<&str, String>) 
 /// 
 /// # Known limitations
 /// 
-/// We only replace #DEBHELPER#. Is that enough? See:
+/// Only the #DEBHELPER# token is replaced. Is that enough? See:
 ///   https://www.man7.org/linux/man-pages/man1/dh_installdeb.1.html#SUBSTITUTION_IN_MAINTAINER_SCRIPTS
 ///
 /// # References
@@ -475,7 +482,11 @@ cfg_if! {
                 let mut mock_listener = crate::listener::MockListener::new();
                 mock_listener.expect_info().times(1).return_const(());
                 let mut scripts = ScriptFragments::new();
-                autoscript(&mut scripts, "mypkg", "somescript", "idontexist", &HashMap::new(), &mut mock_listener).unwrap();
+
+                // sed mode is when no search -> replacement pairs are defined
+                let sed_mode = &HashMap::new();
+
+                autoscript(&mut scripts, "mypkg", "somescript", "idontexist", sed_mode, &mut mock_listener).unwrap();
             }
 
             #[test]
@@ -500,9 +511,9 @@ cfg_if! {
             }
 
             #[test]
-            fn autoscript_sanity_check_with_embedded_snippets() {
-                for snippet_filename in Autoscripts::iter() {
-                    autoscript_test_wrapper("mypkg", "somescript", &snippet_filename, "dummyunit", None);
+            fn autoscript_sanity_check_all_embedded_autoscripts() {
+                for autoscript_filename in Autoscripts::iter() {
+                    autoscript_test_wrapper("mypkg", "somescript", &autoscript_filename, "dummyunit", None);
                 }
             }
 
@@ -592,6 +603,6 @@ cfg_if! {
                     assert_eq!(expected_autoscript_text2, created_autoscript_text2);
                 }
             }
-       }
+        }
     }
 }
