@@ -22,6 +22,7 @@ use std::path::{Path, PathBuf};
 
 use crate::{CDResult, listener::Listener};
 use crate::error::*;
+use crate::util::{is_path_file, read_file_to_string};
 
 /// DebHelper autoscripts are embedded in the Rust library binary.
 /// The autoscripts were taken from:
@@ -33,18 +34,6 @@ use crate::error::*;
 struct Autoscripts;
 
 pub(crate) type ScriptFragments = HashMap<String, Vec<u8>>;
-
-cfg_if! {
-    if #[cfg(not(test))] {
-        fn is_path_file(path: &PathBuf) -> bool {
-            path.is_file()
-        }
-
-        fn read_file_to_string(path: &Path) -> std::io::Result<String> {
-            std::fs::read_to_string(path)
-        }
-    }
-}
 
 /// Find a file in the given directory that best matches the given package,
 /// filename and (optional) unit name. Enables callers to use the most specific
@@ -295,423 +284,342 @@ pub(crate) fn apply(user_scripts_dir: &Path, scripts: &mut ScriptFragments, pack
     Ok(())
 }
 
-cfg_if! {
-    if #[cfg(test)] {
-        // ---------------------------------------------------------------------
-        // Begin: testable extension to PathBuf
-        // ---------------------------------------------------------------------
-        // The pkgfile() function accesses the filesystem directly via its use
-        // the Path(Buf)::is_file() method which checks for the existence of a
-        // file in the real filesystem.
-        //
-        // To test this without having to create real files and directories we
-        // extend the PathBuf type via a trait with a mock_is_file() method
-        // which, in test builds, is used by pkgfile() instead of the real
-        // PathBuf::is_file() method.
-        //
-        // The mock_is_file() method looks up the current path in a vector which
-        // represents a set of paths in a virtual filesystem. I don't know of a
-        // way to make additional state available to the trait, e.g. AFAIK it
-        // cannot yet have its own fields, and so it can only check global
-        // state. However, accessing global state in a multithreaded test run is
-        // unsafe, plus we want each test to define its own virtual filesystem
-        // to test against, not a single global virtual filesystem shared by all
-        // tests.
-        //
-        // To implement this test specific virtual filesystem I use a vector,
-        // protected by a thread local vector such that each test (thread) gets
-        // its own copy of the vector. To be able to mutate the vector I protect
-        // it with a Mutex. To make this setup easier to work with I define a
-        // couple of helpher functions:
-        //
-        //   - add_test_fs_paths() - adds paths to the current tests virtual fs
-        //   - with_test_fs() - passes the current tests virtual fs vector to
-        //                      a user defined callback function.
-        use std::sync::Mutex;
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rstest::*;
+    use crate::util::{set_test_fs_path_content, add_test_fs_paths};
 
-        thread_local!(
-            static MOCK_FS: Mutex<HashMap<&'static str, String>> = Mutex::new(HashMap::new())
-        );
-
-        fn add_test_fs_paths(paths: &Vec<&'static str>) {
-            MOCK_FS.with(|fs| {
-                let mut fs_map = fs.lock().unwrap();
-                for path in paths {
-                    fs_map.insert(path, "".to_owned());
-                }
-            })
+    // helper conversion
+    // create a new type to work around error "only traits defined in
+    // the current crate can be implemented for arbitrary types"
+    #[derive(Debug)]
+    struct LocalOptionPathBuf(Option<PathBuf>);
+    // Implement <&str> == <LocalOptionPathBuf> comparisons
+    impl PartialEq<LocalOptionPathBuf> for &str {
+        fn eq(&self, other: &LocalOptionPathBuf) -> bool {
+            Some(Path::new(self).to_path_buf()) == other.0
         }
-
-        fn set_test_fs_path_content(path: &'static str, contents: String) {
-            MOCK_FS.with(|fs| {
-                let mut fs_map = fs.lock().unwrap();
-                fs_map.insert(path, contents);
-            })
+    }
+    // Implement <LocalOptionPathBuf> == <&str> comparisons
+    impl PartialEq<&str> for LocalOptionPathBuf {
+        fn eq(&self, other: &&str) -> bool {
+            self.0 == Some(Path::new(*other).to_path_buf())
         }
+    }
 
-        fn with_test_fs<F, R>(callback: F) -> R
-        where
-            F: Fn(&HashMap<&'static str, String>) -> R
-        {
-            MOCK_FS.with(|fs| callback(&fs.lock().unwrap()))
-        }
-
-        fn is_path_file(path: &PathBuf) -> bool {
-            with_test_fs(|fs| {
-                fs.contains_key(&path.to_str().unwrap())
-            })
-        }
-
-        fn read_file_to_string(path: &Path) -> std::io::Result<String> {
-            with_test_fs(|fs| {
-                match fs.get(&path.to_str().unwrap()) {
-                    Some(contents) => Ok(contents.clone()),
-                    None           => Err(std::io::Error::new(std::io::ErrorKind::NotFound,
-                        format!("Test filesystem path {:?} does not exist", path)))
-                }
-            })
-        }
-
-        // ---------------------------------------------------------------------
-        // End: testable extension to PathBuf
-        // ---------------------------------------------------------------------
-
-        mod tests {
-            use super::*;
-            use rstest::*;
-
-            // helper conversion
-            // create a new type to work around error "only traits defined in
-            // the current crate can be implemented for arbitrary types"
-            #[derive(Debug)]
-            struct LocalOptionPathBuf(Option<PathBuf>);
-            // Implement <&str> == <LocalOptionPathBuf> comparisons
-            impl PartialEq<LocalOptionPathBuf> for &str {
-                fn eq(&self, other: &LocalOptionPathBuf) -> bool {
-                    Some(Path::new(self).to_path_buf()) == other.0
-                }
-            }
-            // Implement <LocalOptionPathBuf> == <&str> comparisons
-            impl PartialEq<&str> for LocalOptionPathBuf {
-                fn eq(&self, other: &&str) -> bool {
-                    self.0 == Some(Path::new(*other).to_path_buf())
-                }
-            }
-
-            #[test]
-            fn pkgfile_finds_most_specific_match_with_pkg_unit_file() {
-                add_test_fs_paths(&vec![
-                    "/parent/dir/postinst",
-                    "/parent/dir/myunit.postinst",
-                    "/parent/dir/mypkg.postinst",
-                    "/parent/dir/mypkg.myunit.postinst",
-                    "/parent/dir/nested/mypkg.myunit.postinst",
-                    "/parent/mypkg.myunit.postinst",
-                ]);
+    #[test]
+    fn pkgfile_finds_most_specific_match_with_pkg_unit_file() {
+        add_test_fs_paths(&vec![
+            "/parent/dir/postinst",
+            "/parent/dir/myunit.postinst",
+            "/parent/dir/mypkg.postinst",
+            "/parent/dir/mypkg.myunit.postinst",
+            "/parent/dir/nested/mypkg.myunit.postinst",
+            "/parent/mypkg.myunit.postinst",
+        ]);
 
         let r = pkgfile(Path::new("/parent/dir/"), "mypkg", "mypkg", "postinst", Some("myunit"));
-                assert_eq!("/parent/dir/mypkg.myunit.postinst", LocalOptionPathBuf(r));
+        assert_eq!("/parent/dir/mypkg.myunit.postinst", LocalOptionPathBuf(r));
 
         let r = pkgfile(Path::new("/parent/dir/"), "mypkg", "mypkg", "postinst", None);
-                assert_eq!("/parent/dir/mypkg.postinst", LocalOptionPathBuf(r));
-            }
+        assert_eq!("/parent/dir/mypkg.postinst", LocalOptionPathBuf(r));
+    }
 
-            #[test]
-            fn pkgfile_finds_most_specific_match_without_unit_file() {
-                add_test_fs_paths(&vec![
-                    "/parent/dir/postinst",
-                    "/parent/dir/mypkg.postinst",
-                ]);
+    #[test]
+    fn pkgfile_finds_most_specific_match_without_unit_file() {
+        add_test_fs_paths(&vec![
+            "/parent/dir/postinst",
+            "/parent/dir/mypkg.postinst",
+        ]);
 
         let r = pkgfile(Path::new("/parent/dir/"), "mypkg", "mypkg", "postinst", Some("myunit"));
-                assert_eq!("/parent/dir/mypkg.postinst", LocalOptionPathBuf(r));
+        assert_eq!("/parent/dir/mypkg.postinst", LocalOptionPathBuf(r));
 
         let r = pkgfile(Path::new("/parent/dir/"), "mypkg", "mypkg", "postinst", None);
-                assert_eq!("/parent/dir/mypkg.postinst", LocalOptionPathBuf(r));
-            }
+        assert_eq!("/parent/dir/mypkg.postinst", LocalOptionPathBuf(r));
+    }
 
-            #[test]
-            fn pkgfile_finds_most_specific_match_without_pkg_file() {
-                add_test_fs_paths(&vec![
-                    "/parent/dir/postinst",
-                    "/parent/dir/myunit.postinst",
-                ]);
+    #[test]
+    fn pkgfile_finds_most_specific_match_without_pkg_file() {
+        add_test_fs_paths(&vec![
+            "/parent/dir/postinst",
+            "/parent/dir/myunit.postinst",
+        ]);
 
         let r = pkgfile(Path::new("/parent/dir/"), "mypkg", "mypkg", "postinst", Some("myunit"));
-                assert_eq!("/parent/dir/myunit.postinst", LocalOptionPathBuf(r));
+        assert_eq!("/parent/dir/myunit.postinst", LocalOptionPathBuf(r));
 
         let r = pkgfile(Path::new("/parent/dir/"), "mypkg", "mypkg", "postinst", None);
-                assert_eq!("/parent/dir/postinst", LocalOptionPathBuf(r));
-            }
-  
-            #[test]
-            fn pkgfile_finds_a_fallback_match() {
-                add_test_fs_paths(&vec![
-                    "/parent/dir/postinst",
-                    "/parent/dir/myunit.postinst",
-                    "/parent/dir/mypkg.postinst",
-                    "/parent/dir/mypkg.myunit.postinst",
-                    "/parent/dir/nested/mypkg.myunit.postinst",
-                    "/parent/mypkg.myunit.postinst",
-                ]);
+        assert_eq!("/parent/dir/postinst", LocalOptionPathBuf(r));
+    }
+
+    #[test]
+    fn pkgfile_finds_a_fallback_match() {
+        add_test_fs_paths(&vec![
+            "/parent/dir/postinst",
+            "/parent/dir/myunit.postinst",
+            "/parent/dir/mypkg.postinst",
+            "/parent/dir/mypkg.myunit.postinst",
+            "/parent/dir/nested/mypkg.myunit.postinst",
+            "/parent/mypkg.myunit.postinst",
+        ]);
 
         let r = pkgfile(Path::new("/parent/dir/"), "mypkg", "mypkg", "postinst", Some("wrongunit"));
-                assert_eq!("/parent/dir/mypkg.postinst", LocalOptionPathBuf(r));
+        assert_eq!("/parent/dir/mypkg.postinst", LocalOptionPathBuf(r));
 
         let r = pkgfile(Path::new("/parent/dir/"), "wrongpkg", "wrongpkg", "postinst", None);
-                assert_eq!("/parent/dir/postinst", LocalOptionPathBuf(r));
-            }
+        assert_eq!("/parent/dir/postinst", LocalOptionPathBuf(r));
+    }
 
-            #[test]
-            fn pkgfile_fails_to_find_a_match() {
-                add_test_fs_paths(&vec![
-                    "/parent/dir/postinst",
-                    "/parent/dir/myunit.postinst",
-                    "/parent/dir/mypkg.postinst",
-                    "/parent/dir/mypkg.myunit.postinst",
-                    "/parent/dir/nested/mypkg.myunit.postinst",
-                    "/parent/mypkg.myunit.postinst",
-                ]);
+    #[test]
+    fn pkgfile_fails_to_find_a_match() {
+        add_test_fs_paths(&vec![
+            "/parent/dir/postinst",
+            "/parent/dir/myunit.postinst",
+            "/parent/dir/mypkg.postinst",
+            "/parent/dir/mypkg.myunit.postinst",
+            "/parent/dir/nested/mypkg.myunit.postinst",
+            "/parent/mypkg.myunit.postinst",
+        ]);
 
         let r = pkgfile(Path::new("/parent/dir/"), "mypkg", "mypkg", "wrongfile", None);
-                assert_eq!(None, r);
+        assert_eq!(None, r);
 
         let r = pkgfile(Path::new("/wrong/dir/"), "mypkg", "mypkg", "postinst", None);
-                assert_eq!(None, r);
-            }
+        assert_eq!(None, r);
+    }
 
-            fn autoscript_test_wrapper(pkg: &str, script: &str, snippet: &str, unit: &str, scripts: Option<ScriptFragments>)
-                -> ScriptFragments
-            {
-                let mut mock_listener = crate::listener::MockListener::new();
-                mock_listener.expect_info().times(1).return_const(());
-                let mut scripts = scripts.unwrap_or(ScriptFragments::new());
-                let replacements = map!{ "UNITFILES" => unit.to_owned() };
-                autoscript(&mut scripts, pkg, script, snippet, &replacements, &mut mock_listener).unwrap();
-                return scripts;
-            }
+    fn autoscript_test_wrapper(pkg: &str, script: &str, snippet: &str, unit: &str, scripts: Option<ScriptFragments>)
+        -> ScriptFragments
+    {
+        let mut mock_listener = crate::listener::MockListener::new();
+        mock_listener.expect_info().times(1).return_const(());
+        let mut scripts = scripts.unwrap_or(ScriptFragments::new());
+        let replacements = map!{ "UNITFILES" => unit.to_owned() };
+        autoscript(&mut scripts, pkg, script, snippet, &replacements, &mut mock_listener).unwrap();
+        return scripts;
+    }
 
-            #[test]
-            #[should_panic(expected = "Unknown autoscript 'idontexist'")]
-            fn autoscript_panics_with_unknown_autoscript() {
-                autoscript_test_wrapper("mypkg", "somescript", "idontexist", "dummyunit", None);
-            }
+    #[test]
+    #[should_panic(expected = "Unknown autoscript 'idontexist'")]
+    fn autoscript_panics_with_unknown_autoscript() {
+        autoscript_test_wrapper("mypkg", "somescript", "idontexist", "dummyunit", None);
+    }
 
-            #[test]
-            #[should_panic(expected = "not implemented")]
-            fn autoscript_panics_in_sed_mode() {
-                let mut mock_listener = crate::listener::MockListener::new();
-                mock_listener.expect_info().times(1).return_const(());
-                let mut scripts = ScriptFragments::new();
+    #[test]
+    #[should_panic(expected = "not implemented")]
+    fn autoscript_panics_in_sed_mode() {
+        let mut mock_listener = crate::listener::MockListener::new();
+        mock_listener.expect_info().times(1).return_const(());
+        let mut scripts = ScriptFragments::new();
 
-                // sed mode is when no search -> replacement pairs are defined
-                let sed_mode = &HashMap::new();
+        // sed mode is when no search -> replacement pairs are defined
+        let sed_mode = &HashMap::new();
 
-                autoscript(&mut scripts, "mypkg", "somescript", "idontexist", sed_mode, &mut mock_listener).unwrap();
-            }
+        autoscript(&mut scripts, "mypkg", "somescript", "idontexist", sed_mode, &mut mock_listener).unwrap();
+    }
 
-            #[test]
-            fn autoscript_check_embedded_files() {
-                let mut actual_scripts: Vec<std::borrow::Cow<'static, str>> = Autoscripts::iter().collect();
-                actual_scripts.sort();
+    #[test]
+    fn autoscript_check_embedded_files() {
+        let mut actual_scripts: Vec<std::borrow::Cow<'static, str>> = Autoscripts::iter().collect();
+        actual_scripts.sort();
 
-                let expected_scripts = vec![
-                    "postinst-init-tmpfiles",
-                    "postinst-systemd-dont-enable",
-                    "postinst-systemd-enable",
-                    "postinst-systemd-restart",
-                    "postinst-systemd-restartnostart",
-                    "postinst-systemd-start",
-                    "postrm-systemd",
-                    "postrm-systemd-reload-only",
-                    "prerm-systemd",
-                    "prerm-systemd-restart",
-                ];
+        let expected_scripts = vec![
+            "postinst-init-tmpfiles",
+            "postinst-systemd-dont-enable",
+            "postinst-systemd-enable",
+            "postinst-systemd-restart",
+            "postinst-systemd-restartnostart",
+            "postinst-systemd-start",
+            "postrm-systemd",
+            "postrm-systemd-reload-only",
+            "prerm-systemd",
+            "prerm-systemd-restart",
+        ];
 
-                assert_eq!(expected_scripts, actual_scripts);
-            }
+        assert_eq!(expected_scripts, actual_scripts);
+    }
 
-            #[test]
-            fn autoscript_sanity_check_all_embedded_autoscripts() {
-                for autoscript_filename in Autoscripts::iter() {
-                    autoscript_test_wrapper("mypkg", "somescript", &autoscript_filename, "dummyunit", None);
-                }
-            }
-
-            #[rstest(maintainer_script, prepend,
-                case::prerm("prerm", true),
-                case::preinst("preinst", false),
-                case::postinst("postinst", false),
-                case::postrm("postrm", true),
-            )]
-            fn autoscript_detailed_check(maintainer_script: &str, prepend: bool) {
-                let autoscript_name = "postrm-systemd";
-
-                // Populate an autoscript template and add the result to a
-                // collection of scripts and return it to us.
-                let scripts = autoscript_test_wrapper("mypkg", maintainer_script, &autoscript_name, "dummyunit", None);
-
-                // Expect autoscript() to have created one temporary script
-                // fragment called <package>.<script>.debhelper.
-                assert_eq!(1, scripts.len());
-
-                let expected_created_name = &format!("mypkg.{}.debhelper", maintainer_script);
-                let (created_name, created_bytes) = scripts.iter().next().unwrap();
-
-                // Verify the created script filename key
-                assert_eq!(expected_created_name, created_name);
-
-                // Verify the created script contents. It should have two lines
-                // more than the autoscript fragment it was based on, like so:
-                //   # Automatically added by ...
-                //   <autoscript fragment lines with placeholders replaced>
-                //   # End automatically added section
-                let autoscript_text = get_embedded_autoscript(autoscript_name);
-                let autoscript_line_count = autoscript_text.lines().count();
-                let created_text = std::str::from_utf8(created_bytes).unwrap();
-                let created_line_count = created_text.lines().count();
-                assert_eq!(autoscript_line_count + 2, created_line_count);
-
-                // Verify the content of the added comment lines
-                let mut lines = created_text.lines();
-                assert!(lines.nth(0).unwrap().starts_with("# Automatically added by"));
-                assert_eq!(lines.nth_back(0).unwrap(), "# End automatically added section");
-
-                // Check that the autoscript fragment lines were properly copied
-                // into the created script complete with expected substitutions
-                let expected_autoscript_text1 = autoscript_text.replace("#UNITFILES#", "dummyunit");
-                let expected_autoscript_text1 = expected_autoscript_text1.trim_end();
-                let start1 = 1; let end1 = start1 + autoscript_line_count;
-                let created_autoscript_text1 = created_text.lines().collect::<Vec<&str>>()[start1..end1].join("\n");
-                assert_ne!(expected_autoscript_text1, autoscript_text);
-                assert_eq!(expected_autoscript_text1, created_autoscript_text1);
-
-                // Process the same autoscript again but use a different unit
-                // name so that we can see if the autoscript template was again
-                // populated but this time with the different value, and pass in
-                // the existing set of created scripts to check how it gets
-                // modified.
-                let scripts = autoscript_test_wrapper("mypkg", maintainer_script, &autoscript_name, "otherunit", Some(scripts));
-
-                // The number and name of the output scripts should remain the same
-                assert_eq!(1, scripts.len());
-                let (created_name, created_bytes) = scripts.iter().next().unwrap();
-                assert_eq!(expected_created_name, created_name);
-
-                // The line structure should now contain two injected blocks
-                let created_text = std::str::from_utf8(created_bytes).unwrap();
-                let created_line_count = created_text.lines().count();
-                assert_eq!((autoscript_line_count + 2) * 2, created_line_count);
-
-                let mut lines = created_text.lines();
-                assert!(lines.nth(0).unwrap().starts_with("# Automatically added by"));
-                assert_eq!(lines.nth_back(0).unwrap(), "# End automatically added section");
-
-                // The content should be different
-                let expected_autoscript_text2 = autoscript_text.replace("#UNITFILES#", "otherunit");
-                let expected_autoscript_text2 = expected_autoscript_text2.trim_end();
-                let start2 = end1 + 2; let end2 = start2 + autoscript_line_count;
-                let created_autoscript_text1 = created_text.lines().collect::<Vec<&str>>()[start1..end1].join("\n");
-                let created_autoscript_text2 = created_text.lines().collect::<Vec<&str>>()[start2..end2].join("\n");
-                assert_ne!(expected_autoscript_text1, autoscript_text);
-                assert_ne!(expected_autoscript_text2, autoscript_text);
-
-                if prepend {
-                    assert_eq!(expected_autoscript_text1, created_autoscript_text2);
-                    assert_eq!(expected_autoscript_text2, created_autoscript_text1);
-                } else {
-                    assert_eq!(expected_autoscript_text1, created_autoscript_text1);
-                    assert_eq!(expected_autoscript_text2, created_autoscript_text2);
-                }
-            }
-
-            #[fixture]
-            fn empty_user_file() -> String { "".to_owned() }
-
-            #[fixture]
-            fn invalid_user_file() -> String { "some content".to_owned() }
-
-            #[fixture]
-            fn valid_user_file() -> String { "some #DEBHELPER# content".to_owned() }
-
-            #[test]
-            fn debhelper_script_subst_with_no_matching_files() {
-                let mut mock_listener = crate::listener::MockListener::new();
-                mock_listener.expect_info().times(0).return_const(());
-
-                let mut scripts = ScriptFragments::new();
-
-                assert_eq!(0, scripts.len());
-                debhelper_script_subst(Path::new(""), &mut scripts, "mypkg", "myscript", None, &mut mock_listener).unwrap();
-                assert_eq!(0, scripts.len());
-            }
-
-            #[rstest]
-            #[should_panic(expected = "Test failed as expected")]
-            fn debhelper_script_subst_errs_if_user_file_lacks_token(invalid_user_file: String) {
-                set_test_fs_path_content("myscript", invalid_user_file);
-
-                let mut mock_listener = crate::listener::MockListener::new();
-                mock_listener.expect_info().times(1).return_const(());
-
-                let mut scripts = ScriptFragments::new();
-
-                match debhelper_script_subst(Path::new(""), &mut scripts, "mypkg", "myscript", None, &mut mock_listener) {
-                    Ok(_) => (),
-                    Err(CargoDebError::DebHelperReplaceFailed(_)) => panic!("Test failed as expected"),
-                    Err(err) => panic!("Unexpected error {:?}", err)
-                }
-            }
-
-            #[rstest]
-            fn debhelper_script_subst_with_user_file_only(valid_user_file: String) {
-                set_test_fs_path_content("myscript", valid_user_file);
-
-                let mut mock_listener = crate::listener::MockListener::new();
-                mock_listener.expect_info().times(1).return_const(());
-
-                let mut scripts = ScriptFragments::new();
-
-                assert_eq!(0, scripts.len());
-                debhelper_script_subst(Path::new(""), &mut scripts, "mypkg", "myscript", None, &mut mock_listener).unwrap();
-            }
-
-            #[test]
-            fn debhelper_script_subst_with_generated_file_only() {
-                let mut mock_listener = crate::listener::MockListener::new();
-                mock_listener.expect_info().times(1).return_const(());
-
-                let mut scripts = ScriptFragments::new();
-                scripts.insert("mypkg.myscript.debhelper".to_owned(), Vec::from("some content".as_bytes()));
-
-                assert_eq!(1, scripts.len());
-                debhelper_script_subst(Path::new(""), &mut scripts, "mypkg", "myscript", None, &mut mock_listener).unwrap();
-                assert_eq!(2, scripts.len());
-                assert!(scripts.contains_key("mypkg.myscript.debhelper"));
-                assert!(scripts.contains_key("myscript"));
-            }
-
-            #[test]
-            fn apply_with_no_matching_files() {
-                let mut mock_listener = crate::listener::MockListener::new();
-                mock_listener.expect_info().times(0).return_const(());
-                apply(Path::new(""), &mut ScriptFragments::new(), "mypkg", None, &mut mock_listener).unwrap();
-            }
-
-            #[rstest]
-            #[test]
-            fn apply_with_valid_user_files(valid_user_file: String) {
-                let scripts = &["postinst", "preinst", "prerm", "postrm"];
-
-                for script in scripts {
-                    set_test_fs_path_content(script, valid_user_file.clone());
-                }
-
-                let mut mock_listener = crate::listener::MockListener::new();
-                mock_listener.expect_info().times(scripts.len()).return_const(());
-
-                apply(Path::new(""), &mut ScriptFragments::new(), "mypkg", None, &mut mock_listener).unwrap();
-            }
+    #[test]
+    fn autoscript_sanity_check_all_embedded_autoscripts() {
+        for autoscript_filename in Autoscripts::iter() {
+            autoscript_test_wrapper("mypkg", "somescript", &autoscript_filename, "dummyunit", None);
         }
+    }
+
+    #[rstest(maintainer_script, prepend,
+        case::prerm("prerm", true),
+        case::preinst("preinst", false),
+        case::postinst("postinst", false),
+        case::postrm("postrm", true),
+    )]
+    fn autoscript_detailed_check(maintainer_script: &str, prepend: bool) {
+        let autoscript_name = "postrm-systemd";
+
+        // Populate an autoscript template and add the result to a
+        // collection of scripts and return it to us.
+        let scripts = autoscript_test_wrapper("mypkg", maintainer_script, &autoscript_name, "dummyunit", None);
+
+        // Expect autoscript() to have created one temporary script
+        // fragment called <package>.<script>.debhelper.
+        assert_eq!(1, scripts.len());
+
+        let expected_created_name = &format!("mypkg.{}.debhelper", maintainer_script);
+        let (created_name, created_bytes) = scripts.iter().next().unwrap();
+
+        // Verify the created script filename key
+        assert_eq!(expected_created_name, created_name);
+
+        // Verify the created script contents. It should have two lines
+        // more than the autoscript fragment it was based on, like so:
+        //   # Automatically added by ...
+        //   <autoscript fragment lines with placeholders replaced>
+        //   # End automatically added section
+        let autoscript_text = get_embedded_autoscript(autoscript_name);
+        let autoscript_line_count = autoscript_text.lines().count();
+        let created_text = std::str::from_utf8(created_bytes).unwrap();
+        let created_line_count = created_text.lines().count();
+        assert_eq!(autoscript_line_count + 2, created_line_count);
+
+        // Verify the content of the added comment lines
+        let mut lines = created_text.lines();
+        assert!(lines.nth(0).unwrap().starts_with("# Automatically added by"));
+        assert_eq!(lines.nth_back(0).unwrap(), "# End automatically added section");
+
+        // Check that the autoscript fragment lines were properly copied
+        // into the created script complete with expected substitutions
+        let expected_autoscript_text1 = autoscript_text.replace("#UNITFILES#", "dummyunit");
+        let expected_autoscript_text1 = expected_autoscript_text1.trim_end();
+        let start1 = 1; let end1 = start1 + autoscript_line_count;
+        let created_autoscript_text1 = created_text.lines().collect::<Vec<&str>>()[start1..end1].join("\n");
+        assert_ne!(expected_autoscript_text1, autoscript_text);
+        assert_eq!(expected_autoscript_text1, created_autoscript_text1);
+
+        // Process the same autoscript again but use a different unit
+        // name so that we can see if the autoscript template was again
+        // populated but this time with the different value, and pass in
+        // the existing set of created scripts to check how it gets
+        // modified.
+        let scripts = autoscript_test_wrapper("mypkg", maintainer_script, &autoscript_name, "otherunit", Some(scripts));
+
+        // The number and name of the output scripts should remain the same
+        assert_eq!(1, scripts.len());
+        let (created_name, created_bytes) = scripts.iter().next().unwrap();
+        assert_eq!(expected_created_name, created_name);
+
+        // The line structure should now contain two injected blocks
+        let created_text = std::str::from_utf8(created_bytes).unwrap();
+        let created_line_count = created_text.lines().count();
+        assert_eq!((autoscript_line_count + 2) * 2, created_line_count);
+
+        let mut lines = created_text.lines();
+        assert!(lines.nth(0).unwrap().starts_with("# Automatically added by"));
+        assert_eq!(lines.nth_back(0).unwrap(), "# End automatically added section");
+
+        // The content should be different
+        let expected_autoscript_text2 = autoscript_text.replace("#UNITFILES#", "otherunit");
+        let expected_autoscript_text2 = expected_autoscript_text2.trim_end();
+        let start2 = end1 + 2; let end2 = start2 + autoscript_line_count;
+        let created_autoscript_text1 = created_text.lines().collect::<Vec<&str>>()[start1..end1].join("\n");
+        let created_autoscript_text2 = created_text.lines().collect::<Vec<&str>>()[start2..end2].join("\n");
+        assert_ne!(expected_autoscript_text1, autoscript_text);
+        assert_ne!(expected_autoscript_text2, autoscript_text);
+
+        if prepend {
+            assert_eq!(expected_autoscript_text1, created_autoscript_text2);
+            assert_eq!(expected_autoscript_text2, created_autoscript_text1);
+        } else {
+            assert_eq!(expected_autoscript_text1, created_autoscript_text1);
+            assert_eq!(expected_autoscript_text2, created_autoscript_text2);
+        }
+    }
+
+    #[fixture]
+    fn empty_user_file() -> String { "".to_owned() }
+
+    #[fixture]
+    fn invalid_user_file() -> String { "some content".to_owned() }
+
+    #[fixture]
+    fn valid_user_file() -> String { "some #DEBHELPER# content".to_owned() }
+
+    #[test]
+    fn debhelper_script_subst_with_no_matching_files() {
+        let mut mock_listener = crate::listener::MockListener::new();
+        mock_listener.expect_info().times(0).return_const(());
+
+        let mut scripts = ScriptFragments::new();
+
+        assert_eq!(0, scripts.len());
+        debhelper_script_subst(Path::new(""), &mut scripts, "mypkg", "myscript", None, &mut mock_listener).unwrap();
+        assert_eq!(0, scripts.len());
+    }
+
+    #[rstest]
+    #[should_panic(expected = "Test failed as expected")]
+    fn debhelper_script_subst_errs_if_user_file_lacks_token(invalid_user_file: String) {
+        set_test_fs_path_content("myscript", invalid_user_file);
+
+        let mut mock_listener = crate::listener::MockListener::new();
+        mock_listener.expect_info().times(1).return_const(());
+
+        let mut scripts = ScriptFragments::new();
+
+        match debhelper_script_subst(Path::new(""), &mut scripts, "mypkg", "myscript", None, &mut mock_listener) {
+            Ok(_) => (),
+            Err(CargoDebError::DebHelperReplaceFailed(_)) => panic!("Test failed as expected"),
+            Err(err) => panic!("Unexpected error {:?}", err)
+        }
+    }
+
+    #[rstest]
+    fn debhelper_script_subst_with_user_file_only(valid_user_file: String) {
+        set_test_fs_path_content("myscript", valid_user_file);
+
+        let mut mock_listener = crate::listener::MockListener::new();
+        mock_listener.expect_info().times(1).return_const(());
+
+        let mut scripts = ScriptFragments::new();
+
+        assert_eq!(0, scripts.len());
+        debhelper_script_subst(Path::new(""), &mut scripts, "mypkg", "myscript", None, &mut mock_listener).unwrap();
+    }
+
+    #[test]
+    fn debhelper_script_subst_with_generated_file_only() {
+        let mut mock_listener = crate::listener::MockListener::new();
+        mock_listener.expect_info().times(1).return_const(());
+
+        let mut scripts = ScriptFragments::new();
+        scripts.insert("mypkg.myscript.debhelper".to_owned(), Vec::from("some content".as_bytes()));
+
+        assert_eq!(1, scripts.len());
+        debhelper_script_subst(Path::new(""), &mut scripts, "mypkg", "myscript", None, &mut mock_listener).unwrap();
+        assert_eq!(2, scripts.len());
+        assert!(scripts.contains_key("mypkg.myscript.debhelper"));
+        assert!(scripts.contains_key("myscript"));
+    }
+
+    #[test]
+    fn apply_with_no_matching_files() {
+        let mut mock_listener = crate::listener::MockListener::new();
+        mock_listener.expect_info().times(0).return_const(());
+        apply(Path::new(""), &mut ScriptFragments::new(), "mypkg", None, &mut mock_listener).unwrap();
+    }
+
+    #[rstest]
+    #[test]
+    fn apply_with_valid_user_files(valid_user_file: String) {
+        let scripts = &["postinst", "preinst", "prerm", "postrm"];
+
+        for script in scripts {
+            set_test_fs_path_content(script, valid_user_file.clone());
+        }
+
+        let mut mock_listener = crate::listener::MockListener::new();
+        mock_listener.expect_info().times(scripts.len()).return_const(());
+
+        apply(Path::new(""), &mut ScriptFragments::new(), "mypkg", None, &mut mock_listener).unwrap();
     }
 }

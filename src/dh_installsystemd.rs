@@ -57,6 +57,7 @@ const SYSTEMD_UNIT_FILE_INSTALL_MAPPINGS: [(&str, &str, &str); 12] = [
     ("",  "tmpfile", USR_LIB_TMPFILES_D_DIR),
 ];
 
+#[derive(Debug, PartialEq)]
 pub struct InstallRecipe {
     pub path: PathBuf,
     pub mode: u32
@@ -475,5 +476,44 @@ mod tests {
         assert_eq!(r#"'a""#, unquote(r#"'a""#));
         assert_eq!(r#""ab'"#, unquote(r#""ab'"#));
         assert_eq!(r#"'ab""#, unquote(r#"'ab""#));
+    }
+
+    #[test]
+    fn find_units_in_empty_dir_finds_nothing() {
+        let pkg_unit_files = find_units(Path::new(""), "mypkg", None);
+        assert!(pkg_unit_files.is_empty());
+    }
+
+    fn assert_eq_found_unit(pkg_unit_files: &PackageUnitFiles, expected_install_path: &str, source_path: &str) {
+        let expected = InstallRecipe {
+            path: PathBuf::from(expected_install_path),
+            mode: 0o644,
+        };
+        let actual = pkg_unit_files.get(&PathBuf::from(source_path)).unwrap();
+        assert_eq!(&expected, actual);
+    }
+
+    #[test]
+    fn find_units_for_package() {
+        add_test_fs_paths(&vec![
+            "debian/mypkg.mount",
+            "debian/mypkg@.path",
+            "debian/service",
+            "debian/mypkg@.socket",
+            "debian/mypkg.target",
+            "debian/mypkg@.timer",
+            "debian/mypkg.tmpfile",
+            "debian/mypkg.myunit.postinst",
+        ]);
+        let pkg_unit_files = find_units(Path::new("debian"), "mypkg", None);
+        dbg!(&pkg_unit_files);
+        assert_eq_found_unit(&pkg_unit_files, "lib/systemd/system/mypkg.mount",   "debian/mypkg.mount");
+        assert_eq_found_unit(&pkg_unit_files, "lib/systemd/system/mypkg@.path",   "debian/mypkg@.path");
+        assert_eq_found_unit(&pkg_unit_files, "lib/systemd/system/mypkg.service", "debian/service");
+        assert_eq_found_unit(&pkg_unit_files, "lib/systemd/system/mypkg@.socket", "debian/mypkg@.socket");
+        assert_eq_found_unit(&pkg_unit_files, "lib/systemd/system/mypkg.target",  "debian/mypkg.target");
+        assert_eq_found_unit(&pkg_unit_files, "lib/systemd/system/mypkg@.timer",  "debian/mypkg@.timer");
+        assert_eq_found_unit(&pkg_unit_files, "usr/lib/tmpfiles.d/mypkg.conf",    "debian/mypkg.tmpfile");
+        assert_eq!(7, pkg_unit_files.len());
     }
 }
