@@ -61,6 +61,9 @@ cfg_if! {
 /// 
 /// <filename> is either a systemd unit type such as `service` or `socket`, or a
 /// maintainer script name such as `postinst`.
+/// 
+/// Note: main_package should ne the first package listed in the Debian package
+/// control file.
 ///
 /// # Known limitations
 /// 
@@ -70,10 +73,14 @@ cfg_if! {
 /// 
 /// # References
 ///
+/// https://git.launchpad.net/ubuntu/+source/debhelper/tree/lib/Debian/Debhelper/Dh_Lib.pm?h=applied/12.10ubuntu1#n286
 /// https://git.launchpad.net/ubuntu/+source/debhelper/tree/lib/Debian/Debhelper/Dh_Lib.pm?h=applied/12.10ubuntu1#n957
-pub(crate) fn pkgfile(dir: &Path, package: &str, filename: &str, unit_name: Option<&str>)
+pub(crate) fn pkgfile(dir: &Path, main_package: &str, package: &str, filename: &str, unit_name: Option<&str>)
      -> Option<PathBuf>
 {
+    let mut paths_to_try = Vec::new();
+    let is_main_package = main_package == package;
+
     // From man 1 dh_installsystemd on Ubuntu 20.04 LTS. See:
     //   http://manpages.ubuntu.com/manpages/focal/en/man1/dh_installsystemd.1.html
     // --name=name
@@ -85,17 +92,18 @@ pub(crate) fn pkgfile(dir: &Path, package: &str, filename: &str, unit_name: Opti
     //     unit files are installed as name.unit-extension (in the example, it
     //     would be installed as foo.service).
     //     ...
-    let named_filename = if let Some(str) = unit_name {
-        format!("{}.{}", str, filename)
-    } else {
-        filename.to_owned()
-    };
+    if let Some(str) = unit_name {
+        let named_filename = format!("{}.{}", str, filename);
+        paths_to_try.push(dir.join(format!("{}.{}", package, named_filename)));
+        if is_main_package {
+            paths_to_try.push(dir.join(named_filename));
+        }
+    }
 
-    let mut paths_to_try = Vec::new();
-    paths_to_try.push(dir.join(format!("{}.{}", package, named_filename)));
     paths_to_try.push(dir.join(format!("{}.{}", package, filename)));
-    paths_to_try.push(dir.join(named_filename.clone()));
-    paths_to_try.push(dir.join(filename.clone()));
+    if is_main_package {
+        paths_to_try.push(dir.join(filename));
+    }
 
     for path_to_try in paths_to_try {
         if is_path_file(&path_to_try) {
@@ -236,7 +244,7 @@ fn autoscript_sed(snippet_filename: &str, replacements: &HashMap<&str, String>) 
 fn debhelper_script_subst(user_scripts_dir: &Path, scripts: &mut ScriptFragments, package: &str, script: &str, unit_name: Option<&str>,
     listener: &mut dyn Listener) -> CDResult<()>
 {
-    let user_file = pkgfile(user_scripts_dir, package, script, unit_name);
+    let user_file = pkgfile(user_scripts_dir, package, package, script, unit_name);
     let generated_file_name = format!("{}.{}.debhelper", package, script);
 
     if let Some(user_file_path) = user_file {
@@ -401,10 +409,10 @@ cfg_if! {
                     "/parent/mypkg.myunit.postinst",
                 ]);
 
-                let r = pkgfile(Path::new("/parent/dir/"), "mypkg", "postinst", Some("myunit"));
+        let r = pkgfile(Path::new("/parent/dir/"), "mypkg", "mypkg", "postinst", Some("myunit"));
                 assert_eq!("/parent/dir/mypkg.myunit.postinst", LocalOptionPathBuf(r));
 
-                let r = pkgfile(Path::new("/parent/dir/"), "mypkg", "postinst", None);
+        let r = pkgfile(Path::new("/parent/dir/"), "mypkg", "mypkg", "postinst", None);
                 assert_eq!("/parent/dir/mypkg.postinst", LocalOptionPathBuf(r));
             }
 
@@ -412,16 +420,13 @@ cfg_if! {
             fn pkgfile_finds_most_specific_match_without_unit_file() {
                 add_test_fs_paths(&vec![
                     "/parent/dir/postinst",
-                    "/parent/dir/myunit.postinst",
                     "/parent/dir/mypkg.postinst",
-                    "/parent/dir/nested/mypkg.myunit.postinst",
-                    "/parent/mypkg.myunit.postinst",
                 ]);
 
-                let r = pkgfile(Path::new("/parent/dir/"), "mypkg", "postinst", Some("myunit"));
+        let r = pkgfile(Path::new("/parent/dir/"), "mypkg", "mypkg", "postinst", Some("myunit"));
                 assert_eq!("/parent/dir/mypkg.postinst", LocalOptionPathBuf(r));
 
-                let r = pkgfile(Path::new("/parent/dir/"), "mypkg", "postinst", None);
+        let r = pkgfile(Path::new("/parent/dir/"), "mypkg", "mypkg", "postinst", None);
                 assert_eq!("/parent/dir/mypkg.postinst", LocalOptionPathBuf(r));
             }
 
@@ -432,10 +437,10 @@ cfg_if! {
                     "/parent/dir/myunit.postinst",
                 ]);
 
-                let r = pkgfile(Path::new("/parent/dir/"), "mypkg", "postinst", Some("myunit"));
+        let r = pkgfile(Path::new("/parent/dir/"), "mypkg", "mypkg", "postinst", Some("myunit"));
                 assert_eq!("/parent/dir/myunit.postinst", LocalOptionPathBuf(r));
 
-                let r = pkgfile(Path::new("/parent/dir/"), "mypkg", "postinst", None);
+        let r = pkgfile(Path::new("/parent/dir/"), "mypkg", "mypkg", "postinst", None);
                 assert_eq!("/parent/dir/postinst", LocalOptionPathBuf(r));
             }
   
@@ -450,10 +455,10 @@ cfg_if! {
                     "/parent/mypkg.myunit.postinst",
                 ]);
 
-                let r = pkgfile(Path::new("/parent/dir/"), "mypkg", "postinst", Some("wrongunit"));
+        let r = pkgfile(Path::new("/parent/dir/"), "mypkg", "mypkg", "postinst", Some("wrongunit"));
                 assert_eq!("/parent/dir/mypkg.postinst", LocalOptionPathBuf(r));
 
-                let r = pkgfile(Path::new("/parent/dir/"), "wrongpkg", "postinst", None);
+        let r = pkgfile(Path::new("/parent/dir/"), "wrongpkg", "wrongpkg", "postinst", None);
                 assert_eq!("/parent/dir/postinst", LocalOptionPathBuf(r));
             }
 
@@ -468,10 +473,10 @@ cfg_if! {
                     "/parent/mypkg.myunit.postinst",
                 ]);
 
-                let r = pkgfile(Path::new("/parent/dir/"), "mypkg", "wrongfile", None);
+        let r = pkgfile(Path::new("/parent/dir/"), "mypkg", "mypkg", "wrongfile", None);
                 assert_eq!(None, r);
 
-                let r = pkgfile(Path::new("/wrong/dir/"), "mypkg", "postinst", None);
+        let r = pkgfile(Path::new("/wrong/dir/"), "mypkg", "mypkg", "postinst", None);
                 assert_eq!(None, r);
             }
 

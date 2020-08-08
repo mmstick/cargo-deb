@@ -135,16 +135,16 @@ pub struct Options {
 ///   https://git.launchpad.net/ubuntu/+source/debhelper/tree/dh_installsystemd?h=applied/12.10ubuntu1#n198
 ///   https://git.launchpad.net/ubuntu/+source/debhelper/tree/lib/Debian/Debhelper/Dh_Lib.pm?h=applied/12.10ubuntu1#n957
 pub fn find_units(
-        dir: &PathBuf,
-        package: &str,
+        dir: &Path,
+        main_package: &str,
         unit_name: Option<&str>)
     -> PackageUnitFiles
 {
     let mut installables = HashMap::new();
 
     for (package_suffix, unit_type, install_dir) in SYSTEMD_UNIT_FILE_INSTALL_MAPPINGS.iter() {
-        let package = &format!("{}{}", package, package_suffix);
-        if let Some(src_path) = pkgfile(dir, package, unit_type, unit_name) {
+        let package = &format!("{}{}", main_package, package_suffix);
+        if let Some(src_path) = pkgfile(dir, main_package, package, unit_type, unit_name) {
             // .tmpfile files should be installed in a different directory and
             // with a different extension. See:
             //   https://www.freedesktop.org/software/systemd/man/tmpfiles.d.html
