@@ -149,7 +149,7 @@ pub fn find_units(
             // with a different extension. See:
             //   https://www.freedesktop.org/software/systemd/man/tmpfiles.d.html
             let actual_suffix = match &unit_type[..] {
-                ".tmpfile" => ".conf",
+                "tmpfile" => "conf",
                 _          => unit_type,
             };
 
