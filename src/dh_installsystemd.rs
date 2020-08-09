@@ -157,7 +157,7 @@ pub fn find_units(
             // Determine the file name that the unit file should be installed as
             // which depends on whether or not a unit name was provided.
             let install_filename = match unit_name {
-                Some(name) => format!("{}.{}", name, actual_suffix),
+                Some(name) => format!("{}{}.{}", name, package_suffix, actual_suffix),
                 None       => format!("{}.{}", package, actual_suffix),
             };
 
