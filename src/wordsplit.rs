@@ -7,7 +7,7 @@ impl WordSplit for str {
         let output_capacity = self.len() + self.len() % length + 1;
         let mut lines: Vec<String> = Vec::with_capacity(output_capacity);
         for line in self.lines() {
-            if line.is_empty() {
+            if line.chars().all(char::is_whitespace) {
                 lines.push(String::from("."));
                 continue;
             }
