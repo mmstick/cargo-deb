@@ -495,18 +495,20 @@ mod tests {
 
     #[test]
     fn find_units_for_package() {
+        // one of each valid pattern (without a specific unit) and one
+        // additional valid pattern with a unit (which should not be matched
+        // as we don't specify a specific unit name to match)
         add_test_fs_paths(&vec![
             "debian/mypkg.mount",
             "debian/mypkg@.path",
-            "debian/service",
+            "debian/service", // demonstrates the main package fallback
             "debian/mypkg@.socket",
             "debian/mypkg.target",
             "debian/mypkg@.timer",
             "debian/mypkg.tmpfile",
-            "debian/mypkg.myunit.postinst",
+            "debian/mypkg.myunit.service", // demonstrates lack of unit name
         ]);
         let pkg_unit_files = find_units(Path::new("debian"), "mypkg", None);
-        dbg!(&pkg_unit_files);
         assert_eq_found_unit(&pkg_unit_files, "lib/systemd/system/mypkg.mount",   "debian/mypkg.mount");
         assert_eq_found_unit(&pkg_unit_files, "lib/systemd/system/mypkg@.path",   "debian/mypkg@.path");
         assert_eq_found_unit(&pkg_unit_files, "lib/systemd/system/mypkg.service", "debian/service");
@@ -514,6 +516,33 @@ mod tests {
         assert_eq_found_unit(&pkg_unit_files, "lib/systemd/system/mypkg.target",  "debian/mypkg.target");
         assert_eq_found_unit(&pkg_unit_files, "lib/systemd/system/mypkg@.timer",  "debian/mypkg@.timer");
         assert_eq_found_unit(&pkg_unit_files, "usr/lib/tmpfiles.d/mypkg.conf",    "debian/mypkg.tmpfile");
+        assert_eq!(7, pkg_unit_files.len());
+    }
+
+    #[test]
+    fn find_named_units_for_package() {
+        // one of each valid pattern (with a specific unit) and one additional
+        // valid pattern without a unit (which should not be matched if there is
+        // match with the correctly named unit).
+        add_test_fs_paths(&vec![
+            "debian/mypkg.myunit.mount",
+            "debian/mypkg@.myunit.path",
+            "debian/service", // main package match should be ignored
+            "debian/mypkg@.myunit.socket",
+            "debian/target", // no unit or package but should be matched as fallback
+            "debian/mypkg@.myunit.timer",
+            "debian/mypkg.tmpfile", // no unit but should be matched as fallback
+            "debian/mypkg.myunit.service", // should be matched over main package match above
+        ]);
+        let pkg_unit_files = find_units(Path::new("debian"), "mypkg", Some("myunit"));
+        // note the "myunit" target names, even when the match was less specific
+        assert_eq_found_unit(&pkg_unit_files, "lib/systemd/system/myunit.mount",   "debian/mypkg.myunit.mount");
+        assert_eq_found_unit(&pkg_unit_files, "lib/systemd/system/myunit@.path",   "debian/mypkg@.myunit.path");
+        assert_eq_found_unit(&pkg_unit_files, "lib/systemd/system/myunit.service", "debian/mypkg.myunit.service");
+        assert_eq_found_unit(&pkg_unit_files, "lib/systemd/system/myunit@.socket", "debian/mypkg@.myunit.socket");
+        assert_eq_found_unit(&pkg_unit_files, "lib/systemd/system/myunit.target",  "debian/target");
+        assert_eq_found_unit(&pkg_unit_files, "lib/systemd/system/myunit@.timer",  "debian/mypkg@.myunit.timer");
+        assert_eq_found_unit(&pkg_unit_files, "usr/lib/tmpfiles.d/myunit.conf",    "debian/mypkg.tmpfile");
         assert_eq!(7, pkg_unit_files.len());
     }
 }
