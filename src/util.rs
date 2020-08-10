@@ -82,6 +82,11 @@ impl MyJoin for BTreeSet<String> {
 cfg_if! {
     if #[cfg(test)] {
         use std::collections::HashMap;
+        use lazy_static::lazy_static;
+
+        lazy_static! {
+            static ref ERROR_REGEX: regex::Regex = regex::Regex::new(r"^error:(?P<error_name>.+)$").unwrap();
+        }
 
         // ---------------------------------------------------------------------
         // Begin: test virtual filesystem
@@ -147,11 +152,30 @@ cfg_if! {
         }
 
         pub(crate) fn read_file_to_string(path: &Path) -> std::io::Result<String> {
+            fn str_to_err(str: &str) -> std::io::Result<String> {
+                Err(std::io::Error::from(match str {
+                    "InvalidInput"     => std::io::ErrorKind::InvalidInput,
+                    "Interrupted"      => std::io::ErrorKind::Interrupted,
+                    "PermissionDenied" => std::io::ErrorKind::PermissionDenied,
+                    "NotFound"         => std::io::ErrorKind::NotFound,
+                    "Other"            => std::io::ErrorKind::Other,
+                    _                  => panic!("Unknown I/O ErrorKind '{}'", str)
+                }))
+            }
+
             with_test_fs(|fs| {
                 match fs.get(&path.to_str().unwrap()) {
-                    Some(contents) => Ok(contents.clone()),
-                    None           => Err(std::io::Error::new(std::io::ErrorKind::NotFound,
-                        format!("Test filesystem path {:?} does not exist", path)))
+                    None => Err(std::io::Error::new(std::io::ErrorKind::NotFound,
+                        format!("Test filesystem path {:?} does not exist", path))),
+                    Some(contents) => {
+                        match ERROR_REGEX.captures(contents) {
+                            None       => Ok(contents.clone()),
+                            Some(caps) => match caps.name("error_name") {
+                                None           => Ok(contents.clone()),
+                                Some(re_match) => str_to_err(re_match.as_str()),
+                            },
+                        }
+                    }
                 }
             })
         }

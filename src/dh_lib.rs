@@ -601,6 +601,33 @@ mod tests {
         assert!(scripts.contains_key("myscript"));
     }
 
+    #[rstest(error,
+        case::invalid_input("InvalidInput"),
+        case::interrupted("Interrupted"),
+        case::permission_denied("PermissionDenied"),
+        case::not_found("NotFound"),
+        case::other("Other")
+    )]
+    #[test]
+    fn debhelper_script_subst_with_user_file_access_error(error: &str) {
+        set_test_fs_path_content("myscript", format!("error:{}", error).to_owned());
+
+        let mut mock_listener = crate::listener::MockListener::new();
+        mock_listener.expect_info().times(1).return_const(());
+
+        let mut scripts = ScriptFragments::new();
+
+        assert_eq!(0, scripts.len());
+        let result = debhelper_script_subst(Path::new(""), &mut scripts, "mypkg", "myscript", None, &mut mock_listener);
+
+        assert!(matches!(result, Err(CargoDebError::Io(_))));
+        if let CargoDebError::Io(err) = result.unwrap_err() {
+            assert_eq!(error, std::fmt::format(std::format_args!("{:?}", err.kind())));
+        } else {
+            unreachable!()
+        }
+    }
+
     #[test]
     fn apply_with_no_matching_files() {
         let mut mock_listener = crate::listener::MockListener::new();
