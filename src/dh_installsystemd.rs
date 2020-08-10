@@ -534,6 +534,19 @@ mod tests {
             "debian/mypkg.tmpfile", // no unit but should be matched as fallback
             "debian/mypkg.myunit.service", // should be matched over main package match above
         ]);
+
+        // add some paths that should not be matched
+        add_test_fs_paths(&vec![
+            "debian/nested/dir/mykpg.myunit.mount",
+            "debian/README.md",
+            "mypkg.myunit.mount",
+            "mypkg.mount",
+            "mount",
+            "postinit",
+            "mypkg.postinit",
+            "mypkg.myunit.postinit"
+        ]);
+
         let pkg_unit_files = find_units(Path::new("debian"), "mypkg", Some("myunit"));
         // note the "myunit" target names, even when the match was less specific
         assert_eq_found_unit(&pkg_unit_files, "lib/systemd/system/myunit.mount",   "debian/mypkg.myunit.mount");
@@ -542,7 +555,10 @@ mod tests {
         assert_eq_found_unit(&pkg_unit_files, "lib/systemd/system/myunit@.socket", "debian/mypkg@.myunit.socket");
         assert_eq_found_unit(&pkg_unit_files, "lib/systemd/system/myunit.target",  "debian/target");
         assert_eq_found_unit(&pkg_unit_files, "lib/systemd/system/myunit@.timer",  "debian/mypkg@.myunit.timer");
+
+        // note the changed file extension
         assert_eq_found_unit(&pkg_unit_files, "usr/lib/tmpfiles.d/myunit.conf",    "debian/mypkg.tmpfile");
+
         assert_eq!(7, pkg_unit_files.len());
     }
 }
