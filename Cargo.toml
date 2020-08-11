@@ -71,6 +71,7 @@ opt-level = 3
 tempdir = "0.3.6"
 mockall = "0.7.2"
 rstest = "0.6.4"
+lazy_static = "1.4.0"
 
 [workspace]
 exclude = ["example"]
