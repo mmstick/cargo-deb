@@ -123,7 +123,7 @@ cfg_if! {
         use std::sync::Mutex;
 
         pub(crate) struct TestPath {
-            filename: &'static str,
+            _filename: &'static str,
             contents: String,
             read_count: u16
         }

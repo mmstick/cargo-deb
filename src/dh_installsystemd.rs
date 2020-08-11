@@ -717,7 +717,7 @@ mod tests {
         assert_eq!(0, fragments.len());
     }
 
-    #[rstest(ip, I, ne, rau, ns, nsou,
+    #[rstest(ip, inst, ne, rau, ns, nsou,
       case("ult", false, false, false, false, false),
 
       case("lss", false, false, false, false, false),
@@ -756,7 +756,7 @@ mod tests {
     #[test]
     fn generate_creates_expected_autoscript_fragments(
         ip: &str,
-        I: bool,
+        inst: bool,
         ne: bool,
         rau: bool,
         ns: bool,
@@ -800,7 +800,7 @@ Description=A test unit
 Type=simple
 ".to_owned();
 
-        if I {
+        if inst {
             unit_file_content.push_str("[Install]
 WantedBy=multi-user.target");
         }
@@ -874,7 +874,7 @@ WantedBy=multi-user.target");
             },
             "lss" => {
                 assert_eq!(1, get_read_count(unit_file_path));
-                if I {
+                if inst {
                     match options.no_enable {
                         true  => assert_eq!(1, get_read_count("postinst-systemd-dont-enable")),
                         false => assert_eq!(1, get_read_count("postinst-systemd-enable")),
