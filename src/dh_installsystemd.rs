@@ -198,7 +198,6 @@ fn is_comment(s: &str) -> bool {
 /// See:
 ///   https://www.freedesktop.org/software/systemd/man/systemd.service.html#Command%20lines
 fn unquote(s: &str) -> &str {
-    println!("s: [{}] len={}", s, s.len());
     if s.len() > 1 &&
        ((s.starts_with("\"") && s.ends_with("\"")) ||
        (s.starts_with("'") && s.ends_with("'"))) {
