@@ -369,7 +369,7 @@ pub fn generate(
     if !start_units.is_empty() {
         let mut replace = map!{ "UNITFILES" => start_units.join(" ") };
 
-        if options.no_stop_on_upgrade {
+        if options.restart_after_upgrade {
             let snippet;
             match options.no_start {
                 true => {
