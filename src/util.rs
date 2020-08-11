@@ -1,7 +1,7 @@
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
-/// Get the filename from a path. Intended to be replaced when testing.
+/// Get the filename from a path.
 /// Note: Due to the way the Path type works the final component is returned
 /// even if it looks like a directory, e.g. "/some/dir/" will return "dir"...
 pub(crate) fn fname_from_path(path: &Path) -> String {
@@ -15,8 +15,12 @@ cfg_if! {
             path.is_file()
         }
 
-        pub(crate) fn read_file_to_string(path: &Path) -> std::io::Result<String> {
+        pub(crate) fn read_file_to_string(path: PathBuf) -> std::io::Result<String> {
             std::fs::read_to_string(path)
+        }
+
+        pub(crate) fn read_file_to_bytes(path: &PathBuf) -> std::io::Result<Vec<u8>> {
+            std::fs::read(path)
         }
     }
 }
@@ -118,15 +122,40 @@ cfg_if! {
         //                      a user defined callback function.
         use std::sync::Mutex;
 
+        pub(crate) struct TestPath {
+            filename: &'static str,
+            contents: String,
+            read_count: u16
+        }
+
+        impl TestPath {
+            fn new(filename: &'static str, contents: String) -> Self {
+                TestPath {
+                    filename: filename,
+                    contents: contents,
+                    read_count: 0
+                }
+            }
+
+            fn read(&mut self) -> String {
+                self.read_count += 1;
+                self.contents.clone()
+            }
+
+            fn count(&self) -> u16 {
+                self.read_count
+            }
+        }
+
         thread_local!(
-            static MOCK_FS: Mutex<HashMap<&'static str, String>> = Mutex::new(HashMap::new())
+            static MOCK_FS: Mutex<HashMap<&'static str, TestPath>> = Mutex::new(HashMap::new());
         );
 
         pub(crate) fn add_test_fs_paths(paths: &Vec<&'static str>) {
             MOCK_FS.with(|fs| {
                 let mut fs_map = fs.lock().unwrap();
                 for path in paths {
-                    fs_map.insert(path, "".to_owned());
+                    fs_map.insert(path, TestPath::new(path, "".to_owned()));
                 }
             })
         }
@@ -134,15 +163,15 @@ cfg_if! {
         pub(crate) fn set_test_fs_path_content(path: &'static str, contents: String) {
             MOCK_FS.with(|fs| {
                 let mut fs_map = fs.lock().unwrap();
-                fs_map.insert(path, contents);
+                fs_map.insert(path, TestPath::new(path, contents));
             })
         }
 
         fn with_test_fs<F, R>(callback: F) -> R
         where
-            F: Fn(&HashMap<&'static str, String>) -> R
+            F: Fn(&mut HashMap<&'static str, TestPath>) -> R
         {
-            MOCK_FS.with(|fs| callback(&fs.lock().unwrap()))
+            MOCK_FS.with(|fs| callback(&mut fs.lock().unwrap()))
         }
 
         pub(crate) fn is_path_file(path: &PathBuf) -> bool {
@@ -151,7 +180,13 @@ cfg_if! {
             })
         }
 
-        pub(crate) fn read_file_to_string(path: &Path) -> std::io::Result<String> {
+        pub(crate) fn get_read_count(path: &str) -> u16 {
+            with_test_fs(|fs| {
+                fs.get(path).unwrap().count()
+            })
+        }
+
+        pub(crate) fn read_file_to_string(path: PathBuf) -> std::io::Result<String> {
             fn str_to_err(str: &str) -> std::io::Result<String> {
                 Err(std::io::Error::from(match str {
                     "InvalidInput"     => std::io::ErrorKind::InvalidInput,
@@ -164,20 +199,28 @@ cfg_if! {
             }
 
             with_test_fs(|fs| {
-                match fs.get(&path.to_str().unwrap()) {
+                match fs.get_mut(path.to_str().unwrap()) {
                     None => Err(std::io::Error::new(std::io::ErrorKind::NotFound,
                         format!("Test filesystem path {:?} does not exist", path))),
-                    Some(contents) => {
-                        match ERROR_REGEX.captures(contents) {
-                            None       => Ok(contents.clone()),
+                    Some(test_path) => {
+                        let contents = test_path.read();
+                        match ERROR_REGEX.captures(&contents) {
+                            None       => Ok(contents),
                             Some(caps) => match caps.name("error_name") {
-                                None           => Ok(contents.clone()),
+                                None           => Ok(contents),
                                 Some(re_match) => str_to_err(re_match.as_str()),
                             },
                         }
                     }
                 }
             })
+        }
+
+        pub(crate) fn read_file_to_bytes(path: &PathBuf) -> std::io::Result<Vec<u8>> {
+            match read_file_to_string(path.clone()) {
+                Ok(contents) => Ok(Vec::from(contents.as_bytes())),
+                Err(x)       => Err(x)
+            }
         }
 
         // ---------------------------------------------------------------------

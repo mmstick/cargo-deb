@@ -264,6 +264,9 @@ pub fn generate(
         .map(|v | fname_from_path(v.target_path.as_path()))
         .filter(|fname| !fname.contains("@")));
 
+    // BTreeSets values iterate in sorted order irrespective of the order they
+    // were inserted.
+    // see: https://git.launchpad.net/ubuntu/+source/debhelper/tree/dh_installsystemd?h=applied/12.10ubuntu1#n385
     let mut aliases = BTreeSet::new();
     let mut enable_units = BTreeSet::new();
     let mut start_units = BTreeSet::new();
@@ -410,6 +413,8 @@ pub fn generate(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::manifest::{Asset, AssetSource};
+    use rstest::*;
 
     #[test]
     fn is_comment_detects_comments() {
@@ -559,5 +564,354 @@ mod tests {
         assert_eq_found_unit(&pkg_unit_files, "usr/lib/tmpfiles.d/myunit.conf",    "debian/mypkg.tmpfile");
 
         assert_eq!(7, pkg_unit_files.len());
+    }
+
+    #[test]
+    fn generate_with_empty_inputs_does_nothing() {
+        let mut mock_listener = crate::listener::MockListener::new();
+        mock_listener.expect_info().times(0).return_const(());
+
+        let fragments = generate("", &vec![], &Options::default(), &mut mock_listener).unwrap();
+
+        assert!(fragments.is_empty());
+    }
+
+    #[test]
+    fn generate_with_arbitrary_asset_does_nothing() {
+        let mut mock_listener = crate::listener::MockListener::new();
+        mock_listener.expect_info().times(0).return_const(());
+
+        let assets = vec![
+            Asset::new(
+                AssetSource::Path(PathBuf::new()),
+                PathBuf::new(),
+                0o0,
+                false)
+        ];
+
+        let fragments = generate("mypkg", &assets, &Options::default(), &mut mock_listener).unwrap();
+        assert!(fragments.is_empty());
+    }
+
+    #[test]
+    #[should_panic(expected = "unwrap")]
+    fn generate_with_invalid_tmp_file_asset_panics() {
+        let mut mock_listener = crate::listener::MockListener::new();
+        mock_listener.expect_info().times(0).return_const(());
+
+        let assets = vec![
+            Asset::new(
+                AssetSource::Path(PathBuf::new()), // path source with empty source path makes no sense
+                Path::new("usr/lib/tmpfiles.d/blah").to_path_buf(),
+                0o0,
+                false)
+        ];
+
+        let fragments = generate("mypkg", &assets, &Options::default(), &mut mock_listener).unwrap();
+        assert!(fragments.is_empty());
+    }
+
+    #[test]
+    #[should_panic(expected = "unwrap")]
+    fn generate_with_data_tmp_file_asset_panics() {
+        let mut mock_listener = crate::listener::MockListener::new();
+        mock_listener.expect_info().times(0).return_const(());
+
+        let assets = vec![
+            Asset::new(
+                AssetSource::Data(vec![]), // only assets of type Path are currently supported
+                Path::new("usr/lib/tmpfiles.d/blah").to_path_buf(),
+                0o0,
+                false)
+        ];
+
+        let fragments = generate("mypkg", &assets, &Options::default(), &mut mock_listener).unwrap();
+        assert!(fragments.is_empty());
+    }
+
+    #[test]
+    fn generate_with_empty_tmp_file_asset() {
+        const TMP_FILE_NAME: &str = "my_tmp_file";
+        let tmp_file_path = PathBuf::from(format!("debian/{}", TMP_FILE_NAME));
+
+        let mut mock_listener = crate::listener::MockListener::new();
+        mock_listener.expect_info().times(1).return_const(());
+
+        let assets = vec![
+            Asset::new(
+                AssetSource::Path(tmp_file_path),
+                Path::new("usr/lib/tmpfiles.d/blah").to_path_buf(),
+                0o0,
+                false)
+        ];
+
+        let fragments = generate("mypkg", &assets, &Options::default(), &mut mock_listener).unwrap();
+        assert_eq!(1, fragments.len());
+
+        let (fragment_name, fragment_bytes) = fragments.into_iter().next().unwrap();
+
+        // should create an augmentation for the postinst script
+        assert_eq!("mypkg.postinst.debhelper", fragment_name);
+
+        // Verify the created script contents. It should have two lines
+        // more than the autoscript fragment it was based on, like so:
+        //   # Automatically added by ...
+        //   <autoscript fragment lines with placeholders replaced>
+        //   # End automatically added section
+        let autoscript_text = get_embedded_autoscript("postinst-init-tmpfiles");
+        let autoscript_line_count = autoscript_text.lines().count();
+        let created_text = String::from_utf8(fragment_bytes).unwrap();
+        let created_line_count = created_text.lines().count();
+        assert_eq!(autoscript_line_count + 2, created_line_count);
+
+        // Verify the content of the added comment lines
+        let mut lines = created_text.lines();
+        assert!(lines.nth(0).unwrap().starts_with("# Automatically added by"));
+        assert_eq!(lines.nth_back(0).unwrap(), "# End automatically added section");
+
+        // Check that the autoscript fragment lines were properly copied
+        // into the created script complete with expected substitutions
+        let expected_autoscript_text = autoscript_text.replace("#TMPFILES#", TMP_FILE_NAME);
+        let expected_autoscript_text = expected_autoscript_text.trim_end();
+        let start1 = 1; let end1 = start1 + autoscript_line_count;
+        let created_autoscript_text = created_text.lines().collect::<Vec<&str>>()[start1..end1].join("\n");
+        assert_ne!(expected_autoscript_text, autoscript_text);
+        assert_eq!(expected_autoscript_text, created_autoscript_text);
+    }
+
+    #[test]
+    fn generate_filters_out_template_units() {
+        // "A template unit must have a single "@" at the end of the name 
+        // (right before the type suffix)" - from:
+        //   https://www.freedesktop.org/software/systemd/man/systemd.unit.html
+        let mut mock_listener = crate::listener::MockListener::new();
+        mock_listener.expect_info().times(0).return_const(());
+
+        let assets = vec![
+            Asset::new(
+                AssetSource::Path(PathBuf::from("debian/my_unit@.service")),
+                Path::new("lib/systemd/system/").to_path_buf(),
+                0o0,
+                false)
+        ];
+
+        let fragments = generate("mypkg", &assets, &Options::default(), &mut mock_listener).unwrap();
+        assert_eq!(0, fragments.len());
+    }
+
+    #[test]
+    fn generate_acts_only_on_unit_files_with_the_expected_install_path() {
+        // Note: find_units() will set the target path correctly.
+        let mut mock_listener = crate::listener::MockListener::new();
+        mock_listener.expect_info().times(0).return_const(());
+
+        let assets = vec![
+            Asset::new(
+                AssetSource::Path(PathBuf::from("debian/my_unit.service")),
+                Path::new("some/other/path/").to_path_buf(),
+                0o0,
+                false)
+        ];
+
+        let fragments = generate("mypkg", &assets, &Options::default(), &mut mock_listener).unwrap();
+        assert_eq!(0, fragments.len());
+    }
+
+    #[rstest(ip, I, ne, rau, ns, nsou,
+      case("ult", false, false, false, false, false),
+
+      case("lss", false, false, false, false, false),
+      case("lss", false, false, false, false, true),
+      case("lss", false, false, false, true,  false),
+      case("lss", false, false, false, true,  true),
+      case("lss", false, false, true,  false, false),
+      case("lss", false, false, true,  false,  true),
+      case("lss", false, false, true,  true,  false),
+      case("lss", false, false, true,  true,  true),
+      case("lss", false, true,  false, false, false),
+      case("lss", false, true,  false, false, true),
+      case("lss", false, true,  false, true,  false),
+      case("lss", false, true,  false, true,  true),
+      case("lss", false, true,  true,  false, false),
+      case("lss", false, true,  true,  false,  true),
+      case("lss", false, true,  true,  true,  false),
+      case("lss", false, true,  true,  true,  true),
+      case("lss", true,  false, false, false, false),
+      case("lss", true,  false, false, false, true),
+      case("lss", true,  false, false, true,  false),
+      case("lss", true,  false, false, true,  true),
+      case("lss", true,  false, true,  false, false),
+      case("lss", true,  false, true,  false,  true),
+      case("lss", true,  false, true,  true,  false),
+      case("lss", true,  false, true,  true,  true),
+      case("lss", true,  true,  false, false, false),
+      case("lss", true,  true,  false, false, true),
+      case("lss", true,  true,  false, true,  false),
+      case("lss", true,  true,  false, true,  true),
+      case("lss", true,  true,  true,  false, false),
+      case("lss", true,  true,  true,  false,  true),
+      case("lss", true,  true,  true,  true,  false),
+      case("lss", true,  true,  true,  true,  true),
+    )]
+    #[test]
+    fn generate_creates_expected_autoscript_fragments(
+        ip: &str,
+        I: bool,
+        ne: bool,
+        rau: bool,
+        ns: bool,
+        nsou: bool
+    ) {
+        let unit_file_path = "debian/mypkg.service";
+
+        let install_base_path = match ip {
+            "ult" => "usr/lib/tmpfiles.d",
+            "lss" => "lib/systemd/system",
+            x     => panic!("Unsupported install path value '{}'", x),
+        };
+
+        // setup input for generate()
+        let assets = vec![
+            Asset::new(
+                AssetSource::Path(PathBuf::from(unit_file_path)),
+                Path::new(&format!("{}/mypkg.service", install_base_path)).to_path_buf(),
+                0o0,
+                false)
+        ];
+
+        let options = Options {
+            no_enable: ne,
+            no_start: ns,
+            restart_after_upgrade: rau,
+            no_stop_on_upgrade: nsou,
+        };
+
+        // setup mocks
+        let mut mock_listener = crate::listener::MockListener::new();
+        mock_listener.expect_info().return_const(());
+
+        // start_units: yes
+        // enable_units: no, no [Install] section in the unit file
+
+        let mut unit_file_content = "[Unit]
+Description=A test unit
+
+[Service]
+Type=simple
+".to_owned();
+
+        if I {
+            unit_file_content.push_str("[Install]
+WantedBy=multi-user.target");
+        }
+
+        set_test_fs_path_content(unit_file_path, unit_file_content);
+
+        // Add all Autoscript paths to the in-memory test file system so that
+        // we can track whether they are read or not.
+        add_test_fs_paths(&vec![
+            "postinst-init-tmpfiles",
+            "postinst-systemd-dont-enable",
+            "postinst-systemd-enable",
+            "postinst-systemd-restart",
+            "postinst-systemd-restartnostart",
+            "postinst-systemd-start",
+            "postrm-systemd",
+            "postrm-systemd-reload-only",
+            "prerm-systemd",
+            "prerm-systemd-restart",
+        ]);
+
+        // generate!
+        let fragments = generate("mypkg", &assets, &options, &mut mock_listener).unwrap();
+
+        // verify, though don't verify creation of autoscript fragments as that
+        // is verified in tests of the lower level functionality, instead verify
+        // only that the generate() logic creates the expected named fragments
+        // and while doing so read the expected autoscript files the expected
+        // number of times.
+
+        // Perl dh_installsystemd logic selects autoscript fragments based on
+        // the following conditions. If multiple columns have entries then all
+        // must be true. If a column has no value it is always true for all
+        // units.
+        //
+        // key:
+        //   - ip    - install path
+        //     - lss - lib/systemd/system/
+        //     - ult - usr/lib/tmpfiles.d/
+        //   - [I]   - has an [Install] section in the unit file
+        //   - ne    - the value of the boolean no_enable option
+        //   - rau   - the value of the boolean restart_after_upgrade option
+        //   - ns    - the value of the boolean no_start option
+        //   - nsou  - the value of the boolean no_stop_on_upgrade option
+        //   - /     - true/present (/* denotes one true is enough)
+        //   - x     - false/missing
+        //   - tr    - try_restart (value of #RESTART_ACTION# placeholder)
+        //   - r     - restart (value of #RESTART_ACTION# placeholder)
+        //
+        // -----------------------------------------------------------------------
+        // autoscript fragment             | ip  | [I] | ne | rau    | ns | nsou |
+        // -----------------------------------------------------------------------
+        // postinst-init-tmpfiles          | ult |     |    |        |    |      |
+        // postinst-systemd-dont-enable    | lss | /   | /  |        |    |      |
+        // postinst-systemd-enable         | lss | /   | x  |        |    |      |
+        // postinst-systemd-restart        | lss |     |    | / (tr) | x  |      |
+        // postinst-systemd-restartnostart | lss |     |    | / (r)  | /  |      |
+        // postinst-systemd-start          | lss |     |    | x      | x  |      |
+        // postrm-systemd                  | lss | /   |    |        |    |      |
+        // postrm-systemd-reload-only      | lss |     |    |        |    |      |
+        // prerm-systemd                   | lss |     |    | x      | x  | x    |
+        // prerm-systemd-restart           | lss |     |    | /*     |    | /*   |
+        // -----------------------------------------------------------------------
+
+        let mut autoscript_fragments_to_check_for = std::collections::HashSet::new();
+
+        match ip {
+            "ult" => {
+                assert_eq!(1, get_read_count("postinst-init-tmpfiles"));
+                autoscript_fragments_to_check_for.insert("postinst.debhelper");
+            },
+            "lss" => {
+                assert_eq!(1, get_read_count(unit_file_path));
+                if I {
+                    match options.no_enable {
+                        true  => assert_eq!(1, get_read_count("postinst-systemd-dont-enable")),
+                        false => assert_eq!(1, get_read_count("postinst-systemd-enable")),
+                    };
+                    assert_eq!(1, get_read_count("postrm-systemd"));
+                    autoscript_fragments_to_check_for.insert("postinst.service");
+                    autoscript_fragments_to_check_for.insert("postrm.debhelper");
+                }
+                match options.restart_after_upgrade {
+                    true  => {
+                        match options.no_start {
+                            true  => assert_eq!(1, get_read_count("postinst-systemd-restartnostart")),
+                            false => assert_eq!(1, get_read_count("postinst-systemd-restart")),
+                        };
+                        autoscript_fragments_to_check_for.insert("postinst.service");
+                    },
+                    false => if !options.no_start {
+                        assert_eq!(1, get_read_count("postinst-systemd-start"));
+                        autoscript_fragments_to_check_for.insert("postinst.service");
+                    }
+                }
+                if options.restart_after_upgrade || options.no_stop_on_upgrade {
+                    assert_eq!(1, get_read_count("prerm-systemd-restart"));
+                    autoscript_fragments_to_check_for.insert("prerm.service");
+                } else if !options.no_start {
+                    assert_eq!(1, get_read_count("prerm-systemd"));
+                    autoscript_fragments_to_check_for.insert("prerm.service");
+                }
+                assert_eq!(1, get_read_count("postrm-systemd-reload-only"));
+                autoscript_fragments_to_check_for.insert("postrm.debhelper");
+            },
+            _     => unreachable!(),
+        }
+
+        for autoscript in autoscript_fragments_to_check_for.iter() {
+            let key = format!("mypkg.{}", autoscript);
+            assert!(fragments.contains_key(&key), key);
+        }
     }
 }

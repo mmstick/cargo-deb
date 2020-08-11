@@ -31,7 +31,7 @@ use crate::util::{is_path_file, read_file_to_string};
 ///   https://www.debian.org/doc/debian-policy/ap-flowcharts.htm
 #[derive(RustEmbed)]
 #[folder = "autoscripts/"]
-struct Autoscripts;
+pub(crate) struct Autoscripts;
 
 pub(crate) type ScriptFragments = HashMap<String, Vec<u8>>;
 
@@ -107,13 +107,28 @@ pub(crate) fn pkgfile(dir: &Path, main_package: &str, package: &str, filename: &
 /// binary by the rust-embed crate. See #[derive(RustEmbed)] above, decode them
 /// as UTF-8 and return as an owned copy of the resulting String. Also appends
 /// a trailing newline '\n' if missing.
-fn get_embedded_autoscript(snippet_filename: &str) -> String {
-    // load
-    let snippet = Autoscripts::get(snippet_filename)
-        .expect(&format!("Unknown autoscript '{}'", snippet_filename));
+pub(crate) fn get_embedded_autoscript(snippet_filename: &str) -> String {
+    let mut snippet: Option<String> = None;
 
-    // convert to string
-    let mut snippet = String::from_utf8(Vec::from(snippet)).unwrap();
+    // load from test data if defined
+    cfg_if! {
+        if #[cfg(test)] {
+            let path_buf = PathBuf::from(snippet_filename);
+            if is_path_file(&path_buf) {
+                snippet = read_file_to_string(path_buf).ok();
+            }
+        }
+    }
+
+    // else load from embedded strings
+    if snippet.is_none() {
+        let snippet_bytes = Autoscripts::get(snippet_filename).expect(&format!("Unknown autoscript '{}'", snippet_filename));
+
+        // convert to string
+        snippet = String::from_utf8(Vec::from(snippet_bytes)).ok();
+    }
+
+    let mut snippet = snippet.unwrap();
 
     // normalize
     if !snippet.ends_with('\n') {
@@ -548,6 +563,29 @@ mod tests {
         }
     }
 
+    #[test]
+    fn autoscript_check_service_order() {
+        let mut mock_listener = crate::listener::MockListener::new();
+        mock_listener.expect_info().return_const(());
+        let replacements = map!{ "UNITFILES" => "someunit".to_owned() };
+
+        let in_out = vec![
+            (false, "debhelper"),
+            (true,  "service")
+        ];
+
+        for (service_order, expected_ext) in in_out.into_iter() {
+            let mut scripts = ScriptFragments::new();
+            autoscript(&mut scripts, "mypkg", "prerm", "postrm-systemd", &replacements, service_order, &mut mock_listener).unwrap();
+
+            assert_eq!(1, scripts.len());
+
+            let expected_path = &format!("mypkg.prerm.{}", expected_ext);
+            let actual_path = scripts.keys().next().unwrap();
+            assert_eq!(expected_path, actual_path);
+        }
+    }
+
     #[fixture]
     fn empty_user_file() -> String { "".to_owned() }
 
@@ -587,6 +625,7 @@ mod tests {
     }
 
     #[rstest]
+    #[test]
     fn debhelper_script_subst_with_user_file_only(valid_user_file: String) {
         set_test_fs_path_content("myscript", valid_user_file);
 
@@ -597,6 +636,12 @@ mod tests {
 
         assert_eq!(0, scripts.len());
         debhelper_script_subst(Path::new(""), &mut scripts, "mypkg", "myscript", None, &mut mock_listener).unwrap();
+        assert_eq!(1, scripts.len());
+        assert!(scripts.contains_key("myscript"));
+    }
+
+    fn script_to_string(scripts: &ScriptFragments, script: &str) -> String {
+        String::from_utf8(scripts.get(script).unwrap().to_vec()).unwrap()
     }
 
     #[test]
@@ -605,13 +650,74 @@ mod tests {
         mock_listener.expect_info().times(1).return_const(());
 
         let mut scripts = ScriptFragments::new();
-        scripts.insert("mypkg.myscript.debhelper".to_owned(), Vec::from("some content".as_bytes()));
+        scripts.insert("mypkg.myscript.debhelper".to_owned(), "injected".as_bytes().to_vec());
 
         assert_eq!(1, scripts.len());
         debhelper_script_subst(Path::new(""), &mut scripts, "mypkg", "myscript", None, &mut mock_listener).unwrap();
         assert_eq!(2, scripts.len());
         assert!(scripts.contains_key("mypkg.myscript.debhelper"));
         assert!(scripts.contains_key("myscript"));
+
+        assert_eq!(script_to_string(&scripts, "mypkg.myscript.debhelper"), "injected");
+        assert_eq!(script_to_string(&scripts, "myscript"), "#!/bin/sh\nset -e\ninjected");
+    }
+
+    #[rstest]
+    #[test]
+    fn debhelper_script_subst_with_user_and_generated_file(valid_user_file: String) {
+        set_test_fs_path_content("myscript", valid_user_file.clone());
+
+        let mut mock_listener = crate::listener::MockListener::new();
+        mock_listener.expect_info().times(1).return_const(());
+
+        let mut scripts = ScriptFragments::new();
+        scripts.insert("mypkg.myscript.debhelper".to_owned(), "injected".as_bytes().to_vec());
+
+        assert_eq!(1, scripts.len());
+        debhelper_script_subst(Path::new(""), &mut scripts, "mypkg", "myscript", None, &mut mock_listener).unwrap();
+        assert_eq!(2, scripts.len());
+        assert!(scripts.contains_key("mypkg.myscript.debhelper"));
+        assert!(scripts.contains_key("myscript"));
+
+        assert_eq!(script_to_string(&scripts, "mypkg.myscript.debhelper"), "injected");
+        assert_eq!(script_to_string(&scripts, "myscript"), "some injected content");
+    }
+
+    #[rstest(maintainer_script, service_order,
+        case("preinst", false),
+        case("prerm", true),
+        case("postinst", false),
+        case("postrm", true),
+    )]
+    #[test]
+    fn debhelper_script_subst_with_user_and_generated_files(
+        valid_user_file: String,
+        maintainer_script: &'static str,
+        service_order: bool)
+    {
+        set_test_fs_path_content(maintainer_script, valid_user_file.clone());
+
+        let mut mock_listener = crate::listener::MockListener::new();
+        mock_listener.expect_info().times(1).return_const(());
+
+        let mut scripts = ScriptFragments::new();
+        scripts.insert(format!("mypkg.{}.debhelper", maintainer_script), "first".as_bytes().to_vec());
+        scripts.insert(format!("mypkg.{}.service", maintainer_script), "second".as_bytes().to_vec());
+
+        assert_eq!(2, scripts.len());
+        debhelper_script_subst(Path::new(""), &mut scripts, "mypkg", maintainer_script, None, &mut mock_listener).unwrap();
+        assert_eq!(3, scripts.len());
+        assert!(scripts.contains_key(&format!("mypkg.{}.debhelper", maintainer_script)));
+        assert!(scripts.contains_key(&format!("mypkg.{}.service", maintainer_script)));
+        assert!(scripts.contains_key(maintainer_script));
+
+        assert_eq!(script_to_string(&scripts, &format!("mypkg.{}.debhelper", maintainer_script)), "first");
+        assert_eq!(script_to_string(&scripts, &format!("mypkg.{}.service", maintainer_script)), "second");
+        if service_order {
+            assert_eq!(script_to_string(&scripts, maintainer_script), "some secondfirst content");
+        } else {
+            assert_eq!(script_to_string(&scripts, maintainer_script), "some firstsecond content");
+        }
     }
 
     #[rstest(error,

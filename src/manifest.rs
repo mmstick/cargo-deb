@@ -4,6 +4,7 @@ use crate::error::*;
 use crate::listener::Listener;
 use crate::ok_or::OkOrThen;
 use crate::dh_installsystemd;
+use crate::util::read_file_to_bytes;
 use rayon::prelude::*;
 use serde::Deserialize;
 use std::borrow::Cow;
@@ -48,7 +49,7 @@ impl AssetSource {
     pub fn data(&self) -> CDResult<Cow<'_, [u8]>> {
         Ok(match *self {
             AssetSource::Path(ref p) => {
-                let data = fs::read(p)
+                let data = read_file_to_bytes(p)
                     .map_err(|e| CargoDebError::IoFile("unable to read asset to add to archive", e, p.to_owned()))?;
                 Cow::Owned(data)
             },
