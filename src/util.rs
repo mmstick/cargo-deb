@@ -131,7 +131,7 @@ cfg_if! {
         impl TestPath {
             fn new(filename: &'static str, contents: String) -> Self {
                 TestPath {
-                    filename: filename,
+                    _filename: filename,
                     contents: contents,
                     read_count: 0
                 }
