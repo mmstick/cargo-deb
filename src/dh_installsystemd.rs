@@ -248,7 +248,7 @@ pub fn generate(
 
     if !tmp_file_names.is_empty() {
         autoscript(&mut scripts, package, "postinst", "postinst-init-tmpfiles",
-            &map!{ "TMPFILES" => tmp_file_names }, listener)?;
+            &map!{ "TMPFILES" => tmp_file_names }, false, listener)?;
     }
 
     // add postinst, prerm, and postrm code blocks to handle activation,
@@ -358,10 +358,10 @@ pub fn generate(
         };
         for unit in &enable_units {
             autoscript(&mut scripts, package, "postinst", snippet,
-                &map!{ "UNITFILE" => unit.clone() }, listener)?;
+                &map!{ "UNITFILE" => unit.clone() }, true, listener)?;
         }
         autoscript(&mut scripts, package, "postrm", "postrm-systemd",
-            &map!{ "UNITFILES" => enable_units.join(" ") }, listener)?;
+            &map!{ "UNITFILES" => enable_units.join(" ") }, false, listener)?;
     }
 
     // update the maintainer scripts to start units, where the exact action to
@@ -382,27 +382,27 @@ pub fn generate(
                     replace.insert("RESTART_ACTION", "restart".into());
                 }
             };
-            autoscript(&mut scripts, package, "postinst", snippet, &replace, listener)?;
+            autoscript(&mut scripts, package, "postinst", snippet, &replace, true, listener)?;
         } else {
             if !options.no_start {
                 // (stop|start) service (before|after) upgrade
-                autoscript(&mut scripts, package, "postinst", "postinst-systemd-start", &replace, listener)?;
+                autoscript(&mut scripts, package, "postinst", "postinst-systemd-start", &replace, true, listener)?;
             }
         }
 
         if options.no_stop_on_upgrade || options.restart_after_upgrade {
             // stop service only on remove
-			autoscript(&mut scripts, package, "prerm", "prerm-systemd-restart", &replace, listener)?;
+			autoscript(&mut scripts, package, "prerm", "prerm-systemd-restart", &replace, true, listener)?;
         } else {
             if !options.no_start {
                 // always stop service
-                autoscript(&mut scripts, package, "prerm", "prerm-systemd", &replace, listener)?;
+                autoscript(&mut scripts, package, "prerm", "prerm-systemd", &replace, true, listener)?;
             }
         }
 
         // Run this with "default" order so it is always after other service
         // related autosnippets.
-		autoscript(&mut scripts, package, "postrm", "postrm-systemd-reload-only", &replace, listener)?;
+		autoscript(&mut scripts, package, "postrm", "postrm-systemd-reload-only", &replace, false, listener)?;
     }
 
     Ok(scripts)

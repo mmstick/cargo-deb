@@ -152,12 +152,14 @@ pub(crate) fn autoscript(
     script: &str,
     snippet_filename: &str,
     replacements: &HashMap<&str, String>,
+    service_order: bool,
     listener: &mut dyn Listener) -> CDResult<()>
 {
     let bin_name = std::env::current_exe().unwrap();
     let bin_name = bin_name.file_name().unwrap();
     let bin_name = bin_name.to_str().unwrap();
-    let outfile = format!("{}.{}.debhelper", package, script);
+    let outfile_ext = if service_order { "service" } else { "debhelper" };
+    let outfile = format!("{}.{}.{}", package, script, outfile_ext);
 
     listener.info(format!("Maintainer script {} will be augmented with autoscript {}", &script, snippet_filename));
 
@@ -397,7 +399,7 @@ mod tests {
         mock_listener.expect_info().times(1).return_const(());
         let mut scripts = scripts.unwrap_or(ScriptFragments::new());
         let replacements = map!{ "UNITFILES" => unit.to_owned() };
-        autoscript(&mut scripts, pkg, script, snippet, &replacements, &mut mock_listener).unwrap();
+        autoscript(&mut scripts, pkg, script, snippet, &replacements, false, &mut mock_listener).unwrap();
         return scripts;
     }
 
@@ -417,7 +419,7 @@ mod tests {
         // sed mode is when no search -> replacement pairs are defined
         let sed_mode = &HashMap::new();
 
-        autoscript(&mut scripts, "mypkg", "somescript", "idontexist", sed_mode, &mut mock_listener).unwrap();
+        autoscript(&mut scripts, "mypkg", "somescript", "idontexist", sed_mode, false, &mut mock_listener).unwrap();
     }
 
     #[test]
