@@ -236,7 +236,22 @@ fn debhelper_script_subst(user_scripts_dir: &Path, scripts: &mut ScriptFragments
     listener: &mut dyn Listener) -> CDResult<()>
 {
     let user_file = pkgfile(user_scripts_dir, package, package, script, unit_name);
-    let generated_file_name = format!("{}.{}.debhelper", package, script);
+    let mut generated_scripts: Vec<String> = vec![
+        format!("{}.{}.debhelper", package, script),
+        format!("{}.{}.service", package, script),
+    ];
+
+    if let "prerm" | "postrm" = script {
+        generated_scripts.reverse();
+    }
+
+    // merge the generated scripts if they exist into the user script
+    let mut generated_text = String::new();
+    for generated_file_name in generated_scripts.iter() {
+        if let Some(contents) = scripts.get(generated_file_name) {
+            generated_text.push_str(std::str::from_utf8(contents)?);
+        }
+    }
 
     if let Some(user_file_path) = user_file {
         listener.info(format!("Augmenting maintainer script {}", user_file_path.display()));
@@ -244,24 +259,20 @@ fn debhelper_script_subst(user_scripts_dir: &Path, scripts: &mut ScriptFragments
         // merge the generated scripts if they exist into the user script
         // if no generated script exists, we still need to remove #DEBHELPER# if
         // present otherwise the script will be syntactically invalid
-        let generated_text = match scripts.get(&generated_file_name) {
-            Some(contents) => String::from_utf8(contents.clone())?,
-            None           => String::from("")
-        };
-        let user_text = read_file_to_string(user_file_path.as_path())?;
+        let user_text = read_file_to_string(user_file_path.clone())?;
         let new_text = user_text.replace("#DEBHELPER#", &generated_text);
         if new_text == user_text {
             return Err(CargoDebError::DebHelperReplaceFailed(user_file_path));
         }
         scripts.insert(script.into(), new_text.into());
-    } else if let Some(generated_bytes) = scripts.get(&generated_file_name) {
+    } else if !generated_text.is_empty() {
         listener.info(format!("Generating maintainer script {}", script));
 
         // give it a shebang header and rename it
         let mut new_text = String::new();
         new_text.push_str("#!/bin/sh\n");
         new_text.push_str("set -e\n");
-        new_text.push_str(std::str::from_utf8(generated_bytes)?);
+        new_text.push_str(&generated_text);
 
         scripts.insert(script.into(), new_text.into());
     }
