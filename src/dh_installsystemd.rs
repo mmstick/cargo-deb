@@ -3,25 +3,24 @@
 /// dh_installsystemd. Specifically this implementation is based on the Ubuntu
 /// version labelled 12.10ubuntu1 which is included in Ubuntu 20.04 LTS. For
 /// more details on the source version see the comments in dh_lib.rs.
-/// 
+///
 /// # See also
-/// 
+///
 /// Ubuntu 20.04 dh_installsystemd sources:
 /// https://git.launchpad.net/ubuntu/+source/debhelper/tree/dh_installsystemd?h=applied/12.10ubuntu1
-/// 
+///
 /// Ubuntu 20.04 dh_installsystemd man page (online HTML version):
 /// http://manpages.ubuntu.com/manpages/focal/en/man1/dh_installsystemd.1.html
-
 use itertools::Itertools; // for .next_tuple()
 
-use std::collections::{HashMap, BTreeSet};
+use std::collections::{BTreeSet, HashMap};
 use std::io::prelude::*;
 use std::path::{Path, PathBuf};
 use std::str;
 
-use crate::manifest::Asset;
 use crate::dh_lib::*;
 use crate::listener::Listener;
+use crate::manifest::Asset;
 use crate::util::*;
 use crate::CDResult;
 
@@ -60,7 +59,7 @@ const SYSTEMD_UNIT_FILE_INSTALL_MAPPINGS: [(&str, &str, &str); 12] = [
 #[derive(Debug, PartialEq)]
 pub struct InstallRecipe {
     pub path: PathBuf,
-    pub mode: u32
+    pub mode: u32,
 }
 
 pub type PackageUnitFiles = HashMap<PathBuf, InstallRecipe>;
@@ -69,53 +68,53 @@ pub type PackageUnitFiles = HashMap<PathBuf, InstallRecipe>;
 ///   http://manpages.ubuntu.com/manpages/focal/en/man1/dh_installsystemd.1.html
 /// > --no-enable
 /// > Disable the service(s) on purge, but do not enable them on install.
-/// > 
+/// >
 /// > Note that this option does not affect whether the services are started.  Please
 /// > remember to also use --no-start if the service should not be started.
-/// > 
+/// >
 /// > --name=name
 /// > This option controls several things.
-/// > 
+/// >
 /// > It changes the name that dh_installsystemd uses when it looks for maintainer provided
 /// > systemd unit files as listed in the "FILES" section.  As an example, dh_installsystemd
 /// > --name foo will look for debian/package.foo.service instead of
 /// > debian/package.service).  These unit files are installed as name.unit-extension (in
 /// > the example, it would be installed as foo.service).
-/// > 
+/// >
 /// > Furthermore, if no unit files are passed explicitly as command line arguments,
 /// > dh_installsystemd will only act on unit files called name (rather than all unit files
 /// > found in the package).
-/// > 
+/// >
 /// > --restart-after-upgrade
 /// > Do not stop the unit file until after the package upgrade has been completed.  This is
 /// > the default behaviour in compat 10.
-/// > 
+/// >
 /// > In earlier compat levels the default was to stop the unit file in the prerm, and start
 /// > it again in the postinst.
-/// > 
+/// >
 /// > This can be useful for daemons that should not have a possibly long downtime during
 /// > upgrade. But you should make sure that the daemon will not get confused by the package
 /// > being upgraded while it's running before using this option.
-/// > 
+/// >
 /// > --no-restart-after-upgrade
 /// > Undo a previous --restart-after-upgrade (or the default of compat 10).  If no other
 /// > options are given, this will cause the service to be stopped in the prerm script and
 /// > started again in the postinst script.
-/// > 
+/// >
 /// > -r, --no-stop-on-upgrade, --no-restart-on-upgrade
 /// > Do not stop service on upgrade.
-/// > 
+/// >
 /// > --no-start
 /// > Do not start the unit file after upgrades and after initial installation (the latter
 /// > is only relevant for services without a corresponding init script).
-/// > 
+/// >
 /// > Note that this option does not affect whether the services are enabled.  Please
 /// > remember to also use --no-enable if the services should not be enabled.
-/// > 
+/// >
 /// > unit file ...
 /// > Only process and generate maintscripts for the installed unit files with the
 /// > (base)name unit file.
-/// > 
+/// >
 /// > Note: dh_installsystemd will still install unit files from debian/ but it will not
 /// > generate any maintscripts for them unless they are explicitly listed in unit file ...
 #[derive(Default, Debug)]
@@ -130,7 +129,7 @@ pub struct Options {
 /// optional systemd unit name) in the given directory and return an install
 /// recipe for each file detailing the path at which the file should be
 /// installed and the mode (chmod) that the file should be given.
-/// 
+///
 /// See:
 ///   https://git.launchpad.net/ubuntu/+source/debhelper/tree/dh_installsystemd?h=applied/12.10ubuntu1#n264
 ///   https://git.launchpad.net/ubuntu/+source/debhelper/tree/dh_installsystemd?h=applied/12.10ubuntu1#n198
@@ -151,14 +150,14 @@ pub fn find_units(
             //   https://www.freedesktop.org/software/systemd/man/tmpfiles.d.html
             let actual_suffix = match &unit_type[..] {
                 "tmpfile" => "conf",
-                _          => unit_type,
+                _ => unit_type,
             };
 
             // Determine the file name that the unit file should be installed as
             // which depends on whether or not a unit name was provided.
             let install_filename = match unit_name {
                 Some(name) => format!("{}{}.{}", name, package_suffix, actual_suffix),
-                None       => format!("{}.{}", package, actual_suffix),
+                None => format!("{}.{}", package, actual_suffix),
             };
 
             // Construct the full install path for this unit file.
@@ -172,7 +171,7 @@ pub fn find_units(
                 InstallRecipe {
                     path: install_path,
                     mode: 0o644,
-                }
+                },
             );
         }
     }
@@ -181,20 +180,20 @@ pub fn find_units(
 }
 
 /// Determine if the given string is a systemd unit file comment line.
-/// 
+///
 /// See:
 ///   https://www.freedesktop.org/software/systemd/man/systemd.syntax.html#Introduction
 fn is_comment(s: &str) -> bool {
     match s.chars().next() {
         Some('#') => true,
         Some(';') => true,
-        _         => false
+        _ => false,
     }
 }
 
 /// Strip off any first layer of outer quotes according to systemd quoting
 /// rules.
-/// 
+///
 /// See:
 ///   https://www.freedesktop.org/software/systemd/man/systemd.service.html#Command%20lines
 fn unquote(s: &str) -> &str {
@@ -212,28 +211,28 @@ fn unquote(s: &str) -> &str {
 /// inspects them and decides, based on the unit file and the configuration
 /// options provided, which DebHelper autoscripts to use to correctly install
 /// those units.
-/// 
+///
 /// # Cargo Deb specific behaviour
-/// 
+///
 /// Any `Asset`, whether identified by `find_units()` or added by the user
 /// manually in Cargo.toml, that will be installed into `LIB_SYSTEMD_SYSTEM_DIR`
 /// will be analysed.
-/// 
+///
 /// Unlike `dh_installsystemd` results are returned as a `ScriptFragments` value
 /// rather than being written to temporary files on disk.
-/// 
+///
 /// # Usage
-/// 
+///
 /// Pass the `ScriptFragments` result to `apply()`.
-/// 
+///
 /// See:
 ///   https://git.launchpad.net/ubuntu/+source/debhelper/tree/dh_installsystemd?h=applied/12.10ubuntu1#n288
 pub fn generate(
     package: &str,
     assets: &Vec<Asset>,
     options: &Options,
-    listener: &mut dyn Listener) -> CDResult<ScriptFragments>
-{
+    listener: &mut dyn Listener,
+) -> CDResult<ScriptFragments> {
     let mut scripts = ScriptFragments::new();
 
     // add postinst code blocks to handle tmpfiles
@@ -241,7 +240,7 @@ pub fn generate(
     let tmp_file_names = assets
         .iter()
         .filter(|v| v.target_path.starts_with(USR_LIB_TMPFILES_D_DIR))
-        .map(|v | fname_from_path(v.source.path().unwrap()))
+        .map(|v| fname_from_path(v.source.path().unwrap()))
         .collect::<Vec<String>>()
         .join(" ");
 
@@ -258,11 +257,13 @@ pub fn generate(
     // skip template service files. Enabling, disabling, starting or stopping
     // those services without specifying the instance is not useful.
     let mut installed_non_template_units: BTreeSet<String> = BTreeSet::new();
-    installed_non_template_units.extend(assets
-        .iter()
-        .filter(|v| v.target_path.starts_with(LIB_SYSTEMD_SYSTEM_DIR))
-        .map(|v | fname_from_path(v.target_path.as_path()))
-        .filter(|fname| !fname.contains("@")));
+    installed_non_template_units.extend(
+        assets
+            .iter()
+            .filter(|v| v.target_path.starts_with(LIB_SYSTEMD_SYSTEM_DIR))
+            .map(|v| fname_from_path(v.target_path.as_path()))
+            .filter(|fname| !fname.contains("@")),
+    );
 
     // BTreeSets values iterate in sorted order irrespective of the order they
     // were inserted.
@@ -340,7 +341,7 @@ pub fn generate(
                         "Alias" => {
                             aliases.insert(other_unit);
                         },
-                        _ => ()
+                        _ => (),
                     };
                 } else if line.starts_with("[Install]") {
                     enable_units.insert(unit.clone());
@@ -355,7 +356,7 @@ pub fn generate(
     // see: https://git.launchpad.net/ubuntu/+source/debhelper/tree/dh_installsystemd?h=applied/12.10ubuntu1#n390
     if !enable_units.is_empty() {
         let snippet = match options.no_enable {
-            true  => "postinst-systemd-dont-enable",
+            true => "postinst-systemd-dont-enable",
             false => "postinst-systemd-enable",
         };
         for unit in &enable_units {
@@ -370,7 +371,7 @@ pub fn generate(
     // be taken is influenced by the options passed to us.
     // see: https://git.launchpad.net/ubuntu/+source/debhelper/tree/dh_installsystemd?h=applied/12.10ubuntu1#n398
     if !start_units.is_empty() {
-        let mut replace = map!{ "UNITFILES" => start_units.join(" ") };
+        let mut replace = map! { "UNITFILES" => start_units.join(" ") };
 
         if options.restart_after_upgrade {
             let snippet;
@@ -412,11 +413,11 @@ pub fn generate(
 
 #[cfg(test)]
 mod tests {
-    use crate::util::tests::set_test_fs_path_content;
-    use crate::util::tests::add_test_fs_paths;
-    use crate::util::tests::get_read_count;
     use super::*;
     use crate::manifest::{Asset, AssetSource};
+    use crate::util::tests::add_test_fs_paths;
+    use crate::util::tests::get_read_count;
+    use crate::util::tests::set_test_fs_path_content;
     use rstest::*;
 
     #[test]
@@ -551,7 +552,7 @@ mod tests {
             "mount",
             "postinit",
             "mypkg.postinit",
-            "mypkg.myunit.postinit"
+            "mypkg.myunit.postinit",
         ]);
 
         let pkg_unit_files = find_units(Path::new("debian"), "mypkg", Some("myunit"));
@@ -584,13 +585,12 @@ mod tests {
         let mut mock_listener = crate::listener::MockListener::new();
         mock_listener.expect_info().times(0).return_const(());
 
-        let assets = vec![
-            Asset::new(
-                AssetSource::Path(PathBuf::new()),
-                PathBuf::new(),
-                0o0,
-                false)
-        ];
+        let assets = vec![Asset::new(
+            AssetSource::Path(PathBuf::new()),
+            PathBuf::new(),
+            0o0,
+            false,
+        )];
 
         let fragments = generate("mypkg", &assets, &Options::default(), &mut mock_listener).unwrap();
         assert!(fragments.is_empty());
@@ -602,13 +602,12 @@ mod tests {
         let mut mock_listener = crate::listener::MockListener::new();
         mock_listener.expect_info().times(0).return_const(());
 
-        let assets = vec![
-            Asset::new(
-                AssetSource::Path(PathBuf::new()), // path source with empty source path makes no sense
-                Path::new("usr/lib/tmpfiles.d/blah").to_path_buf(),
-                0o0,
-                false)
-        ];
+        let assets = vec![Asset::new(
+            AssetSource::Path(PathBuf::new()), // path source with empty source path makes no sense
+            Path::new("usr/lib/tmpfiles.d/blah").to_path_buf(),
+            0o0,
+            false,
+        )];
 
         let fragments = generate("mypkg", &assets, &Options::default(), &mut mock_listener).unwrap();
         assert!(fragments.is_empty());
@@ -620,13 +619,12 @@ mod tests {
         let mut mock_listener = crate::listener::MockListener::new();
         mock_listener.expect_info().times(0).return_const(());
 
-        let assets = vec![
-            Asset::new(
-                AssetSource::Data(vec![]), // only assets of type Path are currently supported
-                Path::new("usr/lib/tmpfiles.d/blah").to_path_buf(),
-                0o0,
-                false)
-        ];
+        let assets = vec![Asset::new(
+            AssetSource::Data(vec![]), // only assets of type Path are currently supported
+            Path::new("usr/lib/tmpfiles.d/blah").to_path_buf(),
+            0o0,
+            false,
+        )];
 
         let fragments = generate("mypkg", &assets, &Options::default(), &mut mock_listener).unwrap();
         assert!(fragments.is_empty());
@@ -640,13 +638,12 @@ mod tests {
         let mut mock_listener = crate::listener::MockListener::new();
         mock_listener.expect_info().times(1).return_const(());
 
-        let assets = vec![
-            Asset::new(
-                AssetSource::Path(tmp_file_path),
-                Path::new("usr/lib/tmpfiles.d/blah").to_path_buf(),
-                0o0,
-                false)
-        ];
+        let assets = vec![Asset::new(
+            AssetSource::Path(tmp_file_path),
+            Path::new("usr/lib/tmpfiles.d/blah").to_path_buf(),
+            0o0,
+            false,
+        )];
 
         let fragments = generate("mypkg", &assets, &Options::default(), &mut mock_listener).unwrap();
         assert_eq!(1, fragments.len());
@@ -684,19 +681,18 @@ mod tests {
 
     #[test]
     fn generate_filters_out_template_units() {
-        // "A template unit must have a single "@" at the end of the name 
+        // "A template unit must have a single "@" at the end of the name
         // (right before the type suffix)" - from:
         //   https://www.freedesktop.org/software/systemd/man/systemd.unit.html
         let mut mock_listener = crate::listener::MockListener::new();
         mock_listener.expect_info().times(0).return_const(());
 
-        let assets = vec![
-            Asset::new(
-                AssetSource::Path(PathBuf::from("debian/my_unit@.service")),
-                Path::new("lib/systemd/system/").to_path_buf(),
-                0o0,
-                false)
-        ];
+        let assets = vec![Asset::new(
+            AssetSource::Path(PathBuf::from("debian/my_unit@.service")),
+            Path::new("lib/systemd/system/").to_path_buf(),
+            0o0,
+            false,
+        )];
 
         let fragments = generate("mypkg", &assets, &Options::default(), &mut mock_listener).unwrap();
         assert_eq!(0, fragments.len());
@@ -708,13 +704,12 @@ mod tests {
         let mut mock_listener = crate::listener::MockListener::new();
         mock_listener.expect_info().times(0).return_const(());
 
-        let assets = vec![
-            Asset::new(
-                AssetSource::Path(PathBuf::from("debian/my_unit.service")),
-                Path::new("some/other/path/").to_path_buf(),
-                0o0,
-                false)
-        ];
+        let assets = vec![Asset::new(
+            AssetSource::Path(PathBuf::from("debian/my_unit.service")),
+            Path::new("some/other/path/").to_path_buf(),
+            0o0,
+            false,
+        )];
 
         let fragments = generate("mypkg", &assets, &Options::default(), &mut mock_listener).unwrap();
         assert_eq!(0, fragments.len());
@@ -763,24 +758,23 @@ mod tests {
         ne: bool,
         rau: bool,
         ns: bool,
-        nsou: bool
+        nsou: bool,
     ) {
         let unit_file_path = "debian/mypkg.service";
 
         let install_base_path = match ip {
             "ult" => "usr/lib/tmpfiles.d",
             "lss" => "lib/systemd/system",
-            x     => panic!("Unsupported install path value '{}'", x),
+            x => panic!("Unsupported install path value '{}'", x),
         };
 
         // setup input for generate()
-        let assets = vec![
-            Asset::new(
-                AssetSource::Path(PathBuf::from(unit_file_path)),
-                Path::new(&format!("{}/mypkg.service", install_base_path)).to_path_buf(),
-                0o0,
-                false)
-        ];
+        let assets = vec![Asset::new(
+            AssetSource::Path(PathBuf::from(unit_file_path)),
+            Path::new(&format!("{}/mypkg.service", install_base_path)).to_path_buf(),
+            0o0,
+            false,
+        )];
 
         let options = Options {
             no_enable: ne,
@@ -879,7 +873,7 @@ WantedBy=multi-user.target");
                 assert_eq!(1, get_read_count(unit_file_path));
                 if inst {
                     match options.no_enable {
-                        true  => assert_eq!(1, get_read_count("postinst-systemd-dont-enable")),
+                        true => assert_eq!(1, get_read_count("postinst-systemd-dont-enable")),
                         false => assert_eq!(1, get_read_count("postinst-systemd-enable")),
                     };
                     assert_eq!(1, get_read_count("postrm-systemd"));
@@ -887,7 +881,7 @@ WantedBy=multi-user.target");
                     autoscript_fragments_to_check_for.insert("postrm.debhelper");
                 }
                 match options.restart_after_upgrade {
-                    true  => {
+                    true => {
                         match options.no_start {
                             true  => assert_eq!(1, get_read_count("postinst-systemd-restartnostart")),
                             false => assert_eq!(1, get_read_count("postinst-systemd-restart")),
@@ -908,8 +902,8 @@ WantedBy=multi-user.target");
                 }
                 assert_eq!(1, get_read_count("postrm-systemd-reload-only"));
                 autoscript_fragments_to_check_for.insert("postrm.debhelper");
-            },
-            _     => unreachable!(),
+            }
+            _ => unreachable!(),
         }
 
         for autoscript in autoscript_fragments_to_check_for.iter() {

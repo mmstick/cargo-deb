@@ -65,9 +65,9 @@ pub(crate) fn generate_copyright_asset(options: &Config) -> CDResult<Vec<u8>> {
 }
 
 /// Compress man page assets per Debian Policy.
-/// 
+///
 /// # References
-/// 
+///
 /// https://www.debian.org/doc/debian-policy/ch-docs.html#manual-pages
 /// https://lintian.debian.org/tags/manpage-not-compressed.html
 pub fn compress_man_pages(options: &mut Config, listener: &dyn Listener) -> CDResult<()> {
@@ -90,7 +90,7 @@ pub fn compress_man_pages(options: &mut Config, listener: &dyn Listener) -> CDRe
                 crate::manifest::AssetSource::Data(compressed),
                 Path::new(&format!("{}.gz", target_path_str)).into(),
                 asset.chmod,
-                false
+                false,
             ));
 
             indices_to_remove.push(idx);

@@ -1,18 +1,18 @@
+use crate::dh_installsystemd;
+use crate::dh_lib;
 use crate::error::*;
 use crate::listener::Listener;
 use crate::manifest::Config;
 use crate::pathbytes::*;
 use crate::tararchive::Archive;
-use crate::wordsplit::WordSplit;
-use crate::dh_installsystemd;
-use crate::dh_lib;
 use crate::util::{is_path_file, read_file_to_bytes};
+use crate::wordsplit::WordSplit;
+use dh_lib::ScriptFragments;
 use md5::Digest;
 use std::collections::HashMap;
 use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use dh_lib::ScriptFragments;
 
 /// Generates an uncompressed tar archive with `control`, `md5sums`, and others
 pub fn generate_archive(options: &Config, time: u64, asset_hashes: HashMap<PathBuf, Digest>, listener: &mut dyn Listener) -> CDResult<Vec<u8>> {
@@ -32,17 +32,17 @@ pub fn generate_archive(options: &Config, time: u64, asset_hashes: HashMap<PathB
 /// Append Debian maintainer script files (control, preinst, postinst, prerm,
 /// postrm and templates) present in the `maintainer_scripts` path to the
 /// archive, if `maintainer_scripts` is configured.
-/// 
+///
 /// Additionally, when `systemd_units` is configured, shell script fragments
 /// "for enabling, disabling, starting, stopping and restarting systemd unit
 /// files" (quoting man 1 dh_installsystemd) will replace the `#DEBHELPER#`
 /// token in the provided maintainer scripts.
-/// 
+///
 /// If a shell fragment cannot be inserted because the target script is missing
 /// then the entire script will be generated and appended to the archive.
-/// 
+///
 /// # Requirements
-/// 
+///
 /// When `systemd_units` is configured, user supplied `maintainer_scripts` must
 /// contain a `#DEBHELPER#` token at the point where shell script fragments
 /// should be inserted.
@@ -327,7 +327,7 @@ mod tests {
             AssetSource::Path(PathBuf::from("some.service")),
             PathBuf::from("lib/systemd/system/some.service"),
             0o000,
-            false
+            false,
         ));
 
         // look in the current dir for maintainer scripts (none, but the systemd

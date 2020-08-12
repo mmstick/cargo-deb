@@ -34,13 +34,13 @@ mod util;
 mod config;
 mod debarchive;
 mod dependencies;
+mod dh_installsystemd;
+mod dh_lib;
 mod error;
 mod ok_or;
 mod pathbytes;
 mod tararchive;
 mod wordsplit;
-mod dh_installsystemd;
-mod dh_lib;
 
 use crate::listener::Listener;
 use std::env;

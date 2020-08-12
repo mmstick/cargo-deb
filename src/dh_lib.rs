@@ -6,12 +6,12 @@
 /// functionality that was needed to properly script installation of systemd
 /// units, i.e. that used by the debhelper dh_instalsystemd command or rather
 /// our dh_installsystemd.rs implementation of it, is included here.
-/// 
+///
 /// # See also
-/// 
+///
 /// Ubuntu 20.04 dh_lib sources:
 /// https://git.launchpad.net/ubuntu/+source/debhelper/tree/lib/Debian/Debhelper/Dh_Lib.pm?h=applied/12.10ubuntu1
-/// 
+///
 /// Ubuntu 20.04 dh_installsystemd man page (online HTML version):
 /// http://manpages.ubuntu.com/manpages/focal/en/man1/dh_installdeb.1.html
 
@@ -39,27 +39,27 @@ pub(crate) type ScriptFragments = HashMap<String, Vec<u8>>;
 /// filename and (optional) unit name. Enables callers to use the most specific
 /// match while also falling back to a less specific match (e.g. a file to be
 /// used as a default) when more specific matches are not available.
-/// 
+///
 /// Returns one of the following, in order of most preferred first:
-/// 
+///
 ///   - Some("<dir>/<package>.<unit_name>.<filename>")
 ///   - Some("<dir>/<package>.<filename>")
 ///   - Some("<dir>/<unit_name>.<filename>")
 ///   - Some("<dir>/<filename>")
 ///   - None
-/// 
+///
 /// <filename> is either a systemd unit type such as `service` or `socket`, or a
 /// maintainer script name such as `postinst`.
-/// 
+///
 /// Note: main_package should ne the first package listed in the Debian package
 /// control file.
 ///
 /// # Known limitations
-/// 
+///
 /// The pkgfile() subroutine in the actual dh_installsystemd code is capable of
 /// matching architecture and O/S specific unit files, but this implementation
 /// does not support architecture or O/S specific unit files.
-/// 
+///
 /// # References
 ///
 /// https://git.launchpad.net/ubuntu/+source/debhelper/tree/lib/Debian/Debhelper/Dh_Lib.pm?h=applied/12.10ubuntu1#n286
@@ -141,21 +141,21 @@ pub(crate) fn get_embedded_autoscript(snippet_filename: &str) -> String {
 /// for a debian package in preparation for writing them into or as complete
 /// maintainer scripts in `apply()`, pulling fragments from a "library" of
 /// so-called "autoscripts".
-/// 
+///
 /// Takes a map of values to search and replace in the selected "autoscript"
 /// fragment such as a systemd unit name placeholder and value.
-/// 
+///
 /// # Cargo Deb specific behaviour
-/// 
+///
 /// The autoscripts are sourced from within the binary via the rust_embed crate.
-/// 
+///
 /// Results are stored as updated or new entries in the `ScriptFragments` map,
 /// rather than being written to temporary files on disk.
-/// 
+///
 /// # Known limitations
-/// 
+///
 /// Arbitrary sed command based file editing is not supported.
-/// 
+///
 /// # References
 ///
 /// https://git.launchpad.net/ubuntu/+source/debhelper/tree/lib/Debian/Debhelper/Dh_Lib.pm?h=applied/12.10ubuntu1#n1135
@@ -166,8 +166,8 @@ pub(crate) fn autoscript(
     snippet_filename: &str,
     replacements: &HashMap<&str, String>,
     service_order: bool,
-    listener: &mut dyn Listener) -> CDResult<()>
-{
+    listener: &mut dyn Listener,
+) -> CDResult<()> {
     let bin_name = std::env::current_exe().unwrap();
     let bin_name = bin_name.file_name().unwrap();
     let bin_name = bin_name.to_str().unwrap();
@@ -208,12 +208,12 @@ pub(crate) fn autoscript(
 
 /// Search and replace a collection of key => value pairs in the given file and
 /// return the resulting text as a String.
-/// 
+///
 /// # Known limitations
-/// 
+///
 /// Keys are replaced in arbitrary order, not in reverse sorted order. See:
 ///   https://git.launchpad.net/ubuntu/+source/debhelper/tree/lib/Debian/Debhelper/Dh_Lib.pm?h=applied/12.10ubuntu1#n1214
-/// 
+///
 /// # References
 ///
 /// https://git.launchpad.net/ubuntu/+source/debhelper/tree/lib/Debian/Debhelper/Dh_Lib.pm?h=applied/12.10ubuntu1#n1203
@@ -233,12 +233,12 @@ fn autoscript_sed(snippet_filename: &str, replacements: &HashMap<&str, String>) 
 /// into a complete shell script.
 ///
 /// # Cargo Deb specific behaviour
-/// 
+///
 /// Results are stored as updated or new entries in the `ScriptFragments` map,
 /// rather than being written to temporary files on disk.
-/// 
+///
 /// # Known limitations
-/// 
+///
 /// Only the #DEBHELPER# token is replaced. Is that enough? See:
 ///   https://www.man7.org/linux/man-pages/man1/dh_installdeb.1.html#SUBSTITUTION_IN_MAINTAINER_SCRIPTS
 ///
@@ -296,7 +296,7 @@ fn debhelper_script_subst(user_scripts_dir: &Path, scripts: &mut ScriptFragments
 /// Generate final maintainer scripts by merging the autoscripts that have been
 /// collected in the `ScriptFragments` map  with the maintainer scripts
 /// on disk supplied by the user.
-/// 
+///
 /// See: https://git.launchpad.net/ubuntu/+source/debhelper/tree/dh_installdeb?h=applied/12.10ubuntu1#n300
 pub(crate) fn apply(user_scripts_dir: &Path, scripts: &mut ScriptFragments, package: &str, unit_name: Option<&str>,
     listener: &mut dyn Listener) -> CDResult<()>
@@ -313,8 +313,8 @@ pub(crate) fn apply(user_scripts_dir: &Path, scripts: &mut ScriptFragments, pack
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::util::tests::{add_test_fs_paths, set_test_fs_path_content};
     use rstest::*;
-    use crate::util::tests::{set_test_fs_path_content, add_test_fs_paths};
 
     // helper conversion
     // create a new type to work around error "only traits defined in
@@ -565,12 +565,9 @@ mod tests {
     fn autoscript_check_service_order() {
         let mut mock_listener = crate::listener::MockListener::new();
         mock_listener.expect_info().return_const(());
-        let replacements = map!{ "UNITFILES" => "someunit".to_owned() };
+        let replacements = map! { "UNITFILES" => "someunit".to_owned() };
 
-        let in_out = vec![
-            (false, "debhelper"),
-            (true,  "service")
-        ];
+        let in_out = vec![(false, "debhelper"), (true, "service")];
 
         for (service_order, expected_ext) in in_out.into_iter() {
             let mut scripts = ScriptFragments::new();
@@ -618,7 +615,7 @@ mod tests {
         match debhelper_script_subst(Path::new(""), &mut scripts, "mypkg", "myscript", None, &mut mock_listener) {
             Ok(_) => (),
             Err(CargoDebError::DebHelperReplaceFailed(_)) => panic!("Test failed as expected"),
-            Err(err) => panic!("Unexpected error {:?}", err)
+            Err(err) => panic!("Unexpected error {:?}", err),
         }
     }
 
@@ -691,8 +688,8 @@ mod tests {
     fn debhelper_script_subst_with_user_and_generated_files(
         valid_user_file: String,
         maintainer_script: &'static str,
-        service_order: bool)
-    {
+        service_order: bool,
+    ) {
         set_test_fs_path_content(maintainer_script, valid_user_file.clone());
 
         let mut mock_listener = crate::listener::MockListener::new();

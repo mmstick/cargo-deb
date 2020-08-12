@@ -1,19 +1,19 @@
 use crate::config::CargoConfig;
 use crate::dependencies::resolve;
+use crate::dh_installsystemd;
 use crate::error::*;
 use crate::listener::Listener;
 use crate::ok_or::OkOrThen;
-use crate::dh_installsystemd;
 use crate::util::read_file_to_bytes;
 use rayon::prelude::*;
 use serde::Deserialize;
 use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
+use std::convert::From;
 use std::env::consts::{DLL_PREFIX, DLL_SUFFIX};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use std::convert::From;
 
 fn is_glob_pattern(s: &str) -> bool {
     s.contains('*') || s.contains('[') || s.contains(']') || s.contains('!')
@@ -70,15 +70,15 @@ impl AssetSource {
 }
 
 /// Configuration settings for the systemd_units functionality.
-/// 
+///
 /// `unit_scripts`: (optional) relative path to a directory containing correctly
 /// named systemd unit files. See `dh_lib::pkgfile()` and `dh_installsystemd.rs`
 /// for more details on file naming. If not supplied, defaults to the
 /// `maintainer_scripts` directory.
-/// 
+///
 /// `unit_name`: (optjonal) in cases where the `unit_scripts` directory contains
 /// multiple units, only process those matching this unit name.
-/// 
+///
 /// For details on the other options please see `dh_installsystemd::Options`.
 #[derive(Clone, Debug, Deserialize, Default)]
 #[serde(rename_all = "kebab-case", deny_unknown_fields)]
@@ -518,8 +518,7 @@ impl Config {
                     None
                 };
 
-                let units = dh_installsystemd::find_units(
-                    &search_path, package, unit_name);
+                let units = dh_installsystemd::find_units(&search_path, package, unit_name);
 
                 for (source, target) in &units {
                     self.assets.resolved.push(Asset::new(
@@ -1040,7 +1039,7 @@ mod tests {
     }
 
     #[test]
-    fn arch_spec () {
+    fn arch_spec() {
         use ArchSpec::*;
         // req
         assert_eq!(
