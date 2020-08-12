@@ -45,7 +45,6 @@ impl AssetSource {
         }
     }
 
-    #[must_use]
     pub fn data(&self) -> CDResult<Cow<'_, [u8]>> {
         Ok(match *self {
             AssetSource::Path(ref p) => {
@@ -61,6 +60,7 @@ impl AssetSource {
 
     /// Return the file that will hold debug symbols for this asset.
     /// This is just `<original-file>.debug`
+    #[must_use]
     pub fn debug_source(&self) -> Option<PathBuf> {
         match *self {
             AssetSource::Path(ref p) => Some(debug_filename(p)),
@@ -155,6 +155,7 @@ pub struct Asset {
 }
 
 impl Asset {
+    #[must_use]
     pub fn new(source: AssetSource, mut target_path: PathBuf, chmod: u32, is_built: bool) -> Self {
         // is_dir() is only for paths that exist
         if target_path.to_string_lossy().ends_with('/') {
@@ -186,6 +187,7 @@ impl Asset {
 
     /// Returns the target path for the debug symbol file, which will be
     /// /usr/lib/debug/<path-to-executable>.debug
+    #[must_use]
     pub fn debug_target(&self) -> Option<PathBuf> {
         if self.is_built {
             // Turn an absolute path into one relative to "/"
@@ -239,7 +241,7 @@ fn get_architecture_specification(depend: &str) -> CDResult<(String, Option<Arch
 }
 
 /// Architecture specification strings
-/// https://www.debian.org/doc/debian-policy/ch-customized-programs.html#s-arch-spec
+/// <https://www.debian.org/doc/debian-policy/ch-customized-programs.html#s-arch-spec>
 fn match_architecture(spec: ArchSpec, target_arch: &str) -> CDResult<bool> {
     let (neg, spec) = match spec {
         ArchSpec::NegRequire(pkg) => (true, pkg),
@@ -547,15 +549,10 @@ impl Config {
         self.assets
             .resolved
             .iter()
-            .filter_map(|asset| {
+            .filter(|asset| {
                 // Assumes files in build dir which have executable flag set are binaries
-                if (!built_only || asset.is_built)
+                (!built_only || asset.is_built)
                     && (asset.is_dynamic_library() || asset.is_executable())
-                {
-                    Some(asset)
-                } else {
-                    None
-                }
             })
             .collect()
     }
@@ -665,7 +662,7 @@ impl Cargo {
             let variant = deb.variants
                 .as_mut()
                 .and_then(|v| v.remove(variant))
-                .ok_or(CargoDebError::VariantNotFound(variant.to_string()))?;
+                .ok_or_else(|| CargoDebError::VariantNotFound(variant.to_string()))?;
             variant.inherit_from(deb)
         } else {
             self.package
@@ -684,14 +681,14 @@ impl Cargo {
             target: target.map(|t| t.to_string()),
             target_dir,
             name: self.package.name.clone(),
-            deb_name: deb.name.take().unwrap_or(self.package.name.clone()),
+            deb_name: deb.name.take().unwrap_or_else(|| self.package.name.clone()),
             deb_version: deb_version.unwrap_or(self.version_string(deb.revision)),
             license: self.package.license.take(),
             license_file,
             license_file_skip_lines,
             copyright: deb.copyright.take().ok_or_then(|| {
                 if self.package.authors.is_empty() {
-                    Err("The package must have a copyright or authors property")?;
+                    return Err("The package must have a copyright or authors property".into());
                 }
                 Ok(self.package.authors.join(", "))
             })?,
@@ -713,7 +710,7 @@ impl Cargo {
             replaces: deb.replaces.take(),
             provides: deb.provides.take(),
             section: deb.section.take(),
-            priority: deb.priority.take().unwrap_or("optional".to_owned()),
+            priority: deb.priority.take().unwrap_or_else(|| "optional".to_owned()),
             architecture: get_arch(target.unwrap_or(crate::DEFAULT_TARGET)).to_owned(),
             conf_files: deb.conf_files.map(|x| x.iter().fold(String::new(), |a, b| a + b + "\n")),
             assets: Assets::new(),
@@ -736,7 +733,7 @@ impl Cargo {
         };
         let assets = self.take_assets(&config, deb.assets.take(), &root_package.targets, readme)?;
         if assets.is_empty() {
-            Err("No binaries or cdylibs found. The package is empty. Please specify some assets to package in Cargo.toml")?;
+            return Err("No binaries or cdylibs found. The package is empty. Please specify some assets to package in Cargo.toml".into());
         }
         config.assets = assets;
         config.add_copyright_asset()?;

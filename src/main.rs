@@ -116,8 +116,8 @@ fn process(
         deb_version,
     }: CliOptions,
 ) -> CDResult<()> {
-    let target = target.as_ref().map(|s| s.as_str());
-    let variant = variant.as_ref().map(|s| s.as_str());
+    let target = target.as_deref();
+    let variant = variant.as_deref();
 
     if install || target.is_none() {
         warn_if_not_linux(); // compiling natively for non-linux = nope
@@ -142,7 +142,7 @@ fn process(
     let manifest_path = manifest_path.as_ref().map_or("Cargo.toml", |s| s.as_str());
     let mut options = Config::from_manifest(
         Path::new(manifest_path),
-        package_name.as_ref().map(|s| s.as_str()),
+        package_name.as_deref(),
         output_path,
         target,
         variant,

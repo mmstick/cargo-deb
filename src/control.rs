@@ -61,7 +61,7 @@ fn generate_scripts(archive: &mut Archive, option: &Config, listener: &mut dyn L
 
             // Get Option<&str> from Option<String>
             let unit_name = systemd_units_config.unit_name
-                .as_ref().map(|s| s.as_str());
+                .as_deref();
 
             // Replace the #DEBHELPER# token in the users maintainer scripts
             // and/or generate maintainer scripts from scratch as needed.

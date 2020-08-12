@@ -7,10 +7,10 @@
 /// # See also
 ///
 /// Ubuntu 20.04 dh_installsystemd sources:
-/// https://git.launchpad.net/ubuntu/+source/debhelper/tree/dh_installsystemd?h=applied/12.10ubuntu1
+/// <https://git.launchpad.net/ubuntu/+source/debhelper/tree/dh_installsystemd?h=applied/12.10ubuntu1>
 ///
 /// Ubuntu 20.04 dh_installsystemd man page (online HTML version):
-/// http://manpages.ubuntu.com/manpages/focal/en/man1/dh_installsystemd.1.html
+/// <http://manpages.ubuntu.com/manpages/focal/en/man1/dh_installsystemd.1.html>
 use itertools::Itertools; // for .next_tuple()
 
 use std::collections::{BTreeSet, HashMap};
@@ -25,7 +25,7 @@ use crate::util::*;
 use crate::CDResult;
 
 /// From man 1 dh_installsystemd on Ubuntu 20.04 LTS. See:
-///   http://manpages.ubuntu.com/manpages/focal/en/man1/dh_installsystemd.1.html
+///   <http://manpages.ubuntu.com/manpages/focal/en/man1/dh_installsystemd.1.html>
 /// FILES
 ///        debian/package.mount, debian/package.path, debian/package@.path,
 ///        debian/package.service, debian/package@.service,
@@ -131,9 +131,9 @@ pub struct Options {
 /// installed and the mode (chmod) that the file should be given.
 ///
 /// See:
-///   https://git.launchpad.net/ubuntu/+source/debhelper/tree/dh_installsystemd?h=applied/12.10ubuntu1#n264
-///   https://git.launchpad.net/ubuntu/+source/debhelper/tree/dh_installsystemd?h=applied/12.10ubuntu1#n198
-///   https://git.launchpad.net/ubuntu/+source/debhelper/tree/lib/Debian/Debhelper/Dh_Lib.pm?h=applied/12.10ubuntu1#n957
+///   <https://git.launchpad.net/ubuntu/+source/debhelper/tree/dh_installsystemd?h=applied/12.10ubuntu1#n264>
+///   <https://git.launchpad.net/ubuntu/+source/debhelper/tree/dh_installsystemd?h=applied/12.10ubuntu1#n198>
+///   <https://git.launchpad.net/ubuntu/+source/debhelper/tree/lib/Debian/Debhelper/Dh_Lib.pm?h=applied/12.10ubuntu1#n957>
 pub fn find_units(
         dir: &Path,
         main_package: &str,
@@ -182,10 +182,10 @@ pub fn find_units(
 /// Determine if the given string is a systemd unit file comment line.
 ///
 /// See:
-///   https://www.freedesktop.org/software/systemd/man/systemd.syntax.html#Introduction
+///   <https://www.freedesktop.org/software/systemd/man/systemd.syntax.html#Introduction>
 fn is_comment(s: &str) -> bool {
     match s.chars().next() {
-        Some('#') => true,
+        Some('#') |
         Some(';') => true,
         _ => false,
     }
@@ -195,12 +195,12 @@ fn is_comment(s: &str) -> bool {
 /// rules.
 ///
 /// See:
-///   https://www.freedesktop.org/software/systemd/man/systemd.service.html#Command%20lines
+///   <https://www.freedesktop.org/software/systemd/man/systemd.service.html#Command%20lines>
 fn unquote(s: &str) -> &str {
     if s.len() > 1 &&
-       ((s.starts_with("\"") && s.ends_with("\"")) ||
-       (s.starts_with("'") && s.ends_with("'"))) {
-        &s[std::ops::Range {start: 1, end: s.len()-1}]
+       ((s.starts_with('"') && s.ends_with('"')) ||
+       (s.starts_with('\'') && s.ends_with('\''))) {
+        &s[1..s.len()-1]
     } else {
         s
     }
@@ -226,10 +226,10 @@ fn unquote(s: &str) -> &str {
 /// Pass the `ScriptFragments` result to `apply()`.
 ///
 /// See:
-///   https://git.launchpad.net/ubuntu/+source/debhelper/tree/dh_installsystemd?h=applied/12.10ubuntu1#n288
+///   <https://git.launchpad.net/ubuntu/+source/debhelper/tree/dh_installsystemd?h=applied/12.10ubuntu1#n288>
 pub fn generate(
     package: &str,
-    assets: &Vec<Asset>,
+    assets: &[Asset],
     options: &Options,
     listener: &mut dyn Listener,
 ) -> CDResult<ScriptFragments> {
@@ -262,7 +262,7 @@ pub fn generate(
             .iter()
             .filter(|v| v.target_path.starts_with(LIB_SYSTEMD_SYSTEM_DIR))
             .map(|v| fname_from_path(v.target_path.as_path()))
-            .filter(|fname| !fname.contains("@")),
+            .filter(|fname| !fname.contains('@')),
     );
 
     // BTreeSets values iterate in sorted order irrespective of the order they
@@ -386,21 +386,17 @@ pub fn generate(
                 }
             };
             autoscript(&mut scripts, package, "postinst", snippet, &replace, true, listener)?;
-        } else {
-            if !options.no_start {
-                // (stop|start) service (before|after) upgrade
-                autoscript(&mut scripts, package, "postinst", "postinst-systemd-start", &replace, true, listener)?;
-            }
+        } else if !options.no_start {
+            // (stop|start) service (before|after) upgrade
+            autoscript(&mut scripts, package, "postinst", "postinst-systemd-start", &replace, true, listener)?;
         }
 
         if options.no_stop_on_upgrade || options.restart_after_upgrade {
             // stop service only on remove
 			autoscript(&mut scripts, package, "prerm", "prerm-systemd-restart", &replace, true, listener)?;
-        } else {
-            if !options.no_start {
-                // always stop service
-                autoscript(&mut scripts, package, "prerm", "prerm-systemd", &replace, true, listener)?;
-            }
+        } else if !options.no_start {
+            // always stop service
+            autoscript(&mut scripts, package, "prerm", "prerm-systemd", &replace, true, listener)?;
         }
 
         // Run this with "default" order so it is always after other service

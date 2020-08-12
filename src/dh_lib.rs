@@ -10,10 +10,10 @@
 /// # See also
 ///
 /// Ubuntu 20.04 dh_lib sources:
-/// https://git.launchpad.net/ubuntu/+source/debhelper/tree/lib/Debian/Debhelper/Dh_Lib.pm?h=applied/12.10ubuntu1
+/// <https://git.launchpad.net/ubuntu/+source/debhelper/tree/lib/Debian/Debhelper/Dh_Lib.pm?h=applied/12.10ubuntu1>
 ///
 /// Ubuntu 20.04 dh_installsystemd man page (online HTML version):
-/// http://manpages.ubuntu.com/manpages/focal/en/man1/dh_installdeb.1.html
+/// <http://manpages.ubuntu.com/manpages/focal/en/man1/dh_installdeb.1.html>
 
 use rust_embed::RustEmbed;
 
@@ -42,11 +42,11 @@ pub(crate) type ScriptFragments = HashMap<String, Vec<u8>>;
 ///
 /// Returns one of the following, in order of most preferred first:
 ///
-///   - Some("<dir>/<package>.<unit_name>.<filename>")
-///   - Some("<dir>/<package>.<filename>")
-///   - Some("<dir>/<unit_name>.<filename>")
-///   - Some("<dir>/<filename>")
-///   - None
+///   - `Some("<dir>/<package>.<unit_name>.<filename>")`
+///   - `Some("<dir>/<package>.<filename>")`
+///   - `Some("<dir>/<unit_name>.<filename>")`
+///   - `Some("<dir>/<filename>")`
+///   - `None`
 ///
 /// <filename> is either a systemd unit type such as `service` or `socket`, or a
 /// maintainer script name such as `postinst`.
@@ -62,8 +62,8 @@ pub(crate) type ScriptFragments = HashMap<String, Vec<u8>>;
 ///
 /// # References
 ///
-/// https://git.launchpad.net/ubuntu/+source/debhelper/tree/lib/Debian/Debhelper/Dh_Lib.pm?h=applied/12.10ubuntu1#n286
-/// https://git.launchpad.net/ubuntu/+source/debhelper/tree/lib/Debian/Debhelper/Dh_Lib.pm?h=applied/12.10ubuntu1#n957
+/// <https://git.launchpad.net/ubuntu/+source/debhelper/tree/lib/Debian/Debhelper/Dh_Lib.pm?h=applied/12.10ubuntu1#n286>
+/// <https://git.launchpad.net/ubuntu/+source/debhelper/tree/lib/Debian/Debhelper/Dh_Lib.pm?h=applied/12.10ubuntu1#n957>
 pub(crate) fn pkgfile(dir: &Path, main_package: &str, package: &str, filename: &str, unit_name: Option<&str>)
      -> Option<PathBuf>
 {
@@ -119,14 +119,12 @@ pub(crate) fn get_embedded_autoscript(snippet_filename: &str) -> String {
     }
 
     // else load from embedded strings
-    if snippet.is_none() {
+    let mut snippet = snippet.unwrap_or_else(|| {
         let snippet_bytes = Autoscripts::get(snippet_filename).expect(&format!("Unknown autoscript '{}'", snippet_filename));
 
         // convert to string
-        snippet = String::from_utf8(Vec::from(snippet_bytes)).ok();
-    }
-
-    let mut snippet = snippet.unwrap();
+        String::from_utf8_lossy(&snippet_bytes).into_owned()
+    });
 
     // normalize
     if !snippet.ends_with('\n') {
@@ -158,7 +156,7 @@ pub(crate) fn get_embedded_autoscript(snippet_filename: &str) -> String {
 ///
 /// # References
 ///
-/// https://git.launchpad.net/ubuntu/+source/debhelper/tree/lib/Debian/Debhelper/Dh_Lib.pm?h=applied/12.10ubuntu1#n1135
+/// <https://git.launchpad.net/ubuntu/+source/debhelper/tree/lib/Debian/Debhelper/Dh_Lib.pm?h=applied/12.10ubuntu1#n1135>
 pub(crate) fn autoscript(
     scripts: &mut ScriptFragments,
     package: &str,
@@ -216,7 +214,7 @@ pub(crate) fn autoscript(
 ///
 /// # References
 ///
-/// https://git.launchpad.net/ubuntu/+source/debhelper/tree/lib/Debian/Debhelper/Dh_Lib.pm?h=applied/12.10ubuntu1#n1203
+/// <https://git.launchpad.net/ubuntu/+source/debhelper/tree/lib/Debian/Debhelper/Dh_Lib.pm?h=applied/12.10ubuntu1#n1203>
 fn autoscript_sed(snippet_filename: &str, replacements: &HashMap<&str, String>) -> String {
     let mut snippet = get_embedded_autoscript(snippet_filename);
 
@@ -244,7 +242,7 @@ fn autoscript_sed(snippet_filename: &str, replacements: &HashMap<&str, String>) 
 ///
 /// # References
 ///
-/// https://git.launchpad.net/ubuntu/+source/debhelper/tree/lib/Debian/Debhelper/Dh_Lib.pm?h=applied/12.10ubuntu1#n2161
+/// <https://git.launchpad.net/ubuntu/+source/debhelper/tree/lib/Debian/Debhelper/Dh_Lib.pm?h=applied/12.10ubuntu1#n2161>
 fn debhelper_script_subst(user_scripts_dir: &Path, scripts: &mut ScriptFragments, package: &str, script: &str, unit_name: Option<&str>,
     listener: &mut dyn Listener) -> CDResult<()>
 {
