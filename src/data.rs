@@ -79,7 +79,7 @@ pub fn compress_man_pages(options: &mut Config, listener: &dyn Listener) -> CDRe
         if target_path_str.starts_with("usr/share/man/") &&
            !target_path_str.ends_with(".gz")
         {
-            listener.info(format!("Compressing '{}'", asset.source.path().unwrap().to_string_lossy()));
+            listener.info(format!("Compressing '{}'", asset.source.path().unwrap_or(Path::new("-")).display()));
 
             let content = asset.source.data()?;
             let mut compressed = Vec::with_capacity(content.len());
