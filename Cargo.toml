@@ -9,7 +9,7 @@ homepage = "https://github.com/mmstick/cargo-deb#readme"
 keywords = ["debian", "ubuntu", "package", "cargo", "subcommand"]
 repository = "https://github.com/mmstick/cargo-deb"
 readme = "README.md"
-version = "1.27.0"
+version = "1.28.0-beta.1"
 edition = "2018"
 
 [package.metadata.deb]
@@ -43,7 +43,7 @@ travis-ci = { repository = "mmstick/cargo-deb" }
 [dependencies]
 getopts = "0.2.18"
 md5 = "0.7"
-quick-error = "1.2.2"
+quick-error = "2"
 xz2 = { version = "0.1.6", optional = true }
 serde = { version = "1.0.77", features = ["derive"] }
 serde_json = "1.0.2"

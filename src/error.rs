@@ -10,15 +10,15 @@ quick_error! {
         Io(err: io::Error) {
             from()
             display("I/O error: {}", err)
-            cause(err)
+            source(err)
         }
         IoFile(msg: &'static str, err: io::Error, file: PathBuf) {
             display("{}: {}", msg, file.display())
-            cause(err)
+            source(err)
         }
         CommandFailed(err: io::Error, cmd: &'static str) {
             display("Command {} failed to launch", cmd)
-            cause(err)
+            source(err)
         }
         CommandError(msg: &'static str, arg: String, reason: Vec<u8>) {
             display("{} ({}): {}", msg, arg, String::from_utf8_lossy(reason))
@@ -29,7 +29,7 @@ quick_error! {
         }
         NumParse(msg: &'static str, err: num::ParseIntError) {
             display("{}", msg)
-            cause(err)
+            source(err)
         }
         InstallFailed {
             display("installation failed, because dpkg -i returned error")
@@ -46,17 +46,17 @@ quick_error! {
         SystemTime(err: time::SystemTimeError) {
             from()
             display("unable to get system time")
-            cause(err)
+            source(err)
         }
         ParseTOML(err: toml::de::Error) {
             from()
             display("unable to parse Cargo.toml")
-            cause(err)
+            source(err)
         }
         ParseJSON(err: serde_json::Error) {
             from()
             display("unable to parse `cargo metadata` output")
-            cause(err)
+            source(err)
         }
         ParseUTF8(err: std::str::Utf8Error) {
             from()
@@ -77,7 +77,7 @@ quick_error! {
         GlobPatternError(err: glob::PatternError) {
             from()
             display("unable to parse glob pattern")
-            cause(err)
+            source(err)
         }
         AssetFileNotFound(path: PathBuf) {
             display("Asset file path does not match any files: {}", path.display())
@@ -85,7 +85,7 @@ quick_error! {
         AssetGlobError(err: glob::GlobError) {
             from()
             display("unable to iterate asset glob result")
-            cause(err)
+            source(err)
         }
     }
 }
