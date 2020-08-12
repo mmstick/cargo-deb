@@ -15,28 +15,28 @@ impl WordSplit for str {
     fn split_by_chars(&self, length: usize) -> Vec<String> {
         let output_capacity = self.len() + self.len() % length + 1;
         let mut lines: Vec<String> = Vec::with_capacity(output_capacity);
+        let mut current_line = String::with_capacity(length);
         for line in self.lines() {
-            let line = line.replace("\t", " ");
-
             // consider whitespace line as empty
             if line.chars().all(char::is_whitespace) {
                 lines.push(String::from("."));
                 continue;
             }
 
-            let words: Vec<&str> = line.split(' ').collect();
-            let mut current_line = String::with_capacity(length);
-            let mut initialized = false;
+            let line = line.replace('\t', "  ");
+
+            current_line.clear();
+            let mut has_words = false;
             macro_rules! append_word {
                 ($word:expr) => {{
-                    if initialized {
+                    if has_words {
                         current_line += " ";
                     }
-                    initialized = true;
-                    current_line += $word;
+                    has_words = true;
+                    current_line.push_str($word);
                 }};
             }
-            for word in words {
+            for word in line.split(' ') {
                 // we need at least one non-whitespace character
                 if current_line.chars().all(char::is_whitespace) {
                     append_word!(word);
@@ -45,9 +45,10 @@ impl WordSplit for str {
 
                 // now current_line has non-whitespace character
                 if current_line.len() + word.len() >= length {
+                    // skip a space
+                    let to_push = std::mem::replace(&mut current_line, word.to_owned());
                     // if character length met or exceeded
-                    lines.push(current_line.clone());
-                    current_line = word.to_owned(); // skip a space
+                    lines.push(to_push);
                 } else {
                     append_word!(word);
                 }
@@ -57,7 +58,7 @@ impl WordSplit for str {
             if current_line.chars().all(char::is_whitespace) {
                 lines.push(String::from("."));
             } else {
-                lines.push(current_line);
+                lines.push(current_line.clone());
             }
         }
         lines
@@ -80,6 +81,12 @@ fn test_split_by_chars() {
         S("This is a line"),
         S("."),
         S("this is also a line."),
+    ]);
+
+    assert_eq!("                                              verylongwordverylongwordverylongwordverylongword\n\nbo".split_by_chars(10), vec![
+        S("                                              verylongwordverylongwordverylongwordverylongword"),
+        S("."),
+        S("bo"),
     ]);
 
     assert_eq!("This is a line\n  \nthis is also a line.\n".split_by_chars(79), vec![
@@ -128,9 +135,10 @@ fn test_split_by_chars() {
     ]);
 
     assert_eq!("\t\ttabs are\treplaced with spaces\t".split_by_chars(10), vec![
-        S("  tabs are"),
+        S("    tabs"),
+        S("are "),
         S("replaced"),
         S("with"),
-        S("spaces "),
+        S("spaces  "),
     ]);
 }
