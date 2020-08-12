@@ -4,6 +4,7 @@ use crate::error::*;
 use crate::listener::Listener;
 use crate::ok_or::OkOrThen;
 use crate::dh_installsystemd;
+use crate::util::read_file_to_bytes;
 use rayon::prelude::*;
 use serde::Deserialize;
 use std::borrow::Cow;
@@ -48,7 +49,7 @@ impl AssetSource {
     pub fn data(&self) -> CDResult<Cow<'_, [u8]>> {
         Ok(match *self {
             AssetSource::Path(ref p) => {
-                let data = fs::read(p)
+                let data = read_file_to_bytes(p)
                     .map_err(|e| CargoDebError::IoFile("unable to read asset to add to archive", e, p.to_owned()))?;
                 Cow::Owned(data)
             },
@@ -411,8 +412,6 @@ impl Config {
     }
 
     pub fn resolve_assets(&mut self) -> CDResult<()> {
-        self.add_systemd_assets()?;
-
         for UnresolvedAsset { source_path, target_path, chmod, is_built } in self.assets.unresolved.drain(..) {
             let source_prefix: PathBuf = source_path.iter()
                 .take_while(|part| !is_glob_pattern(part.to_str().unwrap()))
@@ -743,6 +742,7 @@ impl Cargo {
         config.assets = assets;
         config.add_copyright_asset()?;
         config.add_changelog_asset()?;
+        config.add_systemd_assets()?;
 
         Ok(config)
     }
@@ -1032,6 +1032,7 @@ pub(crate) fn get_arch(target: &str) -> &str {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::util::add_test_fs_paths;
 
     #[test]
     fn match_arm_arch() {
@@ -1139,6 +1140,70 @@ mod tests {
         let a = AssetSource::Data(data);
 
         assert_eq!(a.debug_source(), None);
+    }
+
+    fn to_canon_static_str(s: &str) -> &'static str {
+        let cwd = std::env::current_dir().unwrap();
+        let abs_path = cwd.join(s);
+        let abs_path_string = abs_path.to_string_lossy().into_owned();
+        Box::leak(abs_path_string.into_boxed_str())
+    }
+
+    #[test]
+    fn add_systemd_assets_with_no_config_does_nothing() {
+        let mut mock_listener = crate::listener::MockListener::new();
+        mock_listener.expect_info().return_const(());
+
+        // supply a systemd unit file as if it were available on disk
+        add_test_fs_paths(&vec![to_canon_static_str("cargo-deb.service")]);
+
+        let config = Config::from_manifest(
+            Path::new("Cargo.toml"),
+            None,
+            None,
+            None,
+            None,
+            None,
+            &mut mock_listener,
+        ).unwrap();
+
+        let num_unit_assets = config.assets.resolved
+            .iter()
+            .filter(|v| v.target_path.starts_with("lib/systemd/system/"))
+            .count();
+
+        assert_eq!(0, num_unit_assets);
+    }
+
+    #[test]
+    fn add_systemd_assets_with_config_adds_unit_assets() {
+        let mut mock_listener = crate::listener::MockListener::new();
+        mock_listener.expect_info().return_const(());
+
+        // supply a systemd unit file as if it were available on disk
+        add_test_fs_paths(&vec![to_canon_static_str("cargo-deb.service")]);
+
+        let mut config = Config::from_manifest(
+            Path::new("Cargo.toml"),
+            None,
+            None,
+            None,
+            None,
+            None,
+            &mut mock_listener,
+        ).unwrap();
+
+        config.systemd_units.get_or_insert(SystemdUnitsConfig::default());
+        config.maintainer_scripts.get_or_insert(PathBuf::new());
+
+        config.add_systemd_assets().unwrap();
+
+        let num_unit_assets = config.assets.resolved
+            .iter()
+            .filter(|v| v.target_path.starts_with("lib/systemd/system/"))
+            .count();
+
+        assert_eq!(1, num_unit_assets);
     }
 }
 

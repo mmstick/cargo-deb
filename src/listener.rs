@@ -1,3 +1,4 @@
+#[cfg_attr(test, mockall::automock)]
 pub trait Listener: Send + Sync {
     fn warning(&self, s: String);
     fn info(&self, s: String);

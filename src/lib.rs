@@ -18,7 +18,9 @@ cargo deb # run this in your Cargo project directory
 The library interface is experimental. See `main.rs` for usage.
 */
 
+#[macro_use] extern crate cfg_if;
 #[macro_use] extern crate quick_error;
+
 pub mod compress;
 pub mod control;
 pub mod data;
@@ -28,6 +30,8 @@ pub use crate::debarchive::DebArchive;
 pub use crate::error::*;
 pub use crate::manifest::Config;
 
+#[macro_use]
+mod util;
 mod config;
 mod debarchive;
 mod dependencies;
@@ -38,7 +42,6 @@ mod tararchive;
 mod wordsplit;
 mod dh_installsystemd;
 mod dh_lib;
-mod util;
 
 use crate::listener::Listener;
 use std::env;
