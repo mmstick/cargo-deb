@@ -84,11 +84,26 @@ fn get_package_name_with_fallback(path: &str) -> CDResult<String> {
 fn get_package_name(path: &str) -> CDResult<String> {
     let output = Command::new("dpkg").arg("-S").arg(path)
         .output().map_err(|e| CargoDebError::CommandFailed(e, "dpkg -S"))?;
-    if !output.status.success() {
-        return Err(CargoDebError::PackageNotFound(path.to_owned(), output.stderr));
+    if output.status.success() {
+        if let Some(name) = parse_dpkg_search(&output.stdout) {
+            return Ok(name);
+        }
     }
-    let package = output.stdout.iter().take_while(|&&x| x != b':').cloned().collect::<Vec<u8>>();
-    Ok(String::from_utf8(package).expect("utf8"))
+    Err(CargoDebError::PackageNotFound(path.to_owned(), output.stderr))
+}
+
+fn parse_dpkg_search(output: &[u8]) -> Option<String> {
+    let output = String::from_utf8_lossy(output);
+    for line in output.lines() {
+        if line.starts_with("diversion ") || !line.contains(':') {
+            continue;
+        }
+        let mut parts = line.splitn(2, ':');
+        if let Some(name) = parts.next() {
+            return Some(name.to_owned());
+        }
+    }
+    None
 }
 
 /// Uses apt-cache policy to determine the version of the package that this project was built against.
@@ -114,4 +129,12 @@ fn resolve_test() {
     let deps = resolve(&exe, arch, &crate::listener::NoOpListener).unwrap();
     assert!(deps.iter().any(|d| d.starts_with("libc")));
     assert!(!deps.iter().any(|d| d.starts_with("libgcc")));
+}
+
+#[test]
+fn parse_search() {
+    assert_eq!("libgl1-mesa-glx", parse_dpkg_search(b"diversion by glx-diversions from: /usr/lib/x86_64-linux-gnu/libGL.so.1
+diversion by glx-diversions to: /usr/lib/mesa-diverted/x86_64-linux-gnu/libGL.so.1
+libgl1-mesa-glx:amd64: /usr/lib/x86_64-linux-gnu/libGL.so.1
+").unwrap());
 }
