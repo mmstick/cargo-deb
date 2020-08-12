@@ -6,6 +6,7 @@ use crate::tararchive::Archive;
 use crate::wordsplit::WordSplit;
 use crate::dh_installsystemd;
 use crate::dh_lib;
+use crate::util::{is_path_file, read_file_to_bytes};
 use md5::Digest;
 use std::collections::HashMap;
 use std::fs;
@@ -81,8 +82,8 @@ fn generate_scripts(archive: &mut Archive, option: &Config, listener: &mut dyn L
 
             if script.is_none() {
                 let script_path = maintainer_scripts_dir.join(name);
-                if script_path.exists() {
-                    script = Some(fs::read(script_path)?);
+                if is_path_file(&script_path) {
+                    script = Some(read_file_to_bytes(&script_path)?);
                 }
             }
 
@@ -199,4 +200,162 @@ fn generate_triggers_file<P: AsRef<Path>>(archive: &mut Archive, path: P) -> CDR
         archive.file("./triggers", &content, 0o644)?;
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::manifest::{Asset, AssetSource, SystemdUnitsConfig};
+    use crate::util::{add_test_fs_paths, set_test_fs_path_content};
+    use std::io::prelude::Read;
+
+    fn decode_name<R>(entry: &tar::Entry<R>) -> String where R: Read {
+        std::str::from_utf8(&entry.path_bytes()).unwrap().to_string()
+    }
+
+    fn decode_names<R>(ar: &mut tar::Archive<R>) -> Vec<String> where R: Read {
+        ar.entries().unwrap().map(|e| decode_name(&e.unwrap())).collect()
+    }
+
+    fn extract_contents<R>(ar: &mut tar::Archive<R>) -> HashMap<String, String> where R: Read {
+        let mut out = HashMap::new();
+        for entry in ar.entries().unwrap() {
+            let mut unwrapped = entry.unwrap();
+            let name = decode_name(&unwrapped);
+            let mut buf = Vec::new();
+            unwrapped.read_to_end(&mut buf).unwrap();
+            let content = String::from_utf8(buf).unwrap();
+            out.insert(name, content);
+        }
+        out
+    }
+
+    fn prepare() -> (Config, crate::listener::MockListener, Archive) {
+        let mut mock_listener = crate::listener::MockListener::new();
+        mock_listener.expect_info().return_const(());
+
+        let config = Config::from_manifest(
+            Path::new("Cargo.toml"),
+            None,
+            None,
+            None,
+            None,
+            None,
+            &mut mock_listener,
+        ).unwrap();
+
+        let ar = Archive::new(0);
+
+        (config, mock_listener, ar)
+    }
+
+    #[test]
+    fn generate_scripts_does_nothing_if_maintainer_scripts_is_not_set() {
+        let (config, mut mock_listener, mut in_ar) = prepare();
+
+        // supply a maintainer script as if it were available on disk
+        add_test_fs_paths(&vec!["debian/postinst"]);
+
+        // generate scripts and store them in the given archive
+        generate_scripts(&mut in_ar, &config, &mut mock_listener).unwrap();
+
+        // finish the archive and unwrap it as a byte vector
+        let archive_bytes = in_ar.into_inner().unwrap();
+
+        // parse the archive bytes
+        let mut out_ar = tar::Archive::new(&archive_bytes[..]);
+
+        // compare the file names in the archive to what we expect
+        let archived_file_names = decode_names(&mut out_ar);
+        assert!(archived_file_names.is_empty());
+    }
+
+    #[test]
+    fn generate_scripts_archives_user_supplied_maintainer_scripts() {
+        let maintainer_script_names = &vec!["config", "preinst", "postinst", "prerm", "postrm", "templates"];
+
+        let (mut config, mut mock_listener, mut in_ar) = prepare();
+
+        // supply a maintainer script as if it were available on disk
+        // provide file content that we can easily verify
+        let mut maintainer_script_contents = Vec::new();
+        for script in maintainer_script_names.iter() {
+            let content = format!("some contents: {}", script);
+            set_test_fs_path_content(script, content.clone());
+            maintainer_script_contents.push(content);
+        }
+
+        // look in the current (virtual) dir for the maintainer script we just
+        // "added"
+        config.maintainer_scripts.get_or_insert(PathBuf::new());
+
+        // generate scripts and store them in the given archive
+        generate_scripts(&mut in_ar, &config, &mut mock_listener).unwrap();
+
+        // finish the archive and unwrap it as a byte vector
+        let archive_bytes = in_ar.into_inner().unwrap();
+
+        // parse the archive bytes
+        let mut out_ar = tar::Archive::new(&archive_bytes[..]);
+
+        // compare the file names in the archive to what we expect
+        // let archived_file_names = decode_names(&mut out_ar);
+        // assert_eq!(maintainer_script_names.to_owned(), archived_file_names);
+
+        // compare the file contents in the archive to what we expect
+        let archived_content = extract_contents(&mut out_ar);
+
+        assert_eq!(maintainer_script_names.len(), archived_content.len());
+
+        // verify that the content we supplied was faithfully archived
+        for script in maintainer_script_names.iter() {
+            let expected_content = &format!("some contents: {}", script);
+            let actual_content = archived_content.get(&script.to_string()).unwrap();
+            assert_eq!(expected_content, actual_content);
+        }
+    }
+
+    #[test]
+    fn generate_scripts_generates_maintainer_scripts_for_unit() {
+        let (mut config, mut mock_listener, mut in_ar) = prepare();
+
+        // supply a systemd unit file as if it were available on disk
+        add_test_fs_paths(&vec!["some.service"]);
+
+        // make the unit file available for systemd unit processing
+        config.assets.resolved.push(Asset::new(
+            AssetSource::Path(PathBuf::from("some.service")),
+            PathBuf::from("lib/systemd/system/some.service"),
+            0o000,
+            false
+        ));
+
+        // look in the current dir for maintainer scripts (none, but the systemd
+        // unit processing will be skipped if we don't set this)
+        config.maintainer_scripts.get_or_insert(PathBuf::new());
+
+        // enable systemd unit processing
+        config.systemd_units.get_or_insert(SystemdUnitsConfig::default());
+
+        // generate scripts and store them in the given archive
+        generate_scripts(&mut in_ar, &config, &mut mock_listener).unwrap();
+
+        // finish the archive and unwrap it as a byte vector
+        let archive_bytes = in_ar.into_inner().unwrap();
+
+        // parse the archive bytes
+        let mut out_ar = tar::Archive::new(&archive_bytes[..]);
+
+        // compare the file names in the archive to what we expect
+        let mut archived_file_names = decode_names(&mut out_ar);
+        archived_file_names.sort();
+
+        // don't check the file content, generation of correct files and content
+        // is tested at a lower level, we're only testing the higher level.
+        let expected_maintainer_scripts = vec!["postinst", "postrm", "prerm"]
+            .iter()
+            .map(|i| i.to_string())
+            .collect::<Vec<String>>();
+        assert_eq!(expected_maintainer_scripts, archived_file_names);
+    }
 }
