@@ -15,8 +15,6 @@
 /// Ubuntu 20.04 dh_installsystemd man page (online HTML version):
 /// <http://manpages.ubuntu.com/manpages/focal/en/man1/dh_installdeb.1.html>
 
-use rust_embed::RustEmbed;
-
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
@@ -29,10 +27,19 @@ use crate::util::{is_path_file, read_file_to_string};
 ///   https://git.launchpad.net/ubuntu/+source/debhelper/tree/autoscripts?h=applied/12.10ubuntu1
 /// To understand which scripts are invoked when, consult:
 ///   https://www.debian.org/doc/debian-policy/ap-flowcharts.htm
-#[derive(RustEmbed)]
-#[folder = "autoscripts/"]
-pub(crate) struct Autoscripts;
 
+static AUTOSCRIPTS: [(&str, &[u8]); 10] = [
+    ("postinst-init-tmpfiles", include_bytes!("../autoscripts/postinst-init-tmpfiles")),
+    ("postinst-systemd-dont-enable", include_bytes!("../autoscripts/postinst-systemd-dont-enable")),
+    ("postinst-systemd-enable", include_bytes!("../autoscripts/postinst-systemd-enable")),
+    ("postinst-systemd-restart", include_bytes!("../autoscripts/postinst-systemd-restart")),
+    ("postinst-systemd-restartnostart", include_bytes!("../autoscripts/postinst-systemd-restartnostart")),
+    ("postinst-systemd-start", include_bytes!("../autoscripts/postinst-systemd-start")),
+    ("postrm-systemd", include_bytes!("../autoscripts/postrm-systemd")),
+    ("postrm-systemd-reload-only", include_bytes!("../autoscripts/postrm-systemd-reload-only")),
+    ("prerm-systemd", include_bytes!("../autoscripts/prerm-systemd")),
+    ("prerm-systemd-restart", include_bytes!("../autoscripts/prerm-systemd-restart")),
+];
 pub(crate) type ScriptFragments = HashMap<String, Vec<u8>>;
 
 /// Find a file in the given directory that best matches the given package,
@@ -120,7 +127,8 @@ pub(crate) fn get_embedded_autoscript(snippet_filename: &str) -> String {
 
     // else load from embedded strings
     let mut snippet = snippet.unwrap_or_else(|| {
-        let snippet_bytes = Autoscripts::get(snippet_filename).expect(&format!("Unknown autoscript '{}'", snippet_filename));
+        let (_, snippet_bytes) = AUTOSCRIPTS.iter().find(|(s, _)| *s == snippet_filename)
+            .expect(&format!("Unknown autoscript '{}'", snippet_filename));
 
         // convert to string
         String::from_utf8_lossy(&snippet_bytes).into_owned()
@@ -446,7 +454,7 @@ mod tests {
 
     #[test]
     fn autoscript_check_embedded_files() {
-        let mut actual_scripts: Vec<std::borrow::Cow<'static, str>> = Autoscripts::iter().collect();
+        let mut actual_scripts: Vec<_> = AUTOSCRIPTS.iter().map(|(name, _)| *name).collect();
         actual_scripts.sort();
 
         let expected_scripts = vec![
@@ -467,8 +475,8 @@ mod tests {
 
     #[test]
     fn autoscript_sanity_check_all_embedded_autoscripts() {
-        for autoscript_filename in Autoscripts::iter() {
-            autoscript_test_wrapper("mypkg", "somescript", &autoscript_filename, "dummyunit", None);
+        for (autoscript_filename, _) in AUTOSCRIPTS.iter() {
+            autoscript_test_wrapper("mypkg", "somescript", autoscript_filename, "dummyunit", None);
         }
     }
 
