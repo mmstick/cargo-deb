@@ -412,6 +412,9 @@ pub fn generate(
 
 #[cfg(test)]
 mod tests {
+    use crate::util::tests::set_test_fs_path_content;
+    use crate::util::tests::add_test_fs_paths;
+    use crate::util::tests::get_read_count;
     use super::*;
     use crate::manifest::{Asset, AssetSource};
     use rstest::*;

@@ -1032,7 +1032,7 @@ pub(crate) fn get_arch(target: &str) -> &str {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::util::add_test_fs_paths;
+    use crate::util::tests::add_test_fs_paths;
 
     #[test]
     fn match_arm_arch() {

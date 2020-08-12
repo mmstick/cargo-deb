@@ -206,7 +206,7 @@ fn generate_triggers_file<P: AsRef<Path>>(archive: &mut Archive, path: P) -> CDR
 mod tests {
     use super::*;
     use crate::manifest::{Asset, AssetSource, SystemdUnitsConfig};
-    use crate::util::{add_test_fs_paths, set_test_fs_path_content};
+    use crate::util::tests::{add_test_fs_paths, set_test_fs_path_content};
     use std::io::prelude::Read;
 
     fn decode_name<R>(entry: &tar::Entry<R>) -> String where R: Read {

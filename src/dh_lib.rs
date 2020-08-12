@@ -111,12 +111,10 @@ pub(crate) fn get_embedded_autoscript(snippet_filename: &str) -> String {
     let mut snippet: Option<String> = None;
 
     // load from test data if defined
-    cfg_if! {
-        if #[cfg(test)] {
-            let path_buf = PathBuf::from(snippet_filename);
-            if is_path_file(&path_buf) {
-                snippet = read_file_to_string(path_buf).ok();
-            }
+    if cfg!(test) {
+        let path_buf = PathBuf::from(snippet_filename);
+        if is_path_file(&path_buf) {
+            snippet = read_file_to_string(path_buf).ok();
         }
     }
 
@@ -316,7 +314,7 @@ pub(crate) fn apply(user_scripts_dir: &Path, scripts: &mut ScriptFragments, pack
 mod tests {
     use super::*;
     use rstest::*;
-    use crate::util::{set_test_fs_path_content, add_test_fs_paths};
+    use crate::util::tests::{set_test_fs_path_content, add_test_fs_paths};
 
     // helper conversion
     // create a new type to work around error "only traits defined in

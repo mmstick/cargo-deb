@@ -8,22 +8,30 @@ pub(crate) fn fname_from_path(path: &Path) -> String {
     path.file_name().unwrap().to_string_lossy().into()
 }
 
+#[cfg(test)]
+pub(crate) use tests::is_path_file;
 
-cfg_if! {
-    if #[cfg(not(test))] {
-        pub(crate) fn is_path_file(path: &PathBuf) -> bool {
-            path.is_file()
-        }
-
-        pub(crate) fn read_file_to_string(path: PathBuf) -> std::io::Result<String> {
-            std::fs::read_to_string(path)
-        }
-
-        pub(crate) fn read_file_to_bytes(path: &PathBuf) -> std::io::Result<Vec<u8>> {
-            std::fs::read(path)
-        }
-    }
+#[cfg(not(test))]
+pub(crate) fn is_path_file(path: &PathBuf) -> bool {
+    path.is_file()
 }
+
+#[cfg(test)]
+pub(crate) use tests::read_file_to_string;
+
+#[cfg(not(test))]
+pub(crate) fn read_file_to_string(path: PathBuf) -> std::io::Result<String> {
+    std::fs::read_to_string(path)
+}
+
+#[cfg(test)]
+pub(crate) use tests::read_file_to_bytes;
+
+#[cfg(not(test))]
+pub(crate) fn read_file_to_bytes(path: &PathBuf) -> std::io::Result<Vec<u8>> {
+    std::fs::read(path)
+}
+
 /// Create a HashMap from one or more key => value pairs in a single statement.
 /// 
 /// # Usage
@@ -83,8 +91,8 @@ impl MyJoin for BTreeSet<String> {
     }
 }
 
-cfg_if! {
-    if #[cfg(test)] {
+#[cfg(test)]
+pub(crate) mod tests {
         use std::collections::HashMap;
         use lazy_static::lazy_static;
 
@@ -226,11 +234,7 @@ cfg_if! {
         // ---------------------------------------------------------------------
         // End: test virtual filesystem
         // ---------------------------------------------------------------------
-    }
-}
 
-#[cfg(test)]
-mod tests {
     use super::*;
 
     #[test]
