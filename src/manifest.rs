@@ -412,8 +412,6 @@ impl Config {
     }
 
     pub fn resolve_assets(&mut self) -> CDResult<()> {
-        self.add_systemd_assets()?;
-
         for UnresolvedAsset { source_path, target_path, chmod, is_built } in self.assets.unresolved.drain(..) {
             let source_prefix: PathBuf = source_path.iter()
                 .take_while(|part| !is_glob_pattern(part.to_str().unwrap()))
@@ -744,6 +742,7 @@ impl Cargo {
         config.assets = assets;
         config.add_copyright_asset()?;
         config.add_changelog_asset()?;
+        config.add_systemd_assets()?;
 
         Ok(config)
     }
