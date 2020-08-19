@@ -167,4 +167,4 @@ fi
 # End automatically added section
 ```
 
-Note that two shell script fragments have been injected into the maintainer script and that the `#RESTART_ACTION#` and `#UNITFILE#` placeholder tokens have been replaced compared to the original autoscripts [here](https://github.com/mmstick/cargo-deb/blob/master/autoscripts/postinst-systemd-dont-enable)and [here](https://github.com/mmstick/cargo-deb/blob/master/autoscripts/postinst-systemd-restart).
+Note that two shell script fragments have been injected into the maintainer script and that the `#RESTART_ACTION#` and `#UNITFILE#` placeholder tokens have been replaced compared to the original autoscripts [here](https://github.com/mmstick/cargo-deb/blob/master/autoscripts/postinst-systemd-dont-enable) and [here](https://github.com/mmstick/cargo-deb/blob/master/autoscripts/postinst-systemd-restart).
