@@ -72,7 +72,7 @@ systemd-units = { enable = false }
 ```
 
 `debian/service`:
-```toml
+```
 [Unit]
 Description=Example
 
