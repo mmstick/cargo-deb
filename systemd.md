@@ -1,32 +1,37 @@
-
 ### `[package.metadata.deb.systemd-units]` options
 
-When this table is present AND `maintainer-scripts` is specified, correct installation of systemd units will be handled automatically for you.
+When this table is present in `Cargo.toml` AND `maintainer-scripts` is also specified, correct installation of systemd units will be handled automatically for you.
 
 This works as follows:
-1. Assets will be added for any matching systemd unit files found in the `unit-scripts` directory.
-2. Code blocks will be generated for enabling, disabling, starting, stopping, and restarting the corresponding systemd services, when the package is installed, updated, or removed.
-3. `maintainer-scripts` will be created using the generated code blocks.
+1. Assets will be added for any matching systemd unit files found in the `unit-scripts` _(see below)_ directory.
+2. Shell script fragments will be generated for enabling, disabling, starting, stopping, and restarting the corresponding systemd services, when the package is installed, updated, or removed.
+3. `maintainer-scripts` (`prerm`, `postrm`, `preinst` and/or `postinst`) will be augmented (by replacing the special token `#DEBHELPER#`), or created if missing, using the generated shell script fragments.
 
-**Note:** `<maintainer-scripts>` **MUST** be set, even if it is an empty directory. If non-empty, any maintainer scripts present **MUST** contain the `#DEBHELPER#` token denoting the point at which generated code blocks should be inserted.
+**Note:** `<maintainer-scripts>` **MUST** be set, even if it is an empty directory. If non-empty, any maintainer scripts present **MUST** contain the `#DEBHELPER#` token denoting the point at which generated shell script fragments should be inserted.
 
 The exact behaviour can be tuned using the following options:
 
- - **unit-scripts**: Directory containing zero or more [systemd unit files](https://www.freedesktop.org/software/systemd/man/systemd.unit.html) (see below for matching rules) (default `maintainer-scripts`).
+ - **unit-scripts**: Directory containing zero or more [systemd unit files](https://www.freedesktop.org/software/systemd/man/systemd.unit.html) (see below for matching rules) (defaults to the value of the `maintainer-scripts` option).
  - **unit-name**: Only include systemd unit files for this unit (see below for matching rules).
  - **enable**: Enable the systemd unit on package installation and disable it on package removal (default `true`).
  - **start**: Start the systemd unit on package installation and stop it on package removal (default `true`).
  - **restart-after-upgrade**: If true, postpone systemd service restart until after upgrade is complete (+ = less downtime, - = can confuse some programs), otherwise stop the service before upgrade and start it again after upgrade (default `true`).
  - **stop-on-upgrade**: If true stop the systemd on package upgrade and removal, otherwise stop the sytemsd service only on package removal (default `true`).
 
+#### System unit file naming
+
 Systemd unit file names must match one of the following patterns:
 
  - `<package>.<unit>.<suffix>` - _only if `unit-name` is specified_
  - `<package>.<unit>@.<suffix>` - _only if `unit-name` is specified_
  - `<package>.<suffix>`
- - `<pacakge>@.<suffix>`
+ - `<package>@.<suffix>`
  - `<unit>.<suffix>` - _only if `unit-name` is specified_
  - `<unit>@.<suffix>` - _only if `unit-name` is specified_
+
+Where `<suffix>` is one of: `mount` (@ not supported), `path`, `service`, `socket`, `target`, `timer`, `tmpfile` (@ not supported)
+
+#### Maintainer script file naming
 
 User supplied `maintainer-scripts` file names must match one of the following patterns:
 
@@ -37,32 +42,104 @@ User supplied `maintainer-scripts` file names must match one of the following pa
 
 Where `<script>` is one of: `preinst`, `postinst`, `prerm`, `postrm`.
 
+#### Interaction with the cargo-deb variants feature
+
 **NOTE:** When using the variant feature, `<package>` will actually be `<package>-<variant>` unless the variant name has been overridden using `name` in the variant specific metadata table. You can use this to supply variant specific unit files and maintainer scripts.
 
+#### References
+
 See:
+ - The [dh_installsystemd Ubuntu 20.04 man page](http://manpages.ubuntu.com/manpages/focal/en/man1/dh_installsystemd.1.html)
  - The [systemd documentation](https://www.freedesktop.org/software/systemd/man/systemd.unit.html#Description) for more details on unit naming.
  - The [Debian Policy Manual](https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html) for more information about maintainer scripts.
  - A list of [code blocks](https://github.com/mmstick/cargo-deb/tree/579e10c89b060d=eec05ce8653f501c9eee3a0297/autoscripts) which may be inserted.
 
+#### Minimal Example
 
-Systemd Manager:
+Cargo.toml:
 
 ```toml
+[package]
+name = "example"
+version = "1.2.3"
+description = "An example package to demonstrate cargo-deb systemd-units support."
+license = "MIT"
+authors = ["cargo-deb team"]
+
 [package.metadata.deb]
-maintainer = "Michael Aaron Murphy <mmstickman@gmail.com>"
-copyright = "2015-2016, Michael Aaron Murphy <mmstickman@gmail.com>"
-license-file = ["LICENSE", "3"]
-depends = "$auto, systemd"
-extended-description = """\
-Written safely in Rust, this systemd manager provides a simple GTK3 GUI interface \
-that allows you to enable/disable/start/stop services, monitor service logs, and \
-edit unit files without ever using the terminal."""
-section = "admin"
-priority = "optional"
-assets = [
-    ["assets/org.freedesktop.policykit.systemd-manager.policy", "usr/share/polkit-1/actions/", "644"],
-    ["assets/systemd-manager.desktop", "usr/share/applications/", "644"],
-    ["assets/systemd-manager-pkexec", "usr/bin/", "755"],
-    ["target/release/systemd-manager", "usr/bin/", "755"]
-]
+maintainer-scripts = "debian/"
+systemd-units = { enable = false }
 ```
+
+Provide cargo-deb with an existing but empty systemd service unit file:
+
+```
+$ mkdir debian
+$ touch debian/service
+```
+
+Provide cargo-deb with a minimal Rust application to build:
+
+```
+$ mkdir src
+$ echo 'fn main() { }' > src/main.rs
+```
+
+Invoke cargo-deb with verbose output enabled:
+
+```
+$ cargo-deb -v
+       Fresh example v1.2.3 (/tmp/t)
+    Finished release [optimized] target(s) in 0.00s
+info: Stripped '/tmp/t/target/release/example'
+info: /tmp/t/target/release/example -> usr/bin/example
+info: - -> usr/share/doc/example/copyright
+info: /tmp/t/debian/service -> lib/systemd/system/example.service
+info: Determining augmentations needed for systemd unit example.service
+info: Maintainer script postinst will be augmented with autoscript postinst-systemd-restart
+info: Maintainer script prerm will be augmented with autoscript prerm-systemd-restart
+info: Maintainer script postrm will be augmented with autoscript postrm-systemd-reload-only
+info: Generating maintainer script postinst
+info: Generating maintainer script prerm
+info: Generating maintainer script postrm
+info: compressed/original ratio 88208/230912 (38%)
+/tmp/t/target/debian/example_1.2.3_amd64.deb
+```
+
+Use `dpkg` to inspect the created archives maintainer scripts:
+
+```
+$ dpkg -e target/debian/example_1.2.3_amd64.deb deb_out
+$ ls -la deb_out/
+total 28
+drwxr-xr-x 2 ximon ximon 4096 aug 19 12:31 .
+drwxrwxr-x 6 ximon ximon 4096 aug 19 12:31 ..
+-rw-r--r-- 1 ximon ximon  249 aug 19 12:28 control
+-rw-r--r-- 1 ximon ximon  185 aug 19 12:28 md5sums
+-rwxr-xr-x 1 ximon ximon  455 aug 19 12:28 postinst
+-rwxr-xr-x 1 ximon ximon  178 aug 19 12:28 postrm
+-rwxr-xr-x 1 ximon ximon  206 aug 19 12:28 prerm
+```
+
+Inspect one of the generated maintainer scripts:
+
+```
+$ cat deb_out/postinst
+#!/bin/sh
+set -e
+# Automatically added by cargo-deb
+if [ "$1" = "configure" ] || [ "$1" = "abort-upgrade" ] || [ "$1" = "abort-deconfigure" ] || [ "$1" = "abort-remove" ] ; then
+	if [ -d /run/systemd/system ]; then
+		systemctl --system daemon-reload >/dev/null || true
+		if [ -n "$2" ]; then
+			_dh_action=restart
+		else
+			_dh_action=start
+		fi
+		deb-systemd-invoke $_dh_action example.service >/dev/null || true
+	fi
+fi
+# End automatically added section
+```
+
+Note the presence of `example.service` when compared to the [original autoscript](https://github.com/mmstick/cargo-deb/blob/master/autoscripts/postinst-systemd-restart).
