@@ -71,38 +71,54 @@ maintainer-scripts = "debian/"
 systemd-units = { enable = false }
 ```
 
-Provide cargo-deb with an existing but empty systemd service unit file:
+Provide cargo-deb with a minimal systemd service unit file:
 
 ```
 $ mkdir debian
-$ touch debian/service
+$ cat <<EOF >debian/service
+[Unit]
+Description=Example
+
+[Service]
+ExecStart=/usr/bin/example
+
+[Install]
+WantedBy=multi-user.target
+EOF
 ```
 
 Provide cargo-deb with a minimal Rust application to build:
 
 ```
 $ mkdir src
-$ echo 'fn main() { }' > src/main.rs
+$ cat <<EOF >src/main.rs
+fn main() {
+  println!("Hello World!");
+}
+EOF
 ```
 
 Invoke cargo-deb with verbose output enabled:
 
 ```
 $ cargo-deb -v
-       Fresh example v1.2.3 (/tmp/t)
-    Finished release [optimized] target(s) in 0.00s
+   Compiling example v1.2.3 (/tmp/t)
+     Running `rustc --crate-name example src/main.rs --error-format=json --json=diagnostic-rendered-ansi --crate-type bin --emit=dep-info,link -C opt-level=3 -Cembed-bitcode=no -C metadata=25d9e83f3daf475a -C extra-filename=-25d9e83f3daf475a --out-dir /tmp/t/target/release/deps -L dependency=/tmp/t/target/release/deps`
+    Finished release [optimized] target(s) in 0.12s
 info: Stripped '/tmp/t/target/release/example'
 info: /tmp/t/target/release/example -> usr/bin/example
 info: - -> usr/share/doc/example/copyright
 info: /tmp/t/debian/service -> lib/systemd/system/example.service
 info: Determining augmentations needed for systemd unit example.service
+info: Maintainer script postinst will be augmented with autoscript postinst-systemd-dont-enable
+info: Maintainer script postrm will be augmented with autoscript postrm-systemd
 info: Maintainer script postinst will be augmented with autoscript postinst-systemd-restart
 info: Maintainer script prerm will be augmented with autoscript prerm-systemd-restart
 info: Maintainer script postrm will be augmented with autoscript postrm-systemd-reload-only
 info: Generating maintainer script postinst
 info: Generating maintainer script prerm
 info: Generating maintainer script postrm
-info: compressed/original ratio 88208/230912 (38%)
+info: compressed/original ratio 91596/243712 (37%)
 /tmp/t/target/debian/example_1.2.3_amd64.deb
 ```
 
@@ -116,8 +132,8 @@ drwxr-xr-x 2 ximon ximon 4096 aug 19 12:31 .
 drwxrwxr-x 6 ximon ximon 4096 aug 19 12:31 ..
 -rw-r--r-- 1 ximon ximon  249 aug 19 12:28 control
 -rw-r--r-- 1 ximon ximon  185 aug 19 12:28 md5sums
--rwxr-xr-x 1 ximon ximon  455 aug 19 12:28 postinst
--rwxr-xr-x 1 ximon ximon  178 aug 19 12:28 postrm
+-rwxr-xr-x 1 ximon ximon 1211 aug 19 12:28 postinst
+-rwxr-xr-x 1 ximon ximon  599 aug 19 12:28 postrm
 -rwxr-xr-x 1 ximon ximon  206 aug 19 12:28 prerm
 ```
 
@@ -127,6 +143,23 @@ Inspect one of the generated maintainer scripts:
 $ cat deb_out/postinst
 #!/bin/sh
 set -e
+# Automatically added by cargo-deb
+if [ "$1" = "configure" ] || [ "$1" = "abort-upgrade" ] || [ "$1" = "abort-deconfigure" ] || [ "$1" = "abort-remove" ] ; then
+	if deb-systemd-helper debian-installed example.service; then
+		# This will only remove masks created by d-s-h on package removal.
+		deb-systemd-helper unmask example.service >/dev/null || true
+
+		if deb-systemd-helper --quiet was-enabled example.service; then
+			# Create new symlinks, if any.
+			deb-systemd-helper enable example.service >/dev/null || true
+		fi
+	fi
+
+	# Update the statefile to add new symlinks (if any), which need to be cleaned
+	# up on purge. Also remove old symlinks.
+	deb-systemd-helper update-state example.service >/dev/null || true
+fi
+# End automatically added section
 # Automatically added by cargo-deb
 if [ "$1" = "configure" ] || [ "$1" = "abort-upgrade" ] || [ "$1" = "abort-deconfigure" ] || [ "$1" = "abort-remove" ] ; then
 	if [ -d /run/systemd/system ]; then
@@ -142,4 +175,4 @@ fi
 # End automatically added section
 ```
 
-Note the presence of `example.service` when compared to the [original autoscript](https://github.com/mmstick/cargo-deb/blob/master/autoscripts/postinst-systemd-restart).
+Note that two shell script fragments have been injected into the maintainer script and that the `#RESTART_ACTION#` and `#UNITFILE#` placeholder tokens have been replaced compared to the original autoscripts [here](https://github.com/mmstick/cargo-deb/blob/master/autoscripts/postinst-systemd-dont-enable)and [here](https://github.com/mmstick/cargo-deb/blob/master/autoscripts/postinst-systemd-restart).
