@@ -168,3 +168,17 @@ fi
 ```
 
 Note that two shell script fragments have been injected into the maintainer script and that the `#RESTART_ACTION#` and `#UNITFILE#` placeholder tokens have been replaced compared to the original autoscripts [here](https://github.com/mmstick/cargo-deb/blob/master/autoscripts/postinst-systemd-dont-enable) and [here](https://github.com/mmstick/cargo-deb/blob/master/autoscripts/postinst-systemd-restart).
+
+#### Advanced Example
+
+For a more advanced example you might want to look at the [NLnet Labs Krill project](https://github.com/NLnetLabs/krill/) use of cargo-deb (disclaimer: this author is a contributor) which shows:
+
+- Use of `unit-name` ([here](https://github.com/NLnetLabs/krill/blob/master/Cargo.toml#L102)).
+- Use of user provided maintainer scripts (e.g. [here](https://github.com/NLnetLabs/krill/blob/master/debian/postinst)) with included `#DEBHELPER#` token to add maintainer script fragments to existing scripts which create a shell user and create (and remove on purge) a config file.
+- Use of operating system specific systemd service unit files via cargo-deb [variants](https://github.com/NLnetLabs/krill/blob/master/Cargo.toml#L111) and symbolic links (e.g. [here](https://github.com/NLnetLabs/krill/blob/master/debian/krill-debian10.krill.service)).
+- Use of `--variant` and `--deb-version` command line arguments ([here](https://github.com/NLnetLabs/krill/blob/master/.github/workflows/pkg.yml#L191)).
+
+Additionally, though not strictly related to systemd-units support but still cargo-deb related, it shows:
+- Packaging on different operating systems with Docker ([here](https://github.com/NLnetLabs/krill/blob/master/.github/workflows/pkg.yml#L56))
+- Use of the Lintian tool to verify the created package ([here](https://github.com/NLnetLabs/krill/blob/master/.github/workflows/pkg.yml#L198))
+- Testing package install and upgrade on different operating systems using LXC/LXD containers (for systemd support) ([here](https://github.com/NLnetLabs/krill/blob/master/.github/workflows/pkg.yml#L218))
