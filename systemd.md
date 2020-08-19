@@ -52,11 +52,11 @@ See:
  - The [dh_installsystemd Ubuntu 20.04 man page](http://manpages.ubuntu.com/manpages/focal/en/man1/dh_installsystemd.1.html)
  - The [systemd documentation](https://www.freedesktop.org/software/systemd/man/systemd.unit.html#Description) for more details on unit naming.
  - The [Debian Policy Manual](https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html) for more information about maintainer scripts.
- - A list of [code blocks](https://github.com/mmstick/cargo-deb/tree/579e10c89b060d=eec05ce8653f501c9eee3a0297/autoscripts) which may be inserted.
+ - A list of [shell fragments](https://github.com/mmstick/cargo-deb/tree/579e10c89b060d=eec05ce8653f501c9eee3a0297/autoscripts) which may be inserted.
 
 #### Minimal Example
 
-Cargo.toml:
+`Cargo.toml`:
 
 ```toml
 [package]
@@ -71,11 +71,8 @@ maintainer-scripts = "debian/"
 systemd-units = { enable = false }
 ```
 
-Provide cargo-deb with a minimal systemd service unit file:
-
-```
-$ mkdir debian
-$ cat <<EOF >debian/service
+`debian/service`:
+```toml
 [Unit]
 Description=Example
 
@@ -84,23 +81,18 @@ ExecStart=/usr/bin/example
 
 [Install]
 WantedBy=multi-user.target
-EOF
 ```
 
-Provide cargo-deb with a minimal Rust application to build:
-
-```
-$ mkdir src
-$ cat <<EOF >src/main.rs
+`src/main.rs`:
+```rust
 fn main() {
   println!("Hello World!");
 }
-EOF
 ```
 
 Invoke cargo-deb with verbose output enabled:
 
-```
+```sh
 $ cargo-deb -v
    Compiling example v1.2.3 (/tmp/t)
      Running `rustc --crate-name example src/main.rs --error-format=json --json=diagnostic-rendered-ansi --crate-type bin --emit=dep-info,link -C opt-level=3 -Cembed-bitcode=no -C metadata=25d9e83f3daf475a -C extra-filename=-25d9e83f3daf475a --out-dir /tmp/t/target/release/deps -L dependency=/tmp/t/target/release/deps`
@@ -124,7 +116,7 @@ info: compressed/original ratio 91596/243712 (37%)
 
 Use `dpkg` to inspect the created archives maintainer scripts:
 
-```
+```sh
 $ dpkg -e target/debian/example_1.2.3_amd64.deb deb_out
 $ ls -la deb_out/
 total 28
@@ -139,7 +131,7 @@ drwxrwxr-x 6 ximon ximon 4096 aug 19 12:31 ..
 
 Inspect one of the generated maintainer scripts:
 
-```
+```sh
 $ cat deb_out/postinst
 #!/bin/sh
 set -e
