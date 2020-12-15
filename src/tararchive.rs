@@ -56,7 +56,11 @@ impl Archive {
     }
 
     pub fn file<P: AsRef<Path>>(&mut self, path: P, out_data: &[u8], chmod: u32) -> CDResult<()> {
-        self.add_parent_directories(path.as_ref())?;
+        self.file_(path.as_ref(), out_data, chmod)
+    }
+
+    fn file_(&mut self, path: &Path, out_data: &[u8], chmod: u32) -> CDResult<()> {
+        self.add_parent_directories(path)?;
 
         let mut header = TarHeader::new_gnu();
         header.set_mtime(self.time);
@@ -68,7 +72,7 @@ impl Archive {
         Ok(())
     }
 
-    pub fn symlink<P: AsRef<Path>>(&mut self, path: P, link_name: P) -> CDResult<()> {
+    pub fn symlink(&mut self, path: &Path, link_name: &Path) -> CDResult<()> {
         self.add_parent_directories(path.as_ref())?;
 
         let mut header = TarHeader::new_gnu();

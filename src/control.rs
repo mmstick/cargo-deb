@@ -195,7 +195,7 @@ fn generate_conf_files(archive: &mut Archive, files: &str) -> CDResult<()> {
     Ok(())
 }
 
-fn generate_triggers_file<P: AsRef<Path>>(archive: &mut Archive, path: P) -> CDResult<()> {
+fn generate_triggers_file(archive: &mut Archive, path: &Path) -> CDResult<()> {
     if let Ok(content) = fs::read(path) {
         archive.file("./triggers", &content, 0o644)?;
     }
