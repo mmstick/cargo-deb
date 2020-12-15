@@ -34,12 +34,21 @@ impl CargoConfig {
         Ok(None)
     }
 
+
     fn try_parse<P: AsRef<Path>>(path: P) -> CDResult<Option<Self>> {
-        let path = path.as_ref().join(".cargo/config");
-        if !path.exists() {
-            return Ok(None);
+        if path.as_ref().join(".cargo/config").exists() {
+            let path = path.as_ref().join(".cargo/config");
+            if !path.exists() {
+                return Ok(None);
+            }
+            Ok(Some(Self::from_str(&fs::read_to_string(&path)?, path)?))
+        } else {
+            let path = path.as_ref().join(".cargo/config.toml");
+            if !path.exists() {
+                return Ok(None);
+            }
+            Ok(Some(Self::from_str(&fs::read_to_string(&path)?, path)?))
         }
-        Ok(Some(Self::from_str(&fs::read_to_string(&path)?, path)?))
     }
 
     fn from_str(input: &str, path: PathBuf) -> CDResult<Self> {
