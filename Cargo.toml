@@ -9,7 +9,7 @@ homepage = "https://github.com/mmstick/cargo-deb#readme"
 keywords = ["debian", "ubuntu", "package", "cargo", "subcommand"]
 repository = "https://github.com/mmstick/cargo-deb"
 readme = "README.md"
-version = "1.28.0"
+version = "1.28.1"
 edition = "2018"
 
 [package.metadata.deb]
@@ -67,7 +67,7 @@ opt-level = 3
 
 [dev-dependencies]
 tempdir = "0.3.6"
-mockall = "0.7.2"
+mockall = "0.8"
 rstest = "0.6.4"
 lazy_static = "1.4.0"
 
