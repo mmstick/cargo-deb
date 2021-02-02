@@ -150,7 +150,10 @@ fn generate_control(archive: &mut Archive, options: &Config, listener: &mut dyn 
 
     writeln!(&mut control, "Installed-Size: {}", installed_size)?;
 
-    writeln!(&mut control, "Depends: {}", options.get_dependencies(listener)?)?;
+    let deps = options.get_dependencies(listener)?;
+    if !deps.is_empty() {
+        writeln!(&mut control, "Depends: {}", deps)?;
+    }
 
     if let Some(ref build_depends) = options.build_depends {
         writeln!(&mut control, "Build-Depends: {}", build_depends)?;

@@ -41,7 +41,7 @@ checksum = "08c48aae112d48ed9f069b33538ea9e3e90aa263cfa3d1c24309612b1f7472de"
 
 [[package]]
 name = "cargo-deb"
-version = "1.28.2"
+version = "1.28.3"
 dependencies = [
  "ar",
  "cargo_toml",
