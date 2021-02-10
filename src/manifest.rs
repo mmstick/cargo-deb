@@ -302,6 +302,8 @@ pub struct Config {
     pub depends: String,
     /// The Debian dependencies required to build the project.
     pub build_depends: Option<String>,
+    /// The Debian recommended dependencies.
+    pub recommends: Option<String>,
     /// The Debian software category to which the package belongs.
     pub section: Option<String>,
     /// The Debian priority of the project. Typically 'optional'.
@@ -705,6 +707,7 @@ impl Cargo {
             })?,
             depends: deb.depends.take().unwrap_or_else(|| "$auto".to_owned()),
             build_depends: deb.build_depends.take(),
+            recommends: deb.recommends.take(),
             conflicts: deb.conflicts.take(),
             breaks: deb.breaks.take(),
             replaces: deb.replaces.take(),
@@ -893,6 +896,7 @@ struct CargoDeb {
     pub changelog: Option<String>,
     pub depends: Option<String>,
     pub build_depends: Option<String>,
+    pub recommends: Option<String>,
     pub conflicts: Option<String>,
     pub breaks: Option<String>,
     pub replaces: Option<String>,
@@ -924,6 +928,7 @@ impl CargoDeb {
             changelog: self.changelog.or(parent.changelog),
             depends: self.depends.or(parent.depends),
             build_depends: self.build_depends.or(parent.build_depends),
+            recommends: self.recommends.or(parent.recommends),
             conflicts: self.conflicts.or(parent.conflicts),
             breaks: self.breaks.or(parent.breaks),
             replaces: self.replaces.or(parent.replaces),

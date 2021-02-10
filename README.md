@@ -41,6 +41,7 @@ Everything is optional:
 - **copyright**: To whom and when the copyright of the software is granted. If not present, the list of authors is used.
 - **license-file**: 2-element array with a location of the license file and the amount of lines to skip at the top. If not present, package-level `license-file` is used.
 - **depends**: The runtime [dependencies](https://www.debian.org/doc/debian-policy/ch-relationships.html) of the project. Generated automatically when absent, or if the list includes the `$auto` keyword.
+- **recommends**: The recommended [dependencies](https://www.debian.org/doc/debian-policy/ch-relationships.html) of the project. This will be empty by default.
 - **conflicts**, **breaks**, **replaces**, **provides** — [package transition](https://wiki.debian.org/PackageTransition) control.
 - **extended-description**: An extended description of the project — the more detailed the better. Either **extended-description-file** (see below) or package's `readme` file is used if it is not provided.
 - **extended-description-file**: A file with extended description of the project. When specified, used if **extended-description** is not provided.
