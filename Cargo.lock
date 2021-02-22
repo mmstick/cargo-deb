@@ -57,6 +57,7 @@ dependencies = [
  "lazy_static",
  "md5",
  "mockall",
+ "num_cpus",
  "quick-error",
  "rayon",
  "regex",
