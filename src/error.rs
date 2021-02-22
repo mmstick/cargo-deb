@@ -87,6 +87,10 @@ quick_error! {
             display("unable to iterate asset glob result")
             source(err)
         }
+        #[cfg(feature = "lzma")]
+        LzmaCompressionError(err: xz2::stream::Error) {
+            display("lzma compression error: {:?}", err)
+        }
     }
 }
 

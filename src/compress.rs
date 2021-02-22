@@ -32,13 +32,22 @@ pub fn gz(data: &[u8]) -> CDResult<Vec<u8>> {
 /// Compresses data using the xz2 library
 #[cfg(feature = "lzma")]
 pub fn xz_or_gz(data: &[u8], fast: bool) -> CDResult<Compressed> {
-    use std::io::Read;
-    use xz2::bufread::XzEncoder;
+    use xz2::stream;
 
     // Compressed data is typically half to a third the original size
     let mut compressed = Vec::with_capacity(data.len() >> 1);
+
     // Compression level 6 is a good trade off between size and [ridiculously] long compression time
-    XzEncoder::new(data, if fast { 1 } else { 6 }).read_to_end(&mut compressed)?;
+    let mut encoder = stream::MtStreamBuilder::new()
+        .threads(num_cpus::get() as u32)
+        .preset(if fast { 1 } else { 6 })
+        .encoder()
+        .map_err(|e| CargoDebError::LzmaCompressionError(e))?;
+
+    encoder
+        .process_vec(data, &mut compressed, stream::Action::Finish)
+        .map_err(|e| CargoDebError::LzmaCompressionError(e))?;
+
     compressed.shrink_to_fit();
 
     Ok(Compressed::Xz(compressed))

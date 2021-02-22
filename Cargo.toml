@@ -56,10 +56,11 @@ cargo_toml = "0.8"
 rayon = "1.0.3"
 regex = "1.3.1"
 itertools = "0.10"
+num_cpus = { version = "1.13", optional = true }
 
 [features]
 default = ["lzma"]
-lzma = ["xz2"]
+lzma = ["xz2", "num_cpus"]
 
 [profile.release]
 lto = true
@@ -76,4 +77,3 @@ exclude = ["example"]
 
 [package.metadata.docs.rs]
 targets = ["x86_64-unknown-linux-gnu"]
-
