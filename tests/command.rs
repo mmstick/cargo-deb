@@ -18,7 +18,7 @@ fn run_cargo_deb_command_on_example_dir() {
     }
 
     // prints deb path on the last line
-    let last_line = output.stdout[..output.stdout.len()-1].split(|&c| c==b'\n').last().unwrap();
+    let last_line = output.stdout[..output.stdout.len() - 1].split(|&c| c == b'\n').last().unwrap();
     let deb_path = Path::new(::std::str::from_utf8(last_line).unwrap());
     assert!(deb_path.exists());
 
@@ -174,7 +174,7 @@ fn run_cargo_deb_command_on_example_dir_with_version() {
     assert!(output.status.success());
 
     // prints deb path on the last line
-    let last_line = output.stdout[..output.stdout.len()-1].split(|&c| c==b'\n').last().unwrap();
+    let last_line = output.stdout[..output.stdout.len() - 1].split(|&c| c == b'\n').last().unwrap();
     let deb_path = Path::new(::std::str::from_utf8(last_line).unwrap());
     assert!(deb_path.exists());
 

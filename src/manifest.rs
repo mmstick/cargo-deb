@@ -425,11 +425,7 @@ impl Config {
                 // Remove dirs from globs without throwing away errors
                 .map(|entry| {
                     let source_file = entry?;
-                    Ok(if source_file.is_dir() {
-                        None
-                    } else {
-                        Some(source_file)
-                    })
+                    Ok(if source_file.is_dir() { None } else { Some(source_file) })
                 })
                 .filter_map(|res| match res {
                     Ok(None) => None,
@@ -1158,15 +1154,7 @@ mod tests {
         // supply a systemd unit file as if it were available on disk
         add_test_fs_paths(&vec![to_canon_static_str("cargo-deb.service")]);
 
-        let config = Config::from_manifest(
-            Path::new("Cargo.toml"),
-            None,
-            None,
-            None,
-            None,
-            None,
-            &mut mock_listener,
-        ).unwrap();
+        let config = Config::from_manifest(Path::new("Cargo.toml"), None, None, None, None, None, &mut mock_listener).unwrap();
 
         let num_unit_assets = config.assets.resolved
             .iter()
@@ -1184,15 +1172,7 @@ mod tests {
         // supply a systemd unit file as if it were available on disk
         add_test_fs_paths(&vec![to_canon_static_str("cargo-deb.service")]);
 
-        let mut config = Config::from_manifest(
-            Path::new("Cargo.toml"),
-            None,
-            None,
-            None,
-            None,
-            None,
-            &mut mock_listener,
-        ).unwrap();
+        let mut config = Config::from_manifest(Path::new("Cargo.toml"), None, None, None, None, None, &mut mock_listener).unwrap();
 
         config.systemd_units.get_or_insert(SystemdUnitsConfig::default());
         config.maintainer_scripts.get_or_insert(PathBuf::new());

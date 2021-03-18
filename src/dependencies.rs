@@ -37,11 +37,7 @@ pub fn resolve(path: &Path, architecture: &str, listener: &dyn Listener) -> CDRe
         .filter_map(|path_str| {
             get_package_name_with_fallback(path_str)
                 .map_err(|err| {
-                    listener.warning(format!(
-                        "{} (skip this auto dep for {})",
-                        err,
-                        path.display()
-                    ));
+                    listener.warning(format!("{} (skip this auto dep for {})", err, path.display()));
                     err
                 })
                 .ok()

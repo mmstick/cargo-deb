@@ -134,12 +134,7 @@ pub struct Options {
 ///   <https://git.launchpad.net/ubuntu/+source/debhelper/tree/dh_installsystemd?h=applied/12.10ubuntu1#n264>
 ///   <https://git.launchpad.net/ubuntu/+source/debhelper/tree/dh_installsystemd?h=applied/12.10ubuntu1#n198>
 ///   <https://git.launchpad.net/ubuntu/+source/debhelper/tree/lib/Debian/Debhelper/Dh_Lib.pm?h=applied/12.10ubuntu1#n957>
-pub fn find_units(
-        dir: &Path,
-        main_package: &str,
-        unit_name: Option<&str>)
-    -> PackageUnitFiles
-{
+pub fn find_units(dir: &Path, main_package: &str, unit_name: Option<&str>) -> PackageUnitFiles {
     let mut installables = HashMap::new();
 
     for (package_suffix, unit_type, install_dir) in SYSTEMD_UNIT_FILE_INSTALL_MAPPINGS.iter() {
@@ -185,8 +180,7 @@ pub fn find_units(
 ///   <https://www.freedesktop.org/software/systemd/man/systemd.syntax.html#Introduction>
 fn is_comment(s: &str) -> bool {
     match s.chars().next() {
-        Some('#') |
-        Some(';') => true,
+        Some('#') | Some(';') => true,
         _ => false,
     }
 }
@@ -227,12 +221,7 @@ fn unquote(s: &str) -> &str {
 ///
 /// See:
 ///   <https://git.launchpad.net/ubuntu/+source/debhelper/tree/dh_installsystemd?h=applied/12.10ubuntu1#n288>
-pub fn generate(
-    package: &str,
-    assets: &[Asset],
-    options: &Options,
-    listener: &mut dyn Listener,
-) -> CDResult<ScriptFragments> {
+pub fn generate(package: &str, assets: &[Asset], options: &Options, listener: &mut dyn Listener) -> CDResult<ScriptFragments> {
     let mut scripts = ScriptFragments::new();
 
     // add postinst code blocks to handle tmpfiles
@@ -293,11 +282,7 @@ pub fn generate(
 
             // get the unit file contents
             let needle = Path::new(LIB_SYSTEMD_SYSTEM_DIR).join(unit);
-            let data = assets.iter()
-                .find(|&item| item.target_path == needle)
-                .unwrap()
-                .source
-                .data()?;
+            let data = assets.iter().find(|&item| item.target_path == needle).unwrap().source.data()?;
             let reader = data.into_owned();
 
             // for every line in the file look for specific keys that we are
@@ -393,7 +378,7 @@ pub fn generate(
 
         if options.no_stop_on_upgrade || options.restart_after_upgrade {
             // stop service only on remove
-			autoscript(&mut scripts, package, "prerm", "prerm-systemd-restart", &replace, true, listener)?;
+            autoscript(&mut scripts, package, "prerm", "prerm-systemd-restart", &replace, true, listener)?;
         } else if !options.no_start {
             // always stop service
             autoscript(&mut scripts, package, "prerm", "prerm-systemd", &replace, true, listener)?;
@@ -669,7 +654,8 @@ mod tests {
         // into the created script complete with expected substitutions
         let expected_autoscript_text = autoscript_text.replace("#TMPFILES#", TMP_FILE_NAME);
         let expected_autoscript_text = expected_autoscript_text.trim_end();
-        let start1 = 1; let end1 = start1 + autoscript_line_count;
+        let start1 = 1;
+        let end1 = start1 + autoscript_line_count;
         let created_autoscript_text = created_text.lines().collect::<Vec<&str>>()[start1..end1].join("\n");
         assert_ne!(expected_autoscript_text, autoscript_text);
         assert_eq!(expected_autoscript_text, created_autoscript_text);

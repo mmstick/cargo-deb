@@ -224,16 +224,10 @@ pub fn strip_binaries(options: &mut Config, target: Option<&str>, listener: &mut
                     })?;
                 if separate_file {
                     Command::new(objcopy_cmd)
-                        .current_dir(
-                            debug_path
-                                .parent()
-                                .expect("Debug source file had no parent path"),
-                        )
+                        .current_dir(debug_path.parent().expect("Debug source file had no parent path"))
                         .arg(format!(
                             "--add-gnu-debuglink={}",
-                            debug_filename
-                                .to_str()
-                                .expect("Debug source file had no filename")
+                            debug_filename.to_str().expect("Debug source file had no filename")
                         ))
                         .arg(path)
                         .status()

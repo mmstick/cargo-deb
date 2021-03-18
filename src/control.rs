@@ -245,15 +245,7 @@ mod tests {
         let mut mock_listener = crate::listener::MockListener::new();
         mock_listener.expect_info().return_const(());
 
-        let config = Config::from_manifest(
-            Path::new("Cargo.toml"),
-            None,
-            None,
-            None,
-            None,
-            None,
-            &mut mock_listener,
-        ).unwrap();
+        let config = Config::from_manifest(Path::new("Cargo.toml"), None, None, None, None, None, &mut mock_listener).unwrap();
 
         let ar = Archive::new(0);
 

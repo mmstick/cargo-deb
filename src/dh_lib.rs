@@ -14,13 +14,12 @@
 ///
 /// Ubuntu 20.04 dh_installsystemd man page (online HTML version):
 /// <http://manpages.ubuntu.com/manpages/focal/en/man1/dh_installdeb.1.html>
-
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-use crate::{CDResult, listener::Listener};
 use crate::error::*;
 use crate::util::{is_path_file, read_file_to_string};
+use crate::{listener::Listener, CDResult};
 
 /// DebHelper autoscripts are embedded in the Rust library binary.
 /// The autoscripts were taken from:
@@ -71,9 +70,7 @@ pub(crate) type ScriptFragments = HashMap<String, Vec<u8>>;
 ///
 /// <https://git.launchpad.net/ubuntu/+source/debhelper/tree/lib/Debian/Debhelper/Dh_Lib.pm?h=applied/12.10ubuntu1#n286>
 /// <https://git.launchpad.net/ubuntu/+source/debhelper/tree/lib/Debian/Debhelper/Dh_Lib.pm?h=applied/12.10ubuntu1#n957>
-pub(crate) fn pkgfile(dir: &Path, main_package: &str, package: &str, filename: &str, unit_name: Option<&str>)
-     -> Option<PathBuf>
-{
+pub(crate) fn pkgfile(dir: &Path, main_package: &str, package: &str, filename: &str, unit_name: Option<&str>) -> Option<PathBuf> {
     let mut paths_to_try = Vec::new();
     let is_main_package = main_package == package;
 
@@ -422,13 +419,11 @@ mod tests {
         assert_eq!(None, r);
     }
 
-    fn autoscript_test_wrapper(pkg: &str, script: &str, snippet: &str, unit: &str, scripts: Option<ScriptFragments>)
-        -> ScriptFragments
-    {
+    fn autoscript_test_wrapper(pkg: &str, script: &str, snippet: &str, unit: &str, scripts: Option<ScriptFragments>) -> ScriptFragments {
         let mut mock_listener = crate::listener::MockListener::new();
         mock_listener.expect_info().times(1).return_const(());
         let mut scripts = scripts.unwrap_or(ScriptFragments::new());
-        let replacements = map!{ "UNITFILES" => unit.to_owned() };
+        let replacements = map! { "UNITFILES" => unit.to_owned() };
         autoscript(&mut scripts, pkg, script, snippet, &replacements, false, &mut mock_listener).unwrap();
         return scripts;
     }
@@ -523,7 +518,8 @@ mod tests {
         // into the created script complete with expected substitutions
         let expected_autoscript_text1 = autoscript_text.replace("#UNITFILES#", "dummyunit");
         let expected_autoscript_text1 = expected_autoscript_text1.trim_end();
-        let start1 = 1; let end1 = start1 + autoscript_line_count;
+        let start1 = 1;
+        let end1 = start1 + autoscript_line_count;
         let created_autoscript_text1 = created_text.lines().collect::<Vec<&str>>()[start1..end1].join("\n");
         assert_ne!(expected_autoscript_text1, autoscript_text);
         assert_eq!(expected_autoscript_text1, created_autoscript_text1);
@@ -552,7 +548,8 @@ mod tests {
         // The content should be different
         let expected_autoscript_text2 = autoscript_text.replace("#UNITFILES#", "otherunit");
         let expected_autoscript_text2 = expected_autoscript_text2.trim_end();
-        let start2 = end1 + 2; let end2 = start2 + autoscript_line_count;
+        let start2 = end1 + 2;
+        let end2 = start2 + autoscript_line_count;
         let created_autoscript_text1 = created_text.lines().collect::<Vec<&str>>()[start1..end1].join("\n");
         let created_autoscript_text2 = created_text.lines().collect::<Vec<&str>>()[start2..end2].join("\n");
         assert_ne!(expected_autoscript_text1, autoscript_text);
