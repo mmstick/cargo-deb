@@ -45,7 +45,7 @@ fn main() {
         Ok(m) => m,
         Err(err) => {
             err_exit(&err);
-        },
+        }
     };
     if matches.opt_present("h") {
         print!("{}", cli_opts.usage("Usage: cargo deb [options] [-- <cargo build flags>]"));
@@ -75,7 +75,7 @@ fn main() {
         deb_version: matches.opt_str("deb-version"),
         cargo_build_flags: matches.free,
     }) {
-        Ok(()) => {},
+        Ok(()) => {}
         Err(err) => {
             err_exit(&err);
         }
@@ -84,7 +84,8 @@ fn main() {
 
 #[allow(deprecated)]
 fn err_cause(err: &dyn std::error::Error, max: usize) {
-    if let Some(reason) = err.cause() { // we use cause(), not source()
+    if let Some(reason) = err.cause() {
+        // we use cause(), not source()
         eprintln!("  because: {}", reason);
         if max > 0 {
             err_cause(reason, max - 1);
@@ -177,7 +178,8 @@ fn process(
         // Initialize the contents of the control archive (metadata for the package manager).
         let control_archive = control::generate_archive(&options, system_time, asset_hashes, listener)?;
 
-        let (control_compressed, data_compressed) = rayon::join(|| compress::gz(&control_archive), || compress::xz_or_gz(&data_archive, fast));
+        let (control_compressed, data_compressed) =
+            rayon::join(|| compress::gz(&control_archive), || compress::xz_or_gz(&data_archive, fast));
 
         // Order is important for Debian
         deb_contents.add_data("control.tar.gz", system_time, &control_compressed?)?;

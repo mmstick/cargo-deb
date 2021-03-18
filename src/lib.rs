@@ -18,7 +18,8 @@ cargo deb # run this in your Cargo project directory
 The library interface is experimental. See `main.rs` for usage.
 */
 
-#[macro_use] extern crate quick_error;
+#[macro_use]
+extern crate quick_error;
 
 pub mod compress;
 pub mod control;
@@ -56,8 +57,7 @@ const DEFAULT_TARGET: &str = include_str!(concat!(env!("OUT_DIR"), "/default_tar
 
 /// Run `dpkg` to install `deb` archive at the given path
 pub fn install_deb(path: &Path) -> CDResult<()> {
-    let status = Command::new("sudo").arg("dpkg").arg("-i").arg(path)
-        .status()?;
+    let status = Command::new("sudo").arg("dpkg").arg("-i").arg(path).status()?;
     if !status.success() {
         return Err(CargoDebError::InstallFailed);
     }
@@ -120,8 +120,7 @@ pub fn cargo_build(options: &Config, target: Option<&str>, other_flags: &[String
         cmd.arg(format!("--features={}", features.join(",")));
     }
 
-    let status = cmd.status()
-        .map_err(|e| CargoDebError::CommandFailed(e, "cargo"))?;
+    let status = cmd.status().map_err(|e| CargoDebError::CommandFailed(e, "cargo"))?;
     if !status.success() {
         return Err(CargoDebError::BuildFailed);
     }
@@ -135,13 +134,12 @@ fn debian_triple(rust_target_triple: &str) -> String {
     let abi = p.last().unwrap_or("");
 
     let (darch, dabi) = match (arch, abi) {
-        ("i586", _) |
-        ("i686", _) => ("i386", "gnu"),
+        ("i586", _) | ("i686", _) => ("i386", "gnu"),
         ("x86_64", _) => ("x86_64", "gnu"),
         ("aarch64", _) => ("aarch64", "gnu"),
         (arm, abi) if arm.starts_with("arm") || arm.starts_with("thumb") => {
-            ("arm", if abi.ends_with("hf") {"gnueabihf"} else {"gnueabi"})
-        },
+            ("arm", if abi.ends_with("hf") { "gnueabihf" } else { "gnueabi" })
+        }
         ("mipsel", _) => ("mipsel", "gnu"),
         (risc, _) if risc.starts_with("riscv64") => ("riscv64", "gnu"),
         (arch, abi) => (arch, abi),
@@ -224,16 +222,10 @@ pub fn strip_binaries(options: &mut Config, target: Option<&str>, listener: &mut
                     })?;
                 if separate_file {
                     Command::new(objcopy_cmd)
-                        .current_dir(
-                            debug_path
-                                .parent()
-                                .expect("Debug source file had no parent path"),
-                        )
+                        .current_dir(debug_path.parent().expect("Debug source file had no parent path"))
                         .arg(format!(
                             "--add-gnu-debuglink={}",
-                            debug_filename
-                                .to_str()
-                                .expect("Debug source file had no filename")
+                            debug_filename.to_str().expect("Debug source file had no filename")
                         ))
                         .arg(path)
                         .status()
@@ -241,7 +233,7 @@ pub fn strip_binaries(options: &mut Config, target: Option<&str>, listener: &mut
                         .map_err(|err| CargoDebError::CommandFailed(err, "objcopy"))?;
                 }
                 listener.info(format!("Stripped '{}'", path.display()));
-            },
+            }
             None => {
                 // This is unexpected - emit a warning if we come across it
                 listener.warning(format!("Found built asset with non-path source '{:?}'", asset));

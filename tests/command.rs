@@ -12,13 +12,18 @@ fn run_cargo_deb_command_on_example_dir() {
     assert!(cmd_path.exists());
     let output = Command::new(cmd_path)
         .arg(format!("--manifest-path={}", root.join("example/Cargo.toml").display()))
-        .output().unwrap();
+        .output()
+        .unwrap();
     if !output.status.success() {
-        panic!("Cmd failed: {}\n{}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));
+        panic!(
+            "Cmd failed: {}\n{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
     }
 
     // prints deb path on the last line
-    let last_line = output.stdout[..output.stdout.len()-1].split(|&c| c==b'\n').last().unwrap();
+    let last_line = output.stdout[..output.stdout.len() - 1].split(|&c| c == b'\n').last().unwrap();
     let deb_path = Path::new(::std::str::from_utf8(last_line).unwrap());
     assert!(deb_path.exists());
 
@@ -28,7 +33,9 @@ fn run_cargo_deb_command_on_example_dir() {
         .current_dir(ardir.path())
         .arg("-x")
         .arg(deb_path)
-        .status().unwrap().success());
+        .status()
+        .unwrap()
+        .success());
 
     assert_eq!("2.0\n", fs::read_to_string(ardir.path().join("debian-binary")).unwrap());
     assert!(ardir.path().join("data.tar.xz").exists());
@@ -39,7 +46,9 @@ fn run_cargo_deb_command_on_example_dir() {
         .arg("xzf")
         .current_dir(cdir.path())
         .arg(ardir.path().join("control.tar.gz"))
-        .status().unwrap().success());
+        .status()
+        .unwrap()
+        .success());
 
     let control = fs::read_to_string(cdir.path().join("control")).unwrap();
     assert!(control.contains("Package: example\n"));
@@ -61,7 +70,9 @@ fn run_cargo_deb_command_on_example_dir() {
         .arg("xJf")
         .current_dir(ddir.path())
         .arg(ardir.path().join("data.tar.xz"))
-        .status().unwrap().success());
+        .status()
+        .unwrap()
+        .success());
 
     assert!(ddir.path().join("var/lib/example/1.txt").exists());
     assert!(ddir.path().join("var/lib/example/2.txt").exists());
@@ -89,18 +100,19 @@ fn run_cargo_deb_command_on_example_dir_with_variant() {
         .arg("--variant=debug")
         .arg("--no-strip")
         .arg(format!("--output={}", deb_path.display()))
-        .arg(format!(
-            "--manifest-path={}",
-            root.join("example/Cargo.toml").display()
-        ))
+        .arg(format!("--manifest-path={}", root.join("example/Cargo.toml").display()))
         .output()
         .unwrap();
     if !output.status.success() {
-        panic!("Cmd failed: {}\n{}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));
+        panic!(
+            "Cmd failed: {}\n{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
     }
 
     // prints deb path on the last line
-    let last_line = output.stdout[..output.stdout.len()-1].split(|&c| c==b'\n').last().unwrap();
+    let last_line = output.stdout[..output.stdout.len() - 1].split(|&c| c == b'\n').last().unwrap();
     let printed_deb_path = Path::new(::std::str::from_utf8(last_line).unwrap());
     assert_eq!(printed_deb_path, deb_path);
     assert!(deb_path.exists());
@@ -111,7 +123,9 @@ fn run_cargo_deb_command_on_example_dir_with_variant() {
         .current_dir(ardir.path())
         .arg("-x")
         .arg(deb_path)
-        .status().unwrap().success());
+        .status()
+        .unwrap()
+        .success());
 
     assert_eq!("2.0\n", fs::read_to_string(ardir.path().join("debian-binary")).unwrap());
     assert!(ardir.path().join("data.tar.xz").exists());
@@ -122,7 +136,9 @@ fn run_cargo_deb_command_on_example_dir_with_variant() {
         .arg("xzf")
         .current_dir(cdir.path())
         .arg(ardir.path().join("control.tar.gz"))
-        .status().unwrap().success());
+        .status()
+        .unwrap()
+        .success());
 
     let control = fs::read_to_string(cdir.path().join("control")).unwrap();
     assert!(control.contains("Package: example-debug\n"), "Control is: {:?}", control);
@@ -144,7 +160,9 @@ fn run_cargo_deb_command_on_example_dir_with_variant() {
         .arg("xJf")
         .current_dir(ddir.path())
         .arg(ardir.path().join("data.tar.xz"))
-        .status().unwrap().success());
+        .status()
+        .unwrap()
+        .success());
 
     assert!(ddir.path().join("var/lib/example/1.txt").exists());
     assert!(ddir.path().join("var/lib/example/2.txt").exists());
@@ -165,16 +183,14 @@ fn run_cargo_deb_command_on_example_dir_with_version() {
     let output = Command::new(cmd_path)
         .env("CARGO_TARGET_DIR", cargo_dir.path()) // otherwise tests overwrite each other
         .arg(format!("--output={}", deb_path.display()))
-        .arg(format!(
-            "--manifest-path={}",
-            root.join("example/Cargo.toml").display()
-        ))
+        .arg(format!("--manifest-path={}", root.join("example/Cargo.toml").display()))
         .arg(format!("--deb-version=my-custom-version"))
-        .output().unwrap();
+        .output()
+        .unwrap();
     assert!(output.status.success());
 
     // prints deb path on the last line
-    let last_line = output.stdout[..output.stdout.len()-1].split(|&c| c==b'\n').last().unwrap();
+    let last_line = output.stdout[..output.stdout.len() - 1].split(|&c| c == b'\n').last().unwrap();
     let deb_path = Path::new(::std::str::from_utf8(last_line).unwrap());
     assert!(deb_path.exists());
 
@@ -184,7 +200,9 @@ fn run_cargo_deb_command_on_example_dir_with_version() {
         .current_dir(ardir.path())
         .arg("-x")
         .arg(deb_path)
-        .status().unwrap().success());
+        .status()
+        .unwrap()
+        .success());
 
     assert_eq!("2.0\n", fs::read_to_string(ardir.path().join("debian-binary")).unwrap());
     assert!(ardir.path().join("data.tar.xz").exists());
@@ -195,7 +213,9 @@ fn run_cargo_deb_command_on_example_dir_with_version() {
         .arg("xzf")
         .current_dir(cdir.path())
         .arg(ardir.path().join("control.tar.gz"))
-        .status().unwrap().success());
+        .status()
+        .unwrap()
+        .success());
 
     let control = fs::read_to_string(cdir.path().join("control")).unwrap();
     assert!(control.contains("Package: example\n"));
@@ -217,7 +237,9 @@ fn run_cargo_deb_command_on_example_dir_with_version() {
         .arg("xJf")
         .current_dir(ddir.path())
         .arg(ardir.path().join("data.tar.xz"))
-        .status().unwrap().success());
+        .status()
+        .unwrap()
+        .success());
 
     assert!(ddir.path().join("var/lib/example/1.txt").exists());
     assert!(ddir.path().join("var/lib/example/2.txt").exists());

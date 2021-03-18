@@ -15,7 +15,12 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 
 /// Generates an uncompressed tar archive with `control`, `md5sums`, and others
-pub fn generate_archive(options: &Config, time: u64, asset_hashes: HashMap<PathBuf, Digest>, listener: &mut dyn Listener) -> CDResult<Vec<u8>> {
+pub fn generate_archive(
+    options: &Config,
+    time: u64,
+    asset_hashes: HashMap<PathBuf, Digest>,
+    listener: &mut dyn Listener,
+) -> CDResult<Vec<u8>> {
     let mut archive = Archive::new(time);
     generate_md5sums(&mut archive, options, asset_hashes)?;
     generate_control(&mut archive, options, listener)?;
@@ -57,20 +62,15 @@ fn generate_scripts(archive: &mut Archive, option: &Config, listener: &mut dyn L
                 &option.name,
                 &option.assets.resolved,
                 &dh_installsystemd::Options::from(systemd_units_config),
-                listener)?;
+                listener,
+            )?;
 
             // Get Option<&str> from Option<String>
-            let unit_name = systemd_units_config.unit_name
-                .as_deref();
+            let unit_name = systemd_units_config.unit_name.as_deref();
 
             // Replace the #DEBHELPER# token in the users maintainer scripts
             // and/or generate maintainer scripts from scratch as needed.
-            dh_lib::apply(
-                &maintainer_scripts_dir,
-                &mut scripts,
-                &option.name,
-                unit_name,
-                listener)?;
+            dh_lib::apply(&maintainer_scripts_dir, &mut scripts, &option.name, unit_name, listener)?;
         } else {
             scripts = ScriptFragments::with_capacity(0);
         }
@@ -143,10 +143,7 @@ fn generate_control(archive: &mut Archive, options: &Config, listener: &mut dyn 
     control.write_all(b"Standards-Version: 3.9.4\n")?;
     writeln!(&mut control, "Maintainer: {}", options.maintainer)?;
 
-    let installed_size = options.assets.resolved
-        .iter()
-        .filter_map(|m| m.source.len())
-        .sum::<u64>() / 1024;
+    let installed_size = options.assets.resolved.iter().filter_map(|m| m.source.len()).sum::<u64>() / 1024;
 
     writeln!(&mut control, "Installed-Size: {}", installed_size)?;
 
@@ -220,15 +217,24 @@ mod tests {
     use crate::util::tests::{add_test_fs_paths, set_test_fs_path_content};
     use std::io::prelude::Read;
 
-    fn decode_name<R>(entry: &tar::Entry<R>) -> String where R: Read {
+    fn decode_name<R>(entry: &tar::Entry<R>) -> String
+    where
+        R: Read,
+    {
         std::str::from_utf8(&entry.path_bytes()).unwrap().to_string()
     }
 
-    fn decode_names<R>(ar: &mut tar::Archive<R>) -> Vec<String> where R: Read {
+    fn decode_names<R>(ar: &mut tar::Archive<R>) -> Vec<String>
+    where
+        R: Read,
+    {
         ar.entries().unwrap().map(|e| decode_name(&e.unwrap())).collect()
     }
 
-    fn extract_contents<R>(ar: &mut tar::Archive<R>) -> HashMap<String, String> where R: Read {
+    fn extract_contents<R>(ar: &mut tar::Archive<R>) -> HashMap<String, String>
+    where
+        R: Read,
+    {
         let mut out = HashMap::new();
         for entry in ar.entries().unwrap() {
             let mut unwrapped = entry.unwrap();
@@ -245,15 +251,7 @@ mod tests {
         let mut mock_listener = crate::listener::MockListener::new();
         mock_listener.expect_info().return_const(());
 
-        let config = Config::from_manifest(
-            Path::new("Cargo.toml"),
-            None,
-            None,
-            None,
-            None,
-            None,
-            &mut mock_listener,
-        ).unwrap();
+        let config = Config::from_manifest(Path::new("Cargo.toml"), None, None, None, None, None, &mut mock_listener).unwrap();
 
         let ar = Archive::new(0);
 

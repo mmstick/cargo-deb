@@ -14,8 +14,7 @@ impl ops::Deref for Compressed {
 
     fn deref(&self) -> &Self::Target {
         match self {
-            Self::Gz(data) |
-            Self::Xz(data) => &data,
+            Self::Gz(data) | Self::Xz(data) => &data,
         }
     }
 }

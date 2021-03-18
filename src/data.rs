@@ -77,9 +77,7 @@ pub fn compress_man_pages(options: &mut Config, listener: &dyn Listener) -> CDRe
 
     for (idx, asset) in options.assets.resolved.iter().enumerate() {
         let target_path_str = asset.target_path.to_string_lossy();
-        if target_path_str.starts_with("usr/share/man/") &&
-           !target_path_str.ends_with(".gz")
-        {
+        if target_path_str.starts_with("usr/share/man/") && !target_path_str.ends_with(".gz") {
             listener.info(format!("Compressing '{}'", asset.source.path().unwrap_or(Path::new("-")).display()));
 
             let content = asset.source.data()?;
@@ -114,7 +112,11 @@ fn archive_files(archive: &mut Archive, options: &Config, listener: &mut dyn Lis
     for asset in &options.assets.resolved {
         let out_data = asset.source.data()?;
 
-        let mut log_line = format!("{} -> {}", asset.source.path().unwrap_or_else(|| Path::new("-")).display(), asset.target_path.display());
+        let mut log_line = format!(
+            "{} -> {}",
+            asset.source.path().unwrap_or_else(|| Path::new("-")).display(),
+            asset.target_path.display()
+        );
         if let Some(len) = asset.source.len() {
             let (size, unit) = human_size(len);
             let _ = fmt::Write::write_fmt(&mut log_line, format_args!(" ({}{})", size, unit));
@@ -143,10 +145,10 @@ fn archive_files(archive: &mut Archive, options: &Config, listener: &mut dyn Lis
 
 fn human_size(len: u64) -> (u64, &'static str) {
     if len < 1000 {
-        return (len, "B")
+        return (len, "B");
     }
     if len < 1000_000 {
-        return ((len+999)/1000, "KB")
+        return ((len + 999) / 1000, "KB");
     }
-    return ((len+999_999)/1000_000, "MB")
+    return ((len + 999_999) / 1000_000, "MB");
 }

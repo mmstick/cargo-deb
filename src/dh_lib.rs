@@ -14,13 +14,12 @@
 ///
 /// Ubuntu 20.04 dh_installsystemd man page (online HTML version):
 /// <http://manpages.ubuntu.com/manpages/focal/en/man1/dh_installdeb.1.html>
-
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-use crate::{CDResult, listener::Listener};
 use crate::error::*;
 use crate::util::{is_path_file, read_file_to_string};
+use crate::{listener::Listener, CDResult};
 
 /// DebHelper autoscripts are embedded in the Rust library binary.
 /// The autoscripts were taken from:
@@ -30,13 +29,25 @@ use crate::util::{is_path_file, read_file_to_string};
 
 static AUTOSCRIPTS: [(&str, &[u8]); 10] = [
     ("postinst-init-tmpfiles", include_bytes!("../autoscripts/postinst-init-tmpfiles")),
-    ("postinst-systemd-dont-enable", include_bytes!("../autoscripts/postinst-systemd-dont-enable")),
+    (
+        "postinst-systemd-dont-enable",
+        include_bytes!("../autoscripts/postinst-systemd-dont-enable"),
+    ),
     ("postinst-systemd-enable", include_bytes!("../autoscripts/postinst-systemd-enable")),
-    ("postinst-systemd-restart", include_bytes!("../autoscripts/postinst-systemd-restart")),
-    ("postinst-systemd-restartnostart", include_bytes!("../autoscripts/postinst-systemd-restartnostart")),
+    (
+        "postinst-systemd-restart",
+        include_bytes!("../autoscripts/postinst-systemd-restart"),
+    ),
+    (
+        "postinst-systemd-restartnostart",
+        include_bytes!("../autoscripts/postinst-systemd-restartnostart"),
+    ),
     ("postinst-systemd-start", include_bytes!("../autoscripts/postinst-systemd-start")),
     ("postrm-systemd", include_bytes!("../autoscripts/postrm-systemd")),
-    ("postrm-systemd-reload-only", include_bytes!("../autoscripts/postrm-systemd-reload-only")),
+    (
+        "postrm-systemd-reload-only",
+        include_bytes!("../autoscripts/postrm-systemd-reload-only"),
+    ),
     ("prerm-systemd", include_bytes!("../autoscripts/prerm-systemd")),
     ("prerm-systemd-restart", include_bytes!("../autoscripts/prerm-systemd-restart")),
 ];
@@ -71,9 +82,7 @@ pub(crate) type ScriptFragments = HashMap<String, Vec<u8>>;
 ///
 /// <https://git.launchpad.net/ubuntu/+source/debhelper/tree/lib/Debian/Debhelper/Dh_Lib.pm?h=applied/12.10ubuntu1#n286>
 /// <https://git.launchpad.net/ubuntu/+source/debhelper/tree/lib/Debian/Debhelper/Dh_Lib.pm?h=applied/12.10ubuntu1#n957>
-pub(crate) fn pkgfile(dir: &Path, main_package: &str, package: &str, filename: &str, unit_name: Option<&str>)
-     -> Option<PathBuf>
-{
+pub(crate) fn pkgfile(dir: &Path, main_package: &str, package: &str, filename: &str, unit_name: Option<&str>) -> Option<PathBuf> {
     let mut paths_to_try = Vec::new();
     let is_main_package = main_package == package;
 
@@ -127,7 +136,9 @@ pub(crate) fn get_embedded_autoscript(snippet_filename: &str) -> String {
 
     // else load from embedded strings
     let mut snippet = snippet.unwrap_or_else(|| {
-        let (_, snippet_bytes) = AUTOSCRIPTS.iter().find(|(s, _)| *s == snippet_filename)
+        let (_, snippet_bytes) = AUTOSCRIPTS
+            .iter()
+            .find(|(s, _)| *s == snippet_filename)
             .expect(&format!("Unknown autoscript '{}'", snippet_filename));
 
         // convert to string
@@ -180,7 +191,10 @@ pub(crate) fn autoscript(
     let outfile_ext = if service_order { "service" } else { "debhelper" };
     let outfile = format!("{}.{}.{}", package, script, outfile_ext);
 
-    listener.info(format!("Maintainer script {} will be augmented with autoscript {}", &script, snippet_filename));
+    listener.info(format!(
+        "Maintainer script {} will be augmented with autoscript {}",
+        &script, snippet_filename
+    ));
 
     if scripts.contains_key(&outfile) && (script == "postrm" || script == "prerm") {
         if !replacements.is_empty() {
@@ -251,9 +265,14 @@ fn autoscript_sed(snippet_filename: &str, replacements: &HashMap<&str, String>) 
 /// # References
 ///
 /// <https://git.launchpad.net/ubuntu/+source/debhelper/tree/lib/Debian/Debhelper/Dh_Lib.pm?h=applied/12.10ubuntu1#n2161>
-fn debhelper_script_subst(user_scripts_dir: &Path, scripts: &mut ScriptFragments, package: &str, script: &str, unit_name: Option<&str>,
-    listener: &mut dyn Listener) -> CDResult<()>
-{
+fn debhelper_script_subst(
+    user_scripts_dir: &Path,
+    scripts: &mut ScriptFragments,
+    package: &str,
+    script: &str,
+    unit_name: Option<&str>,
+    listener: &mut dyn Listener,
+) -> CDResult<()> {
     let user_file = pkgfile(user_scripts_dir, package, package, script, unit_name);
     let mut generated_scripts: Vec<String> = vec![
         format!("{}.{}.debhelper", package, script),
@@ -304,9 +323,13 @@ fn debhelper_script_subst(user_scripts_dir: &Path, scripts: &mut ScriptFragments
 /// on disk supplied by the user.
 ///
 /// See: https://git.launchpad.net/ubuntu/+source/debhelper/tree/dh_installdeb?h=applied/12.10ubuntu1#n300
-pub(crate) fn apply(user_scripts_dir: &Path, scripts: &mut ScriptFragments, package: &str, unit_name: Option<&str>,
-    listener: &mut dyn Listener) -> CDResult<()>
-{
+pub(crate) fn apply(
+    user_scripts_dir: &Path,
+    scripts: &mut ScriptFragments,
+    package: &str,
+    unit_name: Option<&str>,
+    listener: &mut dyn Listener,
+) -> CDResult<()> {
     for script in &["postinst", "preinst", "prerm", "postrm"] {
         // note: we don't support custom defines thus we don't have the final
         // 'package_subst' argument to debhelper_script_subst().
@@ -360,10 +383,7 @@ mod tests {
 
     #[test]
     fn pkgfile_finds_most_specific_match_without_unit_file() {
-        add_test_fs_paths(&vec![
-            "/parent/dir/postinst",
-            "/parent/dir/mypkg.postinst",
-        ]);
+        add_test_fs_paths(&vec!["/parent/dir/postinst", "/parent/dir/mypkg.postinst"]);
 
         let r = pkgfile(Path::new("/parent/dir/"), "mypkg", "mypkg", "postinst", Some("myunit"));
         assert_eq!("/parent/dir/mypkg.postinst", LocalOptionPathBuf(r));
@@ -374,10 +394,7 @@ mod tests {
 
     #[test]
     fn pkgfile_finds_most_specific_match_without_pkg_file() {
-        add_test_fs_paths(&vec![
-            "/parent/dir/postinst",
-            "/parent/dir/myunit.postinst",
-        ]);
+        add_test_fs_paths(&vec!["/parent/dir/postinst", "/parent/dir/myunit.postinst"]);
 
         let r = pkgfile(Path::new("/parent/dir/"), "mypkg", "mypkg", "postinst", Some("myunit"));
         assert_eq!("/parent/dir/myunit.postinst", LocalOptionPathBuf(r));
@@ -422,13 +439,11 @@ mod tests {
         assert_eq!(None, r);
     }
 
-    fn autoscript_test_wrapper(pkg: &str, script: &str, snippet: &str, unit: &str, scripts: Option<ScriptFragments>)
-        -> ScriptFragments
-    {
+    fn autoscript_test_wrapper(pkg: &str, script: &str, snippet: &str, unit: &str, scripts: Option<ScriptFragments>) -> ScriptFragments {
         let mut mock_listener = crate::listener::MockListener::new();
         mock_listener.expect_info().times(1).return_const(());
         let mut scripts = scripts.unwrap_or(ScriptFragments::new());
-        let replacements = map!{ "UNITFILES" => unit.to_owned() };
+        let replacements = map! { "UNITFILES" => unit.to_owned() };
         autoscript(&mut scripts, pkg, script, snippet, &replacements, false, &mut mock_listener).unwrap();
         return scripts;
     }
@@ -449,7 +464,16 @@ mod tests {
         // sed mode is when no search -> replacement pairs are defined
         let sed_mode = &HashMap::new();
 
-        autoscript(&mut scripts, "mypkg", "somescript", "idontexist", sed_mode, false, &mut mock_listener).unwrap();
+        autoscript(
+            &mut scripts,
+            "mypkg",
+            "somescript",
+            "idontexist",
+            sed_mode,
+            false,
+            &mut mock_listener,
+        )
+        .unwrap();
     }
 
     #[test]
@@ -480,11 +504,13 @@ mod tests {
         }
     }
 
-    #[rstest(maintainer_script, prepend,
+    #[rstest(
+        maintainer_script,
+        prepend,
         case::prerm("prerm", true),
         case::preinst("preinst", false),
         case::postinst("postinst", false),
-        case::postrm("postrm", true),
+        case::postrm("postrm", true)
     )]
     fn autoscript_detailed_check(maintainer_script: &str, prepend: bool) {
         let autoscript_name = "postrm-systemd";
@@ -523,7 +549,8 @@ mod tests {
         // into the created script complete with expected substitutions
         let expected_autoscript_text1 = autoscript_text.replace("#UNITFILES#", "dummyunit");
         let expected_autoscript_text1 = expected_autoscript_text1.trim_end();
-        let start1 = 1; let end1 = start1 + autoscript_line_count;
+        let start1 = 1;
+        let end1 = start1 + autoscript_line_count;
         let created_autoscript_text1 = created_text.lines().collect::<Vec<&str>>()[start1..end1].join("\n");
         assert_ne!(expected_autoscript_text1, autoscript_text);
         assert_eq!(expected_autoscript_text1, created_autoscript_text1);
@@ -552,7 +579,8 @@ mod tests {
         // The content should be different
         let expected_autoscript_text2 = autoscript_text.replace("#UNITFILES#", "otherunit");
         let expected_autoscript_text2 = expected_autoscript_text2.trim_end();
-        let start2 = end1 + 2; let end2 = start2 + autoscript_line_count;
+        let start2 = end1 + 2;
+        let end2 = start2 + autoscript_line_count;
         let created_autoscript_text1 = created_text.lines().collect::<Vec<&str>>()[start1..end1].join("\n");
         let created_autoscript_text2 = created_text.lines().collect::<Vec<&str>>()[start2..end2].join("\n");
         assert_ne!(expected_autoscript_text1, autoscript_text);
@@ -577,7 +605,16 @@ mod tests {
 
         for (service_order, expected_ext) in in_out.into_iter() {
             let mut scripts = ScriptFragments::new();
-            autoscript(&mut scripts, "mypkg", "prerm", "postrm-systemd", &replacements, service_order, &mut mock_listener).unwrap();
+            autoscript(
+                &mut scripts,
+                "mypkg",
+                "prerm",
+                "postrm-systemd",
+                &replacements,
+                service_order,
+                &mut mock_listener,
+            )
+            .unwrap();
 
             assert_eq!(1, scripts.len());
 
@@ -588,13 +625,19 @@ mod tests {
     }
 
     #[fixture]
-    fn empty_user_file() -> String { "".to_owned() }
+    fn empty_user_file() -> String {
+        "".to_owned()
+    }
 
     #[fixture]
-    fn invalid_user_file() -> String { "some content".to_owned() }
+    fn invalid_user_file() -> String {
+        "some content".to_owned()
+    }
 
     #[fixture]
-    fn valid_user_file() -> String { "some #DEBHELPER# content".to_owned() }
+    fn valid_user_file() -> String {
+        "some #DEBHELPER# content".to_owned()
+    }
 
     #[test]
     fn debhelper_script_subst_with_no_matching_files() {
@@ -684,18 +727,16 @@ mod tests {
         assert_eq!(script_to_string(&scripts, "myscript"), "some injected content");
     }
 
-    #[rstest(maintainer_script, service_order,
+    #[rstest(
+        maintainer_script,
+        service_order,
         case("preinst", false),
         case("prerm", true),
         case("postinst", false),
-        case("postrm", true),
+        case("postrm", true)
     )]
     #[test]
-    fn debhelper_script_subst_with_user_and_generated_files(
-        valid_user_file: String,
-        maintainer_script: &'static str,
-        service_order: bool,
-    ) {
+    fn debhelper_script_subst_with_user_and_generated_files(valid_user_file: String, maintainer_script: &'static str, service_order: bool) {
         set_test_fs_path_content(maintainer_script, valid_user_file.clone());
 
         let mut mock_listener = crate::listener::MockListener::new();
@@ -712,8 +753,14 @@ mod tests {
         assert!(scripts.contains_key(&format!("mypkg.{}.service", maintainer_script)));
         assert!(scripts.contains_key(maintainer_script));
 
-        assert_eq!(script_to_string(&scripts, &format!("mypkg.{}.debhelper", maintainer_script)), "first");
-        assert_eq!(script_to_string(&scripts, &format!("mypkg.{}.service", maintainer_script)), "second");
+        assert_eq!(
+            script_to_string(&scripts, &format!("mypkg.{}.debhelper", maintainer_script)),
+            "first"
+        );
+        assert_eq!(
+            script_to_string(&scripts, &format!("mypkg.{}.service", maintainer_script)),
+            "second"
+        );
         if service_order {
             assert_eq!(script_to_string(&scripts, maintainer_script), "some secondfirst content");
         } else {
@@ -721,7 +768,8 @@ mod tests {
         }
     }
 
-    #[rstest(error,
+    #[rstest(
+        error,
         case::invalid_input("InvalidInput"),
         case::interrupted("Interrupted"),
         case::permission_denied("PermissionDenied"),
