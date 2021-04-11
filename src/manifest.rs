@@ -1214,6 +1214,8 @@ fn deb_ver() {
             documentation: None,
             description: Default::default(),
             build: None,
+            default_run: None,
+            resolver: None,
         },
         profile: None,
     };
