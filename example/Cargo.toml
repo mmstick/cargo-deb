@@ -16,11 +16,11 @@ section = "utils"
 priority = "optional"
 assets = [
     # binary
-    ["target/release/example", "usr/bin/", "755"],
+    ["target/release/example", "/usr/bin/", "755"],
     # assets
-    ["assets/*", "var/lib/example", "644"],
-    ["target/release/assets/*", "var/lib/example", "644"],
-    ["3.txt", "var/lib/example/3.txt", "644"],
+    ["assets/*", "/var/lib/example", "644"],
+    ["target/release/assets/*", "/var/lib/example", "644"],
+    ["3.txt", "/var/lib/example/3.txt", "644"],
 ]
 changelog = "changelog"
 default-features = false
@@ -29,11 +29,11 @@ features = ["example_debian_build"]
 [package.metadata.deb.variants.debug]
 assets =  [
     # binary
-    ["target/release/example", "usr/bin/", "755"],
+    ["target/release/example", "/usr/bin/", "755"],
     # assets
-    ["assets/*", "var/lib/example", "644"],
-    ["target/release/assets/*", "var/lib/example", "644"],
-    ["4.txt", "var/lib/example/4.txt", "644"],
+    ["assets/*", "/var/lib/example", "644"],
+    ["target/release/assets/*", "/var/lib/example", "644"],
+    ["4.txt", "/var/lib/example/4.txt", "644"],
 ]
 
 [features]
