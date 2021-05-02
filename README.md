@@ -78,8 +78,8 @@ depends = "$auto"
 section = "utility"
 priority = "optional"
 assets = [
-    ["target/release/cargo-deb", "/usr/bin/", "755"],
-    ["README.md", "/usr/share/doc/cargo-deb/README", "644"],
+    ["target/release/cargo-deb", "usr/bin/", "755"],
+    ["README.md", "usr/share/doc/cargo-deb/README", "644"],
 ]
 ```
 
