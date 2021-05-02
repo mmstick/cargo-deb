@@ -711,7 +711,7 @@ impl Cargo {
             section: deb.section.take(),
             priority: deb.priority.take().unwrap_or_else(|| "optional".to_owned()),
             architecture: get_arch(target.unwrap_or(crate::DEFAULT_TARGET)).to_owned(),
-            conf_files: deb.conf_files.map(|x| x.iter().fold(String::new(), |a, b| a + b + "\n")),
+            conf_files: deb.conf_files.map(|x| format_conffiles(&x)),
             assets: Assets::new(),
             triggers_file: deb.triggers_file.map(PathBuf::from),
             changelog: deb.changelog.take(),
@@ -1026,6 +1026,23 @@ pub(crate) fn get_arch(target: &str) -> &str {
     }
 }
 
+/// Format conffiles section, ensuring each path has a leading slash
+///
+/// Starting with [dpkg 1.20.1](https://github.com/guillemj/dpkg/blob/68ab722604217d3ab836276acfc0ae1260b28f5f/debian/changelog#L393),
+/// which is what Ubuntu 21.04 uses, relative conf-files are no longer
+/// accepted (the deb-conffiles man page states that "they should be listed as
+/// absolute pathnames"). So we prepend a leading slash to the given strings
+/// as needed
+fn format_conffiles<S: AsRef<str>>(files: &[S]) -> String {
+    files.iter().fold(String::new(), |mut acc, x| {
+        let pth = x.as_ref();
+        if !pth.starts_with('/') {
+            acc.push('/');
+        }
+        acc + pth + "\n"
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1185,6 +1202,28 @@ mod tests {
             .count();
 
         assert_eq!(1, num_unit_assets);
+    }
+
+    #[test]
+    fn format_conffiles_empty() {
+        let actual = format_conffiles::<String>(&[]);
+        assert_eq!("", actual);
+    }
+
+    #[test]
+    fn format_conffiles_one() {
+        let actual = format_conffiles(&["/etc/my-pkg/conf.toml"]);
+        assert_eq!("/etc/my-pkg/conf.toml\n", actual);
+    }
+
+    #[test]
+    fn format_conffiles_multiple() {
+        let actual = format_conffiles(&[
+            "/etc/my-pkg/conf.toml",
+            "etc/my-pkg/conf2.toml"
+        ]);
+
+        assert_eq!("/etc/my-pkg/conf.toml\n/etc/my-pkg/conf2.toml\n", actual);
     }
 }
 
