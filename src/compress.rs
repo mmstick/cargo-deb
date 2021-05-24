@@ -1,7 +1,4 @@
 use std::ops;
-
-use zopfli::{self, Format, Options};
-
 use crate::error::*;
 
 pub enum Compressed {
@@ -20,13 +17,25 @@ impl ops::Deref for Compressed {
     }
 }
 
+impl Compressed {
+    pub fn extension(&self) -> &'static str {
+        match self {
+            Self::Gz(_) => "gz",
+            Self::Xz(_) => "xz",
+        }
+    }
+}
+
 /// Compresses data using the [native Rust implementation of Zopfli](https://github.com/carols10cents/zopfli).
-pub fn gz(data: &[u8]) -> CDResult<Vec<u8>> {
+#[cfg(not(feature = "lzma"))]
+pub fn xz_or_gz(data: &[u8], _fast: bool) -> CDResult<Compressed> {
+    use zopfli::{self, Format, Options};
+
     // Compressed data is typically half to a third the original size
     let mut compressed = Vec::with_capacity(data.len() >> 1);
     zopfli::compress(&Options::default(), &Format::Gzip, data, &mut compressed)?;
 
-    Ok(compressed)
+    Ok(Compressed::Gz(compressed))
 }
 
 /// Compresses data using the xz2 library
@@ -48,12 +57,5 @@ pub fn xz_or_gz(data: &[u8], fast: bool) -> CDResult<Compressed> {
         .process_vec(data, &mut compressed, stream::Action::Finish)
         .map_err(|e| CargoDebError::LzmaCompressionError(e))?;
 
-    compressed.shrink_to_fit();
-
     Ok(Compressed::Xz(compressed))
-}
-
-#[cfg(not(feature = "lzma"))]
-pub fn xz_or_gz(data: &[u8], _fast: bool) -> CDResult<Compressed> {
-    gz(data).map(Compressed::Gz)
 }

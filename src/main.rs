@@ -169,32 +169,34 @@ fn process(
 
     deb_contents.add_data("debian-binary", system_time, b"2.0\n")?;
 
-    // The block frees the large data_archive var early
-    {
-        // Initailize the contents of the data archive (files that go into the filesystem).
-        let (data_archive, asset_hashes) = data::generate_archive(&options, system_time, listener)?;
+    // Initailize the contents of the data archive (files that go into the filesystem).
+    let (data_archive, asset_hashes) = data::generate_archive(&options, system_time, listener)?;
+    let original = data_archive.len();
 
-        // Initialize the contents of the control archive (metadata for the package manager).
-        let control_archive = control::generate_archive(&options, system_time, asset_hashes, listener)?;
+    let listener_tmp = &mut *listener; // reborrow for the closure
+    let options = &options;
+    let (control_compressed, data_compressed) = rayon::join(move || {
+        // The control archive is the metadata for the package manager
+        let control_archive = control::generate_archive(options, system_time, asset_hashes, listener_tmp)?;
+        compress::xz_or_gz(&control_archive, fast)
+    }, move || {
+        compress::xz_or_gz(&data_archive, fast)
+    });
+    let control_compressed = control_compressed?;
+    let data_compressed = data_compressed?;
 
-        let (control_compressed, data_compressed) = rayon::join(|| compress::gz(&control_archive), || compress::xz_or_gz(&data_archive, fast));
-
-        // Order is important for Debian
-        deb_contents.add_data("control.tar.gz", system_time, &control_compressed?)?;
-        let data_compressed = data_compressed?;
-        let original = data_archive.len();
-        let compressed = data_compressed.len();
-        listener.info(format!(
-            "compressed/original ratio {}/{} ({}%)",
-            compressed,
-            original,
-            compressed * 100 / original
-        ));
-        match data_compressed {
-            compress::Compressed::Gz(data) => deb_contents.add_data("data.tar.gz", system_time, &data)?,
-            compress::Compressed::Xz(data) => deb_contents.add_data("data.tar.xz", system_time, &data)?,
-        }
-    }
+    // Order is important for Debian
+    deb_contents.add_data(&format!("control.tar.{}", control_compressed.extension()), system_time, &control_compressed)?;
+    drop(control_compressed);
+    let compressed = data_compressed.len();
+    listener.info(format!(
+        "compressed/original ratio {}/{} ({}%)",
+        compressed,
+        original,
+        compressed * 100 / original
+    ));
+    deb_contents.add_data(&format!("data.tar.{}", data_compressed.extension()), system_time, &data_compressed)?;
+    drop(data_compressed);
 
     let generated = deb_contents.finish()?;
     if !quiet {

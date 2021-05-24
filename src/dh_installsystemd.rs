@@ -890,7 +890,7 @@ WantedBy=multi-user.target");
 
         for autoscript in autoscript_fragments_to_check_for.iter() {
             let key = format!("mypkg.{}", autoscript);
-            assert!(fragments.contains_key(&key), key);
+            assert!(fragments.contains_key(&key), "{}", key);
         }
     }
 }
