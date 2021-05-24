@@ -300,8 +300,6 @@ pub struct Config {
     pub maintainer: String,
     /// The Debian dependencies required to run the project.
     pub depends: String,
-    /// The Debian dependencies required to build the project.
-    pub build_depends: Option<String>,
     /// The Debian recommended dependencies.
     pub recommends: Option<String>,
     /// The Debian software category to which the package belongs.
@@ -702,7 +700,6 @@ impl Cargo {
                     .ok_or("The package must have a maintainer or authors property")?.to_owned())
             })?,
             depends: deb.depends.take().unwrap_or_else(|| "$auto".to_owned()),
-            build_depends: deb.build_depends.take(),
             recommends: deb.recommends.take(),
             conflicts: deb.conflicts.take(),
             breaks: deb.breaks.take(),
@@ -891,7 +888,6 @@ struct CargoDeb {
     pub license_file: Option<Vec<String>>,
     pub changelog: Option<String>,
     pub depends: Option<String>,
-    pub build_depends: Option<String>,
     pub recommends: Option<String>,
     pub conflicts: Option<String>,
     pub breaks: Option<String>,
@@ -923,7 +919,6 @@ impl CargoDeb {
             license_file: self.license_file.or(parent.license_file),
             changelog: self.changelog.or(parent.changelog),
             depends: self.depends.or(parent.depends),
-            build_depends: self.build_depends.or(parent.build_depends),
             recommends: self.recommends.or(parent.recommends),
             conflicts: self.conflicts.or(parent.conflicts),
             breaks: self.breaks.or(parent.breaks),

@@ -140,7 +140,6 @@ fn generate_control(archive: &mut Archive, options: &Config, listener: &mut dyn 
         writeln!(&mut control, "Section: {}", section)?;
     }
     writeln!(&mut control, "Priority: {}", options.priority)?;
-    control.write_all(b"Standards-Version: 3.9.4\n")?;
     writeln!(&mut control, "Maintainer: {}", options.maintainer)?;
 
     let installed_size = options.assets.resolved
@@ -153,10 +152,6 @@ fn generate_control(archive: &mut Archive, options: &Config, listener: &mut dyn 
     let deps = options.get_dependencies(listener)?;
     if !deps.is_empty() {
         writeln!(&mut control, "Depends: {}", deps)?;
-    }
-
-    if let Some(ref build_depends) = options.build_depends {
-        writeln!(&mut control, "Build-Depends: {}", build_depends)?;
     }
 
     if let Some(ref recommends) = options.recommends {
