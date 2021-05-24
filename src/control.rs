@@ -144,8 +144,8 @@ fn generate_control(archive: &mut Archive, options: &Config, listener: &mut dyn 
 
     let installed_size = options.assets.resolved
         .iter()
-        .filter_map(|m| m.source.len())
-        .sum::<u64>() / 1024;
+        .map(|m| (m.source.len().unwrap_or(0)+2047)/1024) // assume 1KB of fs overhead per file
+        .sum::<u64>();
 
     writeln!(&mut control, "Installed-Size: {}", installed_size)?;
 
