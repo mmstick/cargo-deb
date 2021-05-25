@@ -32,13 +32,13 @@ fn run_cargo_deb_command_on_example_dir() {
 
     assert_eq!("2.0\n", fs::read_to_string(ardir.path().join("debian-binary")).unwrap());
     assert!(ardir.path().join("data.tar.xz").exists());
-    assert!(ardir.path().join("control.tar.gz").exists());
+    assert!(ardir.path().join("control.tar.xz").exists());
 
     let cdir = TempDir::new("cargo-control-test").unwrap();
     assert!(Command::new("tar")
-        .arg("xzf")
+        .arg("xf")
         .current_dir(cdir.path())
-        .arg(ardir.path().join("control.tar.gz"))
+        .arg(ardir.path().join("control.tar.xz"))
         .status().unwrap().success());
 
     let control = fs::read_to_string(cdir.path().join("control")).unwrap();
@@ -188,13 +188,13 @@ fn run_cargo_deb_command_on_example_dir_with_version() {
 
     assert_eq!("2.0\n", fs::read_to_string(ardir.path().join("debian-binary")).unwrap());
     assert!(ardir.path().join("data.tar.xz").exists());
-    assert!(ardir.path().join("control.tar.gz").exists());
+    assert!(ardir.path().join("control.tar.xz").exists());
 
     let cdir = TempDir::new("cargo-control-test").unwrap();
     assert!(Command::new("tar")
-        .arg("xzf")
+        .arg("xf")
         .current_dir(cdir.path())
-        .arg(ardir.path().join("control.tar.gz"))
+        .arg(ardir.path().join("control.tar.xz"))
         .status().unwrap().success());
 
     let control = fs::read_to_string(cdir.path().join("control")).unwrap();
