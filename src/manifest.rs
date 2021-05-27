@@ -275,6 +275,8 @@ pub struct Config {
     pub deb_name: String,
     /// The version to give the Debian package; usually the same as the Cargo version
     pub deb_version: String,
+    /// The character to use to separate the tokens in the deb package name. Default is '_'.
+    pub deb_name_separator: Option<char>,
     /// The software license of the project (SPDX format).
     pub license: Option<String>,
     /// The location of the license file
@@ -679,6 +681,7 @@ impl Cargo {
             name: self.package.name.clone(),
             deb_name: deb.name.take().unwrap_or_else(|| self.package.name.clone()),
             deb_version: deb_version.unwrap_or(self.version_string(deb.revision)),
+            deb_name_separator: deb.separator.take(),
             license: self.package.license.take(),
             license_file,
             license_file_skip_lines,
@@ -888,6 +891,7 @@ struct CargoDeb {
     pub license_file: Option<Vec<String>>,
     pub changelog: Option<String>,
     pub depends: Option<String>,
+    pub separator: Option<char>,
     pub recommends: Option<String>,
     pub conflicts: Option<String>,
     pub breaks: Option<String>,
@@ -919,6 +923,7 @@ impl CargoDeb {
             license_file: self.license_file.or(parent.license_file),
             changelog: self.changelog.or(parent.changelog),
             depends: self.depends.or(parent.depends),
+            separator: self.separator.or(parent.separator),
             recommends: self.recommends.or(parent.recommends),
             conflicts: self.conflicts.or(parent.conflicts),
             breaks: self.breaks.or(parent.breaks),

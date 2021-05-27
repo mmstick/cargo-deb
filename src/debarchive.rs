@@ -6,6 +6,8 @@ use std::fs;
 use std::fs::File;
 use std::path::{Path, PathBuf};
 
+const DEFAULT_SEPARATOR: char = '_';
+
 pub struct DebArchive {
     out_abspath: PathBuf,
     prefix: PathBuf,
@@ -14,7 +16,9 @@ pub struct DebArchive {
 
 impl DebArchive {
     pub fn new(config: &Config) -> CDResult<Self> {
-        let out_filename = format!("{}_{}_{}.deb", config.deb_name, config.deb_version, config.architecture);
+        let out_filename = format!("{}{sep}{}{sep}{}.deb", config.deb_name, config.deb_version, config.architecture,
+            sep = config.deb_name_separator.unwrap_or(DEFAULT_SEPARATOR)
+        );
         let prefix = config.deb_temp_dir();
         let out_abspath = config.deb_output_path(&out_filename);
         {
@@ -31,7 +35,9 @@ impl DebArchive {
     }
 
     pub(crate) fn filename_glob(config: &Config) -> String {
-        format!("{}_*_{}.deb", config.deb_name, config.architecture)
+        format!("{}{sep}*{sep}{}.deb", config.deb_name, config.architecture,
+            sep = config.deb_name_separator.unwrap_or(DEFAULT_SEPARATOR)
+        )
     }
 
     pub fn add_path(&mut self, path: &Path) -> CDResult<()> {
