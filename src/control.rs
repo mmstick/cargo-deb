@@ -159,6 +159,14 @@ fn generate_control(archive: &mut Archive, options: &Config, listener: &mut dyn 
         writeln!(&mut control, "Depends: {}", deps)?;
     }
 
+    if let Some(ref pre_depends) = options.pre_depends {
+        let pre_depends_normalized = pre_depends.trim();
+
+        if !pre_depends_normalized.is_empty() {
+            writeln!(&mut control, "Pre-Depends: {}", pre_depends_normalized)?;
+        }
+    }
+
     if let Some(ref recommends) = options.recommends {
         let recommends_normalized = recommends.trim();
 
