@@ -88,7 +88,12 @@ fn generate_scripts(archive: &mut Archive, option: &Config, listener: &mut dyn L
             }
 
             if let Some(contents) = script {
-                archive.file(name, &contents, 0o755)?;
+                // The config, postinst, postrm, preinst, and prerm
+                // control files should use mode 0755; all other control files should use 0644.
+                // See Debian Policy Manual section 10.9
+                // and lintian tag control-file-has-bad-permissions
+                let permissions = if *name == "templates" { 0o644 } else { 0o755 };
+                archive.file(name, &contents, permissions)?;
             }
         }
     }
