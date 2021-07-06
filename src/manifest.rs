@@ -775,17 +775,23 @@ impl Cargo {
         })
     }
 
-    fn license_file(&mut self, license_file: Option<&Vec<String>>) -> CDResult<(Option<PathBuf>, usize)> {
-        if let Some(args) = license_file {
-            let mut args = args.iter();
-            let file = args.next();
-            let lines = if let Some(lines) = args.next() {
-                lines.parse().map_err(|e| CargoDebError::NumParse("invalid number of lines", e))?
-            } else {0};
-            Ok((file.map(|s|s.into()), lines))
-        } else {
-            Ok((self.package.license_file.as_ref().map(|s| s.into()), 0))
-        }
+    fn license_file(&mut self, license_file: Option<&LicenseFile>) -> CDResult<(Option<PathBuf>, usize)> {
+        Ok(match license_file {
+            Some(LicenseFile::Vec(args)) => {
+                let mut args = args.iter();
+                let file = args.next();
+                let lines = if let Some(lines) = args.next() {
+                    lines.parse().map_err(|e| CargoDebError::NumParse("invalid number of lines", e))?
+                } else {0};
+                (file.map(|s|s.into()), lines)
+            },
+            Some(LicenseFile::String(s)) => {
+                (Some(s.into()), 0)
+            }
+            None => {
+                (self.package.license_file.as_ref().map(|s| s.into()), 0)
+            }
+        })
     }
 
     fn take_assets(&self, options: &Config, assets: Option<Vec<Vec<String>>>, targets: &[CargoMetadataTarget], readme: Option<&String>) -> CDResult<Assets> {
@@ -882,13 +888,20 @@ struct CargoPackageMetadata {
     pub deb: Option<CargoDeb>,
 }
 
+#[derive(Clone, Debug, Deserialize)]
+#[serde(untagged)]
+enum LicenseFile {
+    String(String),
+    Vec(Vec<String>),
+}
+
 #[derive(Clone, Debug, Deserialize, Default)]
 #[serde(rename_all = "kebab-case", deny_unknown_fields)]
 struct CargoDeb {
     pub name: Option<String>,
     pub maintainer: Option<String>,
     pub copyright: Option<String>,
-    pub license_file: Option<Vec<String>>,
+    pub license_file: Option<LicenseFile>,
     pub changelog: Option<String>,
     pub depends: Option<String>,
     pub pre_depends: Option<String>,
