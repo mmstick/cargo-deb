@@ -35,20 +35,29 @@ pub(crate) fn generate_changelog_asset(options: &Config) -> CDResult<Option<Vec<
     }
 }
 
+fn append_copyright_metadata(copyright: &mut Vec<u8>, options: &Config) -> Result<(), CargoDebError> {
+    writeln!(copyright, "Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/")?;
+    writeln!(copyright, "Upstream-Name: {}", options.name)?;
+    if let Some(source) = options.repository.as_ref().or(options.homepage.as_ref()) {
+        writeln!(copyright, "Source: {}", source)?;
+    }
+    writeln!(copyright, "Copyright: {}", options.copyright)?;
+    if let Some(ref license) = options.license {
+        writeln!(copyright, "License: {}", license)?;
+    }
+    Ok(())
+}
+
 /// Generates the copyright file from the license file and adds that to the tar archive.
 pub(crate) fn generate_copyright_asset(options: &Config) -> CDResult<Vec<u8>> {
     let mut copyright: Vec<u8> = Vec::new();
-    writeln!(&mut copyright, "Upstream Name: {}", options.name)?;
-    if let Some(source) = options.repository.as_ref().or(options.homepage.as_ref()) {
-        writeln!(&mut copyright, "Source: {}", source)?;
-    }
-    writeln!(&mut copyright, "Copyright: {}", options.copyright)?;
-    if let Some(ref license) = options.license {
-        writeln!(&mut copyright, "License: {}", license)?;
-    }
     if let Some(ref path) = options.license_file {
         let license_string = fs::read_to_string(options.path_in_workspace(path))
             .map_err(|e| CargoDebError::IoFile("unable to read license file", e, path.to_owned()))?;
+        if !has_copyright_metadata(&license_string) {
+            append_copyright_metadata(&mut copyright, options)?;
+        }
+
         // Skip the first `A` number of lines and then iterate each line after that.
         for line in license_string.lines().skip(options.license_file_skip_lines) {
             // If the line is a space, add a dot, else write the line.
@@ -59,10 +68,17 @@ pub(crate) fn generate_copyright_asset(options: &Config) -> CDResult<Vec<u8>> {
                 copyright.write_all(b"\n")?;
             }
         }
+    } else {
+        append_copyright_metadata(&mut copyright, options)?;
     }
 
     // Write a copy to the disk for the sake of obtaining a md5sum for the control archive.
     Ok(copyright)
+}
+
+fn has_copyright_metadata(file: &str) -> bool {
+    file.lines().take(10)
+        .any(|l| l.starts_with("License: ") || l.starts_with("Source: ") || l.starts_with("Upstream-Name: ") || l.starts_with("Format: "))
 }
 
 /// Compress man page assets per Debian Policy.
