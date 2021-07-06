@@ -339,6 +339,8 @@ pub struct Config {
     /// List of Cargo features to use during build
     pub features: Vec<String>,
     pub default_features: bool,
+    /// Pass --all to `cargo build`
+    pub build_whole_workspace: bool,
     /// Should the binary be stripped from debug symbols?
     pub strip: bool,
     /// Should the debug symbols be moved to a separate file included in the package? (implies `strip:true`)
@@ -718,6 +720,7 @@ impl Cargo {
             maintainer_scripts: deb.maintainer_scripts.map(PathBuf::from),
             features: deb.features.take().unwrap_or_default(),
             default_features: deb.default_features.unwrap_or(true),
+            build_whole_workspace: deb.build_whole_workspace.unwrap_or(true),
             separate_debug_symbols: deb.separate_debug_symbols.unwrap_or(false),
             strip: self.profile.as_ref().and_then(|p|p.release.as_ref())
                 .and_then(|r| r.debug.as_ref())
@@ -921,6 +924,7 @@ struct CargoDeb {
     pub maintainer_scripts: Option<String>,
     pub features: Option<Vec<String>>,
     pub default_features: Option<bool>,
+    pub build_whole_workspace: Option<bool>,
     pub separate_debug_symbols: Option<bool>,
     pub preserve_symlinks: Option<bool>,
     pub systemd_units: Option<SystemdUnitsConfig>,
@@ -953,6 +957,7 @@ impl CargoDeb {
             maintainer_scripts: self.maintainer_scripts.or(parent.maintainer_scripts),
             features: self.features.or(parent.features),
             default_features: self.default_features.or(parent.default_features),
+            build_whole_workspace: self.build_whole_workspace.or(parent.build_whole_workspace),
             separate_debug_symbols: self.separate_debug_symbols.or(parent.separate_debug_symbols),
             preserve_symlinks: self.preserve_symlinks.or(parent.preserve_symlinks),
             systemd_units: self.systemd_units.or(parent.systemd_units),
