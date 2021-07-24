@@ -175,6 +175,22 @@ fn generate_control(archive: &mut Archive, options: &Config, listener: &mut dyn 
         }
     }
 
+    if let Some(ref suggests) = options.suggests {
+        let suggests_normalized = suggests.trim();
+
+        if !suggests_normalized.is_empty() {
+            writeln!(&mut control, "Suggests: {}", suggests_normalized)?;
+        }
+    }
+
+    if let Some(ref enhances) = options.enhances {
+        let enhances_normalized = enhances.trim();
+
+        if !enhances_normalized.is_empty() {
+            writeln!(&mut control, "Enhances: {}", enhances_normalized)?;
+        }
+    }
+
     if let Some(ref conflicts) = options.conflicts {
         writeln!(&mut control, "Conflicts: {}", conflicts)?;
     }
