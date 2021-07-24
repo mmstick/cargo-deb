@@ -304,6 +304,10 @@ pub struct Config {
     pub pre_depends: Option<String>,
     /// The Debian recommended dependencies.
     pub recommends: Option<String>,
+    /// The Debian suggested dependencies.
+    pub suggests: Option<String>,
+    /// The list of packages this package can enhance.
+    pub enhances: Option<String>,
     /// The Debian software category to which the package belongs.
     pub section: Option<String>,
     /// The Debian priority of the project. Typically 'optional'.
@@ -704,6 +708,8 @@ impl Cargo {
             depends: deb.depends.take().unwrap_or_else(|| "$auto".to_owned()),
             pre_depends: deb.pre_depends.take(),
             recommends: deb.recommends.take(),
+            suggests: deb.suggests.take(),
+            enhances: deb.enhances.take(),
             conflicts: deb.conflicts.take(),
             breaks: deb.breaks.take(),
             replaces: deb.replaces.take(),
@@ -906,6 +912,8 @@ struct CargoDeb {
     pub depends: Option<String>,
     pub pre_depends: Option<String>,
     pub recommends: Option<String>,
+    pub suggests: Option<String>,
+    pub enhances: Option<String>,
     pub conflicts: Option<String>,
     pub breaks: Option<String>,
     pub replaces: Option<String>,
@@ -938,6 +946,8 @@ impl CargoDeb {
             depends: self.depends.or(parent.depends),
             pre_depends: self.pre_depends.or(parent.pre_depends),
             recommends: self.recommends.or(parent.recommends),
+            suggests: self.suggests.or(parent.suggests),
+            enhances: self.enhances.or(parent.enhances),
             conflicts: self.conflicts.or(parent.conflicts),
             breaks: self.breaks.or(parent.breaks),
             replaces: self.replaces.or(parent.replaces),
