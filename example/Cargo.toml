@@ -17,6 +17,7 @@ priority = "optional"
 assets = [
     # binary
     ["target/release/example", "usr/bin/", "755"],
+    ["example-link", "usr/bin/", "777"],  # symlink
     # assets
     ["assets/*", "var/lib/example", "644"],
     ["target/release/assets/*", "var/lib/example", "644"],
@@ -25,6 +26,7 @@ assets = [
 changelog = "changelog"
 default-features = false
 features = ["example_debian_build"]
+preserve-symlinks = true
 
 [package.metadata.deb.variants.debug]
 assets =  [

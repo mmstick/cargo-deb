@@ -69,6 +69,8 @@ fn run_cargo_deb_command_on_example_dir() {
     assert!(ddir.path().join("usr/share/doc/example/copyright").exists());
     assert!(ddir.path().join("usr/share/doc/example/changelog.Debian.gz").exists());
     assert!(ddir.path().join("usr/bin/example").exists());
+    assert!(ddir.path().join("usr/bin/example-link").symlink_metadata().unwrap().file_type().is_symlink());
+    assert!(ddir.path().join("usr/bin/example-link").exists()); // test that it resolves
     // changelog.Debian.gz starts with the gzip magic
     assert_eq!(
         &[0x1F, 0x8B],
@@ -225,6 +227,8 @@ fn run_cargo_deb_command_on_example_dir_with_version() {
     assert!(ddir.path().join("usr/share/doc/example/copyright").exists());
     assert!(ddir.path().join("usr/share/doc/example/changelog.Debian.gz").exists());
     assert!(ddir.path().join("usr/bin/example").exists());
+    assert!(ddir.path().join("usr/bin/example-link").symlink_metadata().unwrap().file_type().is_symlink());
+    assert!(ddir.path().join("usr/bin/example-link").exists()); // test that it resolves
     // changelog.Debian.gz starts with the gzip magic
     assert_eq!(
         &[0x1F, 0x8B],

@@ -12,6 +12,7 @@ use std::collections::{HashMap, HashSet};
 use std::convert::From;
 use std::env::consts::{DLL_PREFIX, DLL_SUFFIX};
 use std::fs;
+use std::mem::take;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -172,6 +173,16 @@ impl Asset {
             target_path,
             chmod,
             is_built,
+        }
+    }
+
+    fn is_symlink(&self) -> bool {
+        match &self.source {
+            AssetSource::Path(path) => match path.symlink_metadata() {
+                Ok(info) => info.file_type().is_symlink(),
+                Err(_) => false,
+            },
+            AssetSource::Data(_) => false,
         }
     }
 
@@ -420,46 +431,62 @@ impl Config {
     }
 
     pub fn resolve_assets(&mut self) -> CDResult<()> {
-        for UnresolvedAsset { source_path, target_path, chmod, is_built } in self.assets.unresolved.drain(..) {
-            let source_prefix: PathBuf = source_path.iter()
-                .take_while(|part| !is_glob_pattern(part.to_str().unwrap()))
-                .collect();
-            let source_is_glob = is_glob_pattern(source_path.to_str().unwrap());
-            let file_matches = glob::glob(source_path.to_str().expect("utf8 path"))?
-                // Remove dirs from globs without throwing away errors
-                .map(|entry| {
-                    let source_file = entry?;
-                    Ok(if source_file.is_dir() { None } else { Some(source_file) })
-                })
-                .filter_map(|res| match res {
-                    Ok(None) => None,
-                    Ok(Some(x)) => Some(Ok(x)),
-                    Err(x) => Some(Err(x)),
-                })
-                .collect::<CDResult<Vec<_>>>()?;
+        for UnresolvedAsset { source_path, target_path, chmod, is_built } in take(&mut self.assets.unresolved) {
+            if is_glob_pattern(source_path.to_str().unwrap()) {
+                let source_prefix: PathBuf = source_path.iter()
+                    .take_while(|part| !is_glob_pattern(part.to_str().unwrap()))
+                    .collect();
 
-            // If glob didn't match anything, it's likely an error
-            // as all files should exist when called to resolve
-            if file_matches.is_empty() {
-                return Err(CargoDebError::AssetFileNotFound(source_path));
-            }
+                let file_matches = glob::glob(source_path.to_str().expect("utf8 path"))?
+                    // Remove dirs from globs without throwing away errors
+                    .map(|entry| {
+                        let source_file = entry?;
+                        Ok(if source_file.is_dir() { None } else { Some(source_file) })
+                    })
+                    .filter_map(Result::transpose)
+                    .collect::<CDResult<Vec<_>>>()?;
 
-            for source_file in file_matches {
-                // XXX: how do we handle duplicated assets?
-                let target_file = if source_is_glob {
-                    target_path.join(source_file.strip_prefix(&source_prefix).unwrap())
-                } else {
-                    target_path.clone()
-                };
+                // If glob didn't match anything, it's likely an error
+                // as all files should exist when called to resolve
+                // We can't respect preserve-symlinks yet, but see this PR:
+                // https://github.com/rust-lang-nursery/glob/pull/63
+                if file_matches.is_empty() {
+                    return Err(CargoDebError::AssetFileNotFound(source_path));
+                }
+
+                for source_file in file_matches {
+                    let target_file = target_path.join(source_file.strip_prefix(&source_prefix).unwrap());
+                    self.assets.resolved.push(Asset::new(
+                        AssetSource::Path(source_file),
+                        target_file,
+                        chmod,
+                        is_built,
+                    ));
+                }
+            } else {
+                if !self.exists(&source_path) {
+                    return Err(CargoDebError::AssetFileNotFound(source_path));
+                }
                 self.assets.resolved.push(Asset::new(
-                    AssetSource::Path(source_file),
-                    target_file,
+                    AssetSource::Path(source_path),
+                    target_path,
                     chmod,
                     is_built,
                 ));
             }
         }
         Ok(())
+    }
+
+    fn exists(&self, path: &Path) -> bool {
+        if self.preserve_symlinks {
+            // This avoids following symlinks, which we want because
+            // symlinks may only resolve properly after being copied or even
+            // after being installed.
+            path.symlink_metadata().is_ok()
+        } else {
+            path.metadata().is_ok()
+        }
     }
 
     pub(crate) fn add_copyright_asset(&mut self) -> CDResult<()> {
@@ -554,6 +581,7 @@ impl Config {
             .filter(|asset| {
                 // Assumes files in build dir which have executable flag set are binaries
                 (!built_only || asset.is_built)
+                    && !(self.preserve_symlinks && asset.is_symlink())
                     && (asset.is_dynamic_library() || asset.is_executable())
             })
             .collect()
