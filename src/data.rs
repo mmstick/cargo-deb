@@ -81,21 +81,27 @@ fn has_copyright_metadata(file: &str) -> bool {
         .any(|l| l.starts_with("License: ") || l.starts_with("Source: ") || l.starts_with("Upstream-Name: ") || l.starts_with("Format: "))
 }
 
-/// Compress man page assets per Debian Policy.
+/// Compress man pages and other assets per Debian Policy.
 ///
 /// # References
 ///
-/// https://www.debian.org/doc/debian-policy/ch-docs.html#manual-pages
+/// https://www.debian.org/doc/debian-policy/ch-docs.html
 /// https://lintian.debian.org/tags/manpage-not-compressed.html
-pub fn compress_man_pages(options: &mut Config, listener: &dyn Listener) -> CDResult<()> {
+pub fn compress_assets(options: &mut Config, listener: &dyn Listener) -> CDResult<()> {
     let mut indices_to_remove = Vec::new();
     let mut new_assets = Vec::new();
 
+    fn needs_compression(path: &str) -> bool {
+        !path.ends_with(".gz")
+            && (path.starts_with("usr/share/man/")
+                || (path.starts_with("usr/share/doc/")
+                    && (path.ends_with("/NEWS") || path.ends_with("/changelog")))
+                || (path.starts_with("usr/share/info/") && path.ends_with(".info")))
+    }
+
     for (idx, asset) in options.assets.resolved.iter().enumerate() {
         let target_path_str = asset.target_path.to_string_lossy();
-        if target_path_str.starts_with("usr/share/man/") &&
-           !target_path_str.ends_with(".gz")
-        {
+        if needs_compression(&target_path_str) {
             listener.info(format!("Compressing '{}'", asset.source.path().unwrap_or(Path::new("-")).display()));
 
             let content = asset.source.data()?;
