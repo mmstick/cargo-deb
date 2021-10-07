@@ -358,7 +358,7 @@ impl Config {
     /// Makes a new config from `Cargo.toml` in the current working directory.
     ///
     /// `None` target means the host machine's architecture.
-    pub fn from_manifest(manifest_path: &Path, package_name: Option<&str>, output_path: Option<String>, target: Option<&str>, variant: Option<&str>, deb_version: Option<String>, listener: &dyn Listener) -> CDResult<Config> {
+    pub fn from_manifest(manifest_path: &Path, package_name: Option<&str>, output_path: Option<String>, target: Option<&str>, variant: Option<&str>, deb_version: Option<String>, listener: &dyn Listener, no_release: bool) -> CDResult<Config> {
         let metadata = cargo_metadata(manifest_path)?;
         let available_package_names = || {
             metadata.packages.iter()
@@ -383,7 +383,7 @@ impl Config {
         let manifest_dir = manifest_path.parent().unwrap();
         let content = fs::read(&manifest_path)
             .map_err(|e| CargoDebError::IoFile("unable to read Cargo.toml", e, manifest_path.to_owned()))?;
-        toml::from_slice::<Cargo>(&content)?.into_config(root_package, manifest_dir, output_path, target_dir, target, variant, deb_version, listener)
+        toml::from_slice::<Cargo>(&content)?.into_config(root_package, manifest_dir, output_path, target_dir, target, variant, deb_version, listener, no_release)
     }
 
     pub(crate) fn get_dependencies(&self, listener: &dyn Listener) -> CDResult<String> {
@@ -586,8 +586,10 @@ impl Config {
         None
     }
 
-    pub(crate) fn path_in_build<P: AsRef<Path>>(&self, rel_path: P) -> PathBuf {
-        self.target_dir.join("release").join(rel_path)
+    pub(crate) fn path_in_build<P: AsRef<Path>>(&self, rel_path: P, no_release: bool) -> PathBuf {
+        let target = if no_release { "debug" } else { "release" };
+        let path = self.target_dir.join(target);
+        path.join(rel_path)
     }
 
     pub(crate) fn path_in_workspace<P: AsRef<Path>>(&self, rel_path: P) -> PathBuf {
@@ -644,6 +646,7 @@ impl Cargo {
         variant: Option<&str>,
         deb_version: Option<String>,
         listener: &dyn Listener,
+        no_release: bool,
     ) -> CDResult<Config> {
         // Cargo cross-compiles to a dir
         let target_dir = if let Some(target) = target {
@@ -736,7 +739,7 @@ impl Cargo {
             systemd_units: deb.systemd_units.take(),
             _use_constructor_to_make_this_struct_: (),
         };
-        let assets = self.take_assets(&config, deb.assets.take(), &root_package.targets, readme)?;
+        let assets = self.take_assets(&config, deb.assets.take(), &root_package.targets, readme, no_release)?;
         if assets.is_empty() {
             return Err("No binaries or cdylibs found. The package is empty. Please specify some assets to package in Cargo.toml".into());
         }
@@ -800,7 +803,7 @@ impl Cargo {
         })
     }
 
-    fn take_assets(&self, options: &Config, assets: Option<Vec<Vec<String>>>, targets: &[CargoMetadataTarget], readme: Option<&String>) -> CDResult<Assets> {
+    fn take_assets(&self, options: &Config, assets: Option<Vec<Vec<String>>>, targets: &[CargoMetadataTarget], readme: Option<&String>, no_release: bool) -> CDResult<Assets> {
         Ok(if let Some(assets) = assets {
             // Treat all explicit assets as unresolved until after the build step
             let mut unresolved_assets = vec![];
@@ -808,8 +811,13 @@ impl Cargo {
                 let mut asset_parts = asset_line.drain(..);
                 let source_path = PathBuf::from(asset_parts.next()
                     .ok_or("missing path (first array entry) for asset in Cargo.toml")?);
-                let (is_built, source_path) = if let Ok(rel_path) = source_path.strip_prefix("target/release") {
-                    (true, options.path_in_build(rel_path))
+                let prefix = if no_release {
+                     "target/debug"
+                } else {
+                    "target/release"
+                };
+                let (is_built, source_path) = if let Ok(rel_path) = source_path.strip_prefix(prefix) {
+                    (true, options.path_in_build(rel_path, no_release))
                 } else {
                     (false, options.path_in_workspace(&source_path))
                 };
@@ -831,7 +839,7 @@ impl Cargo {
                 .filter_map(|t| {
                     if t.crate_types.iter().any(|ty| ty == "bin") && t.kind.iter().any(|k| k == "bin") {
                         Some(Asset::new(
-                            AssetSource::Path(options.path_in_build(&t.name)),
+                            AssetSource::Path(options.path_in_build(&t.name, no_release)),
                             Path::new("usr/bin").join(&t.name),
                             0o755,
                             true,
@@ -840,7 +848,7 @@ impl Cargo {
                         // FIXME: std has constants for the host arch, but not for cross-compilation
                         let lib_name = format!("{}{}{}", DLL_PREFIX, t.name, DLL_SUFFIX);
                         Some(Asset::new(
-                            AssetSource::Path(options.path_in_build(&lib_name)),
+                            AssetSource::Path(options.path_in_build(&lib_name, no_release)),
                             Path::new("usr/lib").join(lib_name),
                             0o644,
                             true,

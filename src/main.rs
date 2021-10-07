@@ -19,6 +19,7 @@ struct CliOptions {
     manifest_path: Option<String>,
     cargo_build_flags: Vec<String>,
     deb_version: Option<String>,
+    no_release: bool,
 }
 
 fn main() {
@@ -40,6 +41,8 @@ fn main() {
     cli_opts.optflag("h", "help", "Print this help menu");
     cli_opts.optflag("", "version", "Show the version of cargo-deb");
     cli_opts.optopt("", "deb-version", "Alternate version string for package", "version");
+    cli_opts.optflag("", "no-release", "Used in combination with 'no-build'. Assumes a none release build profile.");
+
 
     let matches = match cli_opts.parse(&args[1..]) {
         Ok(m) => m,
@@ -73,6 +76,7 @@ fn main() {
         package_name: matches.opt_str("package"),
         manifest_path: matches.opt_str("manifest-path"),
         deb_version: matches.opt_str("deb-version"),
+        no_release: matches.opt_present("no-release"),
         cargo_build_flags: matches.free,
     }) {
         Ok(()) => {},
@@ -114,6 +118,7 @@ fn process(
         verbose,
         mut cargo_build_flags,
         deb_version,
+        no_release,
     }: CliOptions,
 ) -> CDResult<()> {
     let target = target.as_deref();
@@ -148,6 +153,7 @@ fn process(
         variant,
         deb_version,
         listener,
+        no_release,
     )?;
     reset_deb_temp_directory(&options)?;
 
