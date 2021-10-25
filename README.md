@@ -8,7 +8,7 @@ This is a [Cargo](https://doc.rust-lang.org/cargo/) helper command which automat
 cargo install cargo-deb
 ```
 
-Requires Rust 1.42+, and optionally `dpkg`, `ldd` and `liblzma-dev`. Compatible with Ubuntu.
+Requires Rust 1.42+, and optionally `dpkg`, `dpkg-dev` and `liblzma-dev`. Compatible with Ubuntu.
 
 ## Usage
 

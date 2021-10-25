@@ -57,6 +57,7 @@ rayon = "1.5.1"
 regex = { version = "1.5.4", default-features = false, features = ["std"] }
 itertools = "0.10.1"
 num_cpus = { version = "1.13.0", optional = true }
+tempdir = "0.3.7"
 
 [features]
 default = ["lzma"]
@@ -71,7 +72,6 @@ opt-level = 3
 debug = false
 
 [dev-dependencies]
-tempdir = "0.3.7"
 mockall = "0.10.2"
 rstest = "0.11.0"
 lazy_static = "1.4.0"

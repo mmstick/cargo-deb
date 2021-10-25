@@ -394,7 +394,7 @@ impl Config {
                 let bin = self.all_binaries();
                 let resolved = bin.par_iter()
                     .filter_map(|p| p.path())
-                    .filter_map(|bname| match resolve(bname, &self.architecture, listener) {
+                    .filter_map(|bname| match resolve(bname) {
                         Ok(bindeps) => Some(bindeps),
                         Err(err) => {
                             listener.warning(format!("{} (no auto deps for {})", err, bname.display()));
